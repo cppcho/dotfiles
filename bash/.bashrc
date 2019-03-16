@@ -101,7 +101,7 @@ export PATH="$HOME/bin:$PATH"
 if [ -x "$(command -v pyenv)" ]; then
   export PATH="${HOME}/.pyenv/bin:$PATH"
   eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
+  # eval "$(pyenv virtualenv-init -)"
 fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
