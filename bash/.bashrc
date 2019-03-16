@@ -29,7 +29,7 @@ shopt -s checkwinsize
 
 # If set, the pattern "**" used in a pathname expansion context will
 # match all files and zero or more directories and subdirectories.
-shopt -s globstar
+# shopt -s globstar
 
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
@@ -75,6 +75,11 @@ fi
 alias la='ls -alF'
 alias vi='vim'
 alias h='history'
+alias fd='find . -type d -name'
+alias ff='find . -type f -name'
+alias t='tail -f'
+alias rlsh='exec $SHELL -l'
+
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
@@ -92,6 +97,12 @@ if ! shopt -oq posix; then
 fi
 
 export PATH="$HOME/bin:$PATH"
+
+if [ -x "$(command -v pyenv)" ]; then
+  export PATH="${HOME}/.pyenv/bin:$PATH"
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 [ -f ~/.bashrc.env ] && source ~/.bashrc.env

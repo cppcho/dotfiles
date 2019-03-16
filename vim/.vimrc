@@ -330,6 +330,7 @@ let g:easy_align_delimiters = {
       \ }
 
 " NERDTree
+let NERDTreeShowHidden=1
 map <C-e> :NERDTreeToggle<cr>
 nnoremap <C-f> :NERDTreeFind<cr>
 
