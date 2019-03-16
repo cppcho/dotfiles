@@ -9,6 +9,10 @@ esac
 [ -f ~/.bashrc_mac ] && source ~/.bashrc_mac
 [ -f ~/.bashrc_local ] && source ~/.bashrc_local
 
+# https://unix.stackexchange.com/questions/261687/is-it-possible-to-configure-bash-to-autocomplete-with-one-tab-like-zsh
+bind 'set show-all-if-ambiguous on'
+bind 'set completion-ignore-case on'
+
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US.UTF-8
