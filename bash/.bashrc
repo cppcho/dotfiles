@@ -79,7 +79,7 @@ alias fd='find . -type d -name'
 alias ff='find . -type f -name'
 alias t='tail -f'
 alias rlsh='exec $SHELL -l'
-
+alias ta='tmux new-session -A -s cppcho'
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
