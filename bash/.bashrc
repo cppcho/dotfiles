@@ -96,6 +96,9 @@ if ! shopt -oq posix; then
   fi
 fi
 
+export FZF_DEFAULT_COMMAND='rg --files --no-ignore --hidden --follow -g "!{.git,node_modules}/*" 2> /dev/null'
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+
 export PATH="$HOME/bin:$PATH"
 
 if [ -x "$(command -v pyenv)" ]; then
@@ -105,5 +108,5 @@ if [ -x "$(command -v pyenv)" ]; then
 fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
-[ -f ~/.bashrc.env ] && source ~/.bashrc.env
-[ -f ~/.bashrc.local ] && source ~/.bashrc.local
+[ -f ~/.bashrc_mac ] && source ~/.bashrc_mac
+[ -f ~/.bashrc_local ] && source ~/.bashrc_local
