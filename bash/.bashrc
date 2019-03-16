@@ -6,6 +6,9 @@ case $- in
   *) return;;
 esac
 
+[ -f ~/.bashrc_mac ] && source ~/.bashrc_mac
+[ -f ~/.bashrc_local ] && source ~/.bashrc_local
+
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US.UTF-8
@@ -73,6 +76,7 @@ fi
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
 alias la='ls -alF'
+alias ll='la'
 alias vi='vim'
 alias h='history'
 alias fd='find . -type d -name'
@@ -108,5 +112,3 @@ if [ -x "$(command -v pyenv)" ]; then
 fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
-[ -f ~/.bashrc_mac ] && source ~/.bashrc_mac
-[ -f ~/.bashrc_local ] && source ~/.bashrc_local
