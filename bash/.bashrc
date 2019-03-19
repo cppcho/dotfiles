@@ -88,6 +88,8 @@ alias ff='find . -type f -name'
 alias t='tail -f'
 alias rlsh='exec $SHELL -l'
 alias ta='tmux new-session -A -s cppcho'
+alias d="cd $HOME/dev"
+alias tree="tree -C"
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
@@ -104,8 +106,11 @@ if ! shopt -oq posix; then
   fi
 fi
 
+[ -f ~/.git-completion.bash ] && source ~/.git-completion.bash
+
 export FZF_DEFAULT_COMMAND='rg --files --no-ignore --hidden --follow -g "!{.git,node_modules}/*" 2> /dev/null'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export PIPENV_VENV_IN_PROJECT=true
 
 export PATH="$HOME/bin:$PATH"
 
