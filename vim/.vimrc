@@ -339,7 +339,7 @@ let g:polyglot_disabled = ['markdown']
 
 " Vimwiki
 let g:vimwiki_list = [{
-            \ 'path': '~/Dropbox/vimwiki/',
+            \ 'path': '/Users/cppcho/Google Drive/vimwiki',
             \ 'syntax': 'markdown',
             \ 'ext': '.md',
             \ 'auto_toc': 1,
