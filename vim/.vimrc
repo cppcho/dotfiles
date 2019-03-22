@@ -339,7 +339,7 @@ let g:polyglot_disabled = ['markdown']
 
 " Vimwiki
 let g:vimwiki_list = [{
-            \ 'path': '/Users/cppcho/Google Drive/vimwiki',
+            \ 'path': '~/Documents/vimwiki',
             \ 'syntax': 'markdown',
             \ 'ext': '.md',
             \ 'auto_toc': 1,
@@ -358,7 +358,7 @@ autocmd FileType vimwiki nmap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleIte
 
 " Open vimwiki on start when using MacVim
 if has("gui_macvim")
-  au VimEnter * execute 'VimwikiMakeDiaryNote' | cd ~/Dropbox/vimwiki
+  au VimEnter * execute 'VimwikiMakeDiaryNote' | cd ~/Documents/vimwiki
   let g:auto_save = 1
   let g:auto_save_no_updatetime = 1
   let g:auto_save_in_insert_mode = 0
@@ -418,3 +418,11 @@ endfun
 " close pane using <C-w>
 noremap <silent> <C-w> :call <SID>__bclose()<Cr>
 
+" let g:fzf_history_dir = '~/.local/share/fzf-history'
+
+" command! -bang RecentFiles
+"       \ call fzf#run(fzf#wrap({
+"       \   'source': 'rg --sortr=modified --files --vimgrep',
+"       \ }, <bang>0))
+
+" nnoremap <C-p> :call FZFOpen(':RecentFiles')<cr>
