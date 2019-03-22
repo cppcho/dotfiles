@@ -114,10 +114,12 @@ export PIPENV_VENV_IN_PROJECT=true
 
 export PATH="$HOME/bin:$PATH"
 
-if [ -x "$(command -v pyenv)" ]; then
-  export PATH="${HOME}/.pyenv/bin:$PATH"
-  eval "$(pyenv init -)"
-  # eval "$(pyenv virtualenv-init -)"
+if command -v pyenv 1>/dev/null 2>&1; then
+  export PYENV_ROOT="$HOME/.pyenv
+  export PATH="$PYENV_ROOT/bin:$PATH"
+  eval "$(pyenv init - --no-rehash)"
 fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
+[ -f ~/.z.sh ] && source ~/.z.sh
+
