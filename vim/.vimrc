@@ -13,33 +13,28 @@ endif
 " - Avoid using standard Vim directory names like 'plugin'
 call plug#begin('~/.vim/plugged')
 
-" Plug 'mbbill/undotree'           " The ultimate undo history visualizer for VIM
-" Plug 'w0rp/ale'  'lint runner, require vim 8'
-" Plug 'airblade/vim-gitgutter'
 Plug 'altercation/vim-colors-solarized'
 Plug 'easymotion/vim-easymotion'
 Plug 'editorconfig/editorconfig-vim'
-Plug 'ervandew/supertab'            " Perform all your vim insert mode completions with Tab
-Plug 'henrik/vim-indexed-search'    " henrik/vim-indexed-search
+Plug 'ervandew/supertab'                  " Perform all your vim insert mode completions with Tab
+Plug 'google/vim-searchindex'             " vim-searchindex: display number of search matches & index of a current match
 Plug 'itchyny/lightline.vim'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
 Plug 'qpkorr/vim-bufkill'
 Plug 'scrooloose/nerdtree'
-Plug 'sheerun/vim-polyglot'         " A solid language pack for Vim.
+Plug 'sheerun/vim-polyglot'           " A solid language pack for Vim.
 Plug 'tpope/vim-commentary'
-Plug 'tpope/vim-eunuch'             " eunuch.vim: helpers for UNIX
+Plug 'tpope/vim-eunuch'               " eunuch.vim: helpers for UNIX
 Plug 'tpope/vim-fugitive', { 'tag': '*' }
-Plug 'tpope/vim-markdown'
-Plug 'tpope/vim-rhubarb'
 Plug 'tpope/vim-sensible'
-Plug 'tpope/vim-unimpaired'
-" Plug 'tpope/vim-sleuth'             " Heuristically set buffer options
+Plug 'tpope/vim-unimpaired'           " unimpaired.vim: Pairs of handy bracket mappings  (]op to insert paste mode)
 Plug 'tpope/vim-surround'
 Plug 'vimwiki/vimwiki'
 Plug 'vim-scripts/vim-auto-save'
 Plug 'christoomey/vim-tmux-navigator'
+Plug 'michal-h21/vim-zettel'
 
 call plug#end()
 
@@ -55,7 +50,6 @@ set autoindent                                        " Copy indent from current
 set autoread                                          " Don't bother me hen a file changes
 set autowrite                                         " Write on :next/:prev/^Z
 set backspace=eol,start,indent                        " Make backspace a more flexible
-" set complete-=i                                       " Do not search for included files for insert mode completion
 set completeopt=menu                                  " Do not show preview for insert mode completion
 set nocursorline                                        " Whether to highlight the current line
 set diffopt+=vertical                                 " Start diff mode with vertical splits
@@ -74,7 +68,6 @@ set nobackup                                          " No backup files
 set nocursorcolumn                                      " Do not highlight current column
 set noerrorbells visualbell t_vb=
 set noexrc                                            " Don't use local version of .(g)vimrc, .exrc
-" set nofoldenable                                      " Disable folding
 set nojoinspaces                                      " Prevents inserting two spaces after punctuation on a join (J)
 set nostartofline                                     " Leave the cursor where it was
 set noswapfile                                        " Use a swapfile for the buffer
@@ -91,7 +84,7 @@ set shortmess+=filmnrxoOtTA                           " Abbrev. of messages (avo
 set showbreak=                                        " Show for lines that have been wrapped, like Emacs
 set showcmd                                           " Show (partial) command in the last line of the screen
 set showmatch                                         " Show matching bracket
-set showmode                                          " Show Insert, Replace or Visual mode message
+set noshowmode                                        " NO Show Insert, Replace or Visual mode message
 set sidescrolloff=3                                   " Keep cursor away from this many chars left/right
 set smartcase                                         " Override 'ignorecase' option if the search pattern contains upper case letters
 set softtabstop=2                                     " Let backspace delete indent
@@ -105,13 +98,6 @@ set wildmenu                                          " Show autocomplete menus
 set wildmode=longest,full                             " Command <Tab> completion, list matches, then longest common part, then all.
 set nowrap lbr                                        " Wrap lines
 set guioptions=                                       " Remove macvim scrollbar
-
-" Fix annoyances in the QuickFix window, like scrolling too much
-autocmd FileType qf setlocal number nolist scrolloff=0
-autocmd Filetype qf wincmd J " Makes sure it's at the bottom of the vim window
-
-" Resize panes when window/terminal gets resize
-autocmd VimResized * :wincmd =
 
 if has('persistent_undo')
   let target_path = expand('~/.config/vim-persisted-undo/')
@@ -131,8 +117,6 @@ endif
 syntax on
 
 " Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-" set background=light
-" colorscheme PaperColor
 set background=dark
 colorscheme solarized
 if !has('gui_running')
@@ -158,7 +142,7 @@ if !has('gui_running')
 endif
 
 if has("gui_macvim")
-  set guifont=Fira\ Code:h14
+  set guifont=Fira\ Code:h12
   set macligatures
   set background=dark
 endif
@@ -209,9 +193,6 @@ noremap k gk
 " Enter to clear highlight
 nnoremap <silent> <cr> :noh<cr><cr>
 
-" Toggle paste mode
-set pastetoggle=<F12>
-
 noremap <C-x> :redraw!<cr>
 
 " Upper/lower word
@@ -240,12 +221,16 @@ nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
 " Edit last file
 nmap <leader>. :e#<cr>
 
+" save using <C-s> in every mode
+" when in operator-pending or insert, takes you to normal mode
+nnoremap <C-s> :w<CR>
+vnoremap <C-s> <C-c>:w<CR>
+inoremap <C-s> <Esc>:w<CR>
+onoremap <C-s> <Esc>:w<CR>
+
 " Trim spaces at EOL and retab
 command! TEOL %s/\s\+$//
 command! CLEAN retab | TEOL
-
-" Close all buffers except this one
-command! BufCloseOthers %bd|e#
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " Plugins
@@ -258,13 +243,7 @@ let g:SuperTabLongestHighlight = 1
 let g:SuperTabDefaultCompletionType = "<c-n>"
 
 " EasyMotion
-" Jump to anywhere you want with minimal keystrokes, with just one key binding.
-" `s{char}{label}`
-nmap s <Plug>(easymotion-overwin-f)
-" or
-" `s{char}{char}{label}`
-" Need one more keystroke, but on average, it may be more comfortable.
-" nmap s <Plug>(easymotion-overwin-f2)
+nmap s <Plug>(easymotion-overwin-f2)
 let g:EasyMotion_smartcase=1  " Turn on case insensitive feature
 let g:EasyMotion_do_mapping=0 " Disable default mappings
 
@@ -314,10 +293,6 @@ nnoremap <silent> <leader>ge :Gedit<cr>
 nnoremap <silent> <leader>gf :BCommits<cr>
 nnoremap <silent> <leader>gh :Commits<cr>
 
-" if !exists(":Gdiffoff")
-"   command Gdiffoff diffoff | bw | Gedit
-" endif
-
 " EasyAlign
 " Start interactive EasyAlign in visual mode (e.g. vipga)
 xmap ga <Plug>(EasyAlign)
@@ -334,9 +309,6 @@ let NERDTreeShowHidden=1
 map <C-e> :NERDTreeToggle<cr>
 nnoremap <C-f> :NERDTreeFind<cr>
 
-" Need to disable markdown for vimwiki to work correctly
-let g:polyglot_disabled = ['markdown']
-
 " Vimwiki
 let g:vimwiki_list = [{
             \ 'path': '~/Documents/vimwiki',
@@ -351,14 +323,9 @@ let g:vimwiki_hl_cb_checked = 1
 " Allow "normal" editor style tab/shift-tab indent/dedent. (Only in vimwiki
 " buffers!)
 let g:vimwiki_table_mappings = 1
-autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-autocmd FileType vimwiki nmap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
-autocmd FileType vimwiki nmap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
 
 " Open vimwiki on start when using MacVim
 if has("gui_macvim")
-  au VimEnter * execute 'VimwikiMakeDiaryNote' | cd ~/Documents/vimwiki
   let g:auto_save = 1
   let g:auto_save_no_updatetime = 1
   let g:auto_save_in_insert_mode = 0
@@ -370,44 +337,59 @@ endif
 let g:tmux_navigator_save_on_switch = 2
 let g:tmux_navigator_disable_when_zoomed = 1
 
-" tpope/vim-rhubarb
-let g:github_enterprise_urls = ['https://git.***REMOVED***.com', 'https://git-dev.***REMOVED***.com']
-
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " Autocommands
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 augroup vimrc
+  " Remove ALL autocommands for the current group.
   autocmd!
 
+  if has("gui_macvim")
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | cd ~/Documents/vimwiki
+  endif
+
   " Forcing wrap lines in vimdiff
-  au FilterWritePre * if &diff | setlocal wrap< | endif
+  autocmd FilterWritePre * if &diff | setlocal wrap< | endif
 
   " Do not add comment leader after hitting 'o'
   " Add comment leader after hitting <CR>
-  au FileType * setlocal formatoptions-=c formatoptions-=o formatoptions+=r
+  autocmd FileType * setlocal formatoptions-=c formatoptions-=o formatoptions+=r
 
-  au BufNewFile,BufRead *.md set filetype=markdown
-  au BufNewFile,BufRead *.mkdn set filetype=markdown
-  au BufNewFile,BufRead *.psgi,*.t,cpanfile set filetype=perl
-  au BufNewFile,BufRead *.tt set filetype=html
+  autocmd BufNewFile,BufRead *.md set filetype=markdown
+  autocmd BufNewFile,BufRead *.mkdn set filetype=markdown
+  autocmd BufNewFile,BufRead *.psgi,*.t,cpanfile set filetype=perl
+  autocmd BufNewFile,BufRead *.tt set filetype=html
 
   " close vim if the only window left open is a NERDTree
-  au bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+  autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 
-  au Filetype gitcommit setlocal tw=80
+  autocmd Filetype gitcommit setlocal tw=80
+
+  " Fix annoyances in the QuickFix window, like scrolling too much
+  autocmd FileType qf setlocal number nolist scrolloff=0
+  autocmd Filetype qf wincmd J " Makes sure it's at the bottom of the vim window
+
+  " Resize panes when window/terminal gets resize
+  autocmd VimResized * :wincmd =
+  autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+  autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
+
+  " Need to disable markdown for vimwiki to work correctly
+  autocmd Filetype * if &ft == "vimwiki" | let g:polyglot_disabled = ['markdown'] | else | let g:polyglot_disabled = [] | endif
 augroup END
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" Misc
+""""""""""""""""""""""""""""""""""""""""""""""""""
 
 if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
 endif
 
-" save using <C-s> in every mode
-" when in operator-pending or insert, takes you to normal mode
-nnoremap <C-s> :w<CR>
-vnoremap <C-s> <C-c>:w<CR>
-inoremap <C-s> <Esc>:w<CR>
-onoremap <C-s> <Esc>:w<CR>
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" Testing
+""""""""""""""""""""""""""""""""""""""""""""""""""
 
 fun! s:__bclose()
   if (len(getbufinfo({'buflisted': 1})) > 1)
