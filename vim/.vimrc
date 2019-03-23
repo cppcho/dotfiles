@@ -34,7 +34,7 @@ Plug 'tpope/vim-surround'
 Plug 'vimwiki/vimwiki'
 Plug 'vim-scripts/vim-auto-save'
 Plug 'christoomey/vim-tmux-navigator'
-Plug 'michal-h21/vim-zettel'
+Plug 'cppcho/vim-zettel'
 
 call plug#end()
 
@@ -254,7 +254,7 @@ function! FZFOpen(command_str)
   exe 'normal! ' . a:command_str . "\<cr>"
 endfunction
 
-nnoremap <Leader>/ :Ag<space>
+nnoremap <Leader>/ :Rg<space>
 
 " FZF mappings
 nnoremap ; :call FZFOpen(':Buffers')<cr>
