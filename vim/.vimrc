@@ -254,14 +254,7 @@ function! FZFOpen(command_str)
   exe 'normal! ' . a:command_str . "\<cr>"
 endfunction
 
-command! -bang -nargs=* Rg
-  \ call fzf#vim#grep(
-  \   'rg --column --line-number --no-heading --color=always --smart-case '.shellescape(<q-args>), 1,
-  \   <bang>0 ? fzf#vim#with_preview('up:60%')
-  \           : fzf#vim#with_preview('right:50%:hidden', '?'),
-  \   <bang>0)
-
-nnoremap <Leader>/ :Rg<space>
+nnoremap <Leader>/ :Ag<space>
 
 " FZF mappings
 nnoremap ; :call FZFOpen(':Buffers')<cr>
@@ -377,6 +370,10 @@ augroup vimrc
 
   " Need to disable markdown for vimwiki to work correctly
   autocmd Filetype * if &ft == "vimwiki" | let g:polyglot_disabled = ['markdown'] | else | let g:polyglot_disabled = [] | endif
+
+  autocmd! FileType fzf
+  autocmd  FileType fzf set laststatus=0 noshowmode noruler
+        \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -400,11 +397,5 @@ endfun
 " close pane using <C-w>
 noremap <silent> <C-w> :call <SID>__bclose()<Cr>
 
-" let g:fzf_history_dir = '~/.local/share/fzf-history'
+let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
-" command! -bang RecentFiles
-"       \ call fzf#run(fzf#wrap({
-"       \   'source': 'rg --sortr=modified --files --vimgrep',
-"       \ }, <bang>0))
-
-" nnoremap <C-p> :call FZFOpen(':RecentFiles')<cr>
