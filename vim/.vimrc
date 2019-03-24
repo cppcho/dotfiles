@@ -436,15 +436,20 @@ if has("gui_macvim")
 
   function! s:vimwiki_zettel_new(...)
     let lines = <sid>get_visual_selection_lines()
-    let filename = strftime("%Y%m%d%H%M%S ").join(a:000)
+    let filename = strftime("%Y%m%d%H%M%S")
+
+    let title = join(a:000)
+    if len(title) > 0
+      let filename = filename . ' ' . title
+    end
+
     let link = printf('[%s](/%s)', filename, filename)
-    execute "normal! :'<,'>d\<CR>O".link."\<ESC>"
+    execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
     execute ":silent VimwikiFollowLink"
     call append(0, '# '.filename)
     for line in lines
       call append("$", line)
     endfor
-    execute ":w"
   endfunction
 
   command! -bang -nargs=? -complete=dir VimwikiAutoComplete
@@ -464,3 +469,5 @@ endif
 nmap ++ <Plug>VimwikiNormalizeLink
 vmap ++ <Plug>VimwikiNormalizeLinkVisual
 vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
+nmap <Leader>wgg :VimwikiGenerateLinks<CR>
