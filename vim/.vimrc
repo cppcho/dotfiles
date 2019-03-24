@@ -305,7 +305,6 @@ nnoremap <C-f> :NERDTreeFind<cr>
 let s:vimwiki_dir = '~/Documents/vimwiki/'
 let g:vimwiki_list = [{
             \ 'path': s:vimwiki_dir,
-            \ 'diary_rel_path': '/',
             \ 'syntax': 'markdown',
             \ 'ext': '.md',
             \ 'auto_toc': 1,
@@ -402,12 +401,24 @@ let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 if has("gui_macvim")
+  " Reference: https://github.com/michal-h21/vim-zettel
+
+  function! s:wiki_yank_name()
+    let filepath = expand("%")
+    let filename = fnamemodify(filepath, ":r")
+    let link = printf('[%s](/%s)', filename, filename)
+    let @" = link
+    let @* = link
+    return link
+  endfunction
+
   function! s:wiki_search(line)
     let parts =  split(a:line,"\V:")
     let filename = parts[0]
     let fileparts = split(filename, '\V.')
     let filename_without_ext = join(fileparts[0:-2],".")
-    execute 'normal! a['.filename_without_ext.']('.filename_without_ext.')'
+    let link = printf('[%s](/%s)', filename_without_ext, filename_without_ext)
+    execute 'normal! a' . link
   endfunction
 
   command! -bang -nargs=? -complete=dir ZettelSearch
@@ -416,5 +427,8 @@ if has("gui_macvim")
         \'dir': s:vimwiki_dir,
         \}), <bang>0)
 
-  imap <C-L><C-L> <esc>:ZettelSearch<CR>
+  command! -bang -nargs=* ZettelYankName call <sid>wiki_yank_name()
+
+  inoremap <silent> <C-L><C-L> <esc>:ZettelSearch<CR>
+  nnoremap <silent> T :ZettelYankName<CR>
 endif
