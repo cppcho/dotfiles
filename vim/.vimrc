@@ -403,7 +403,20 @@ let g:fzf_history_dir = '~/.config/vim-fzf-history'
 if has("gui_macvim")
   " Reference: https://github.com/michal-h21/vim-zettel
 
-  function! s:wiki_yank_name()
+  function! s:get_visual_selection_lines()
+    " Why is this not a built-in Vim script function?!
+    let [line_start, column_start] = getpos("'<")[1:2]
+    let [line_end, column_end] = getpos("'>")[1:2]
+    let lines = getline(line_start, line_end)
+    if len(lines) == 0
+      return ''
+    endif
+    " let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
+    " let lines[0] = lines[0][column_start - 1:]
+    return lines
+  endfunction
+
+  function! s:vimwiki_yank_name()
     let filepath = expand("%")
     let filename = fnamemodify(filepath, ":r")
     let link = printf('[%s](/%s)', filename, filename)
@@ -412,7 +425,7 @@ if has("gui_macvim")
     return link
   endfunction
 
-  function! s:wiki_search(line)
+  function! s:vimwiki_search_handler(line)
     let parts =  split(a:line,"\V:")
     let filename = parts[0]
     let fileparts = split(filename, '\V.')
@@ -421,14 +434,33 @@ if has("gui_macvim")
     execute 'normal! a' . link
   endfunction
 
-  command! -bang -nargs=? -complete=dir ZettelSearch
+  function! s:vimwiki_zettel_new(...)
+    let lines = <sid>get_visual_selection_lines()
+    let filename = strftime("%Y%m%d%H%M%S ").join(a:000)
+    let link = printf('[%s](/%s)', filename, filename)
+    execute "normal! :'<,'>d\<CR>O".link."\<ESC>"
+    execute ":silent VimwikiFollowLink"
+    call append(0, '# '.filename)
+    for line in lines
+      call append("$", line)
+    endfor
+    execute ":w"
+  endfunction
+
+  command! -bang -nargs=? -complete=dir VimwikiAutoComplete
         \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'sink':function('<sid>wiki_search'),
+        \'sink':function('<sid>vimwiki_search_handler'),
         \'dir': s:vimwiki_dir,
         \}), <bang>0)
 
-  command! -bang -nargs=* ZettelYankName call <sid>wiki_yank_name()
+  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
+  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
 
-  inoremap <silent> <C-L><C-L> <esc>:ZettelSearch<CR>
-  nnoremap <silent> T :ZettelYankName<CR>
+  imap <silent> <C-L><C-L> <esc>:VimwikiAutoComplete<CR>
+  nmap <silent> T :VimwikiYankName<CR>
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
 endif
+
+nmap ++ <Plug>VimwikiNormalizeLink
+vmap ++ <Plug>VimwikiNormalizeLinkVisual
+vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
