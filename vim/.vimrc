@@ -34,7 +34,6 @@ Plug 'tpope/vim-surround'
 Plug 'vimwiki/vimwiki'
 Plug 'vim-scripts/vim-auto-save'
 Plug 'christoomey/vim-tmux-navigator'
-Plug 'cppcho/vim-zettel'
 
 call plug#end()
 
@@ -303,13 +302,15 @@ map <C-e> :NERDTreeToggle<cr>
 nnoremap <C-f> :NERDTreeFind<cr>
 
 " Vimwiki
+let s:vimwiki_dir = '~/Documents/vimwiki/'
 let g:vimwiki_list = [{
-            \ 'path': '~/Documents/vimwiki',
+            \ 'path': s:vimwiki_dir,
+            \ 'diary_rel_path': '/',
             \ 'syntax': 'markdown',
             \ 'ext': '.md',
             \ 'auto_toc': 1,
             \ }]
-let g:vimwiki_auto_chdir = 1
+let g:vimwiki_auto_chdir = 0
 let g:vimwiki_hl_headers = 1
 let g:vimwiki_hl_cb_checked = 1
 
@@ -339,7 +340,7 @@ augroup vimrc
   autocmd!
 
   if has("gui_macvim")
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | cd ~/Documents/vimwiki
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 
   " Forcing wrap lines in vimdiff
@@ -385,7 +386,7 @@ if filereadable(expand("~/.vimrc.local"))
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" Testing
+" Lab
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 fun! s:__bclose()
@@ -395,7 +396,25 @@ fun! s:__bclose()
 endfun
 
 " close pane using <C-w>
-noremap <silent> <C-w> :call <SID>__bclose()<Cr>
+noremap <silent> <C-w> :call <SID>__bclose()<CR>
 
 let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
+""""""""""""""""""""""""""""""""""""""""""""""""""
+if has("gui_macvim")
+  function! s:wiki_search(line)
+    let parts =  split(a:line,"\V:")
+    let filename = parts[0]
+    let fileparts = split(filename, '\V.')
+    let filename_without_ext = join(fileparts[0:-2],".")
+    execute 'normal! a['.filename_without_ext.']('.filename_without_ext.')'
+  endfunction
+
+  command! -bang -nargs=? -complete=dir ZettelSearch
+        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
+        \'sink':function('<sid>wiki_search'),
+        \'dir': s:vimwiki_dir,
+        \}), <bang>0)
+
+  imap <C-L><C-L> <esc>:ZettelSearch<CR>
+endif
