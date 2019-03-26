@@ -368,9 +368,6 @@ augroup vimrc
   autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
   autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
 
-  " Need to disable markdown for vimwiki to work correctly
-  autocmd Filetype * if &ft == "vimwiki" | let g:polyglot_disabled = ['markdown'] | else | let g:polyglot_disabled = [] | endif
-
   autocmd! FileType fzf
   autocmd  FileType fzf set laststatus=0 noshowmode noruler
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
@@ -401,6 +398,8 @@ let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 if has("gui_macvim")
+  let g:polyglot_disabled = ['markdown']
+
   " Reference: https://github.com/michal-h21/vim-zettel
 
   function! s:get_visual_selection_lines()
