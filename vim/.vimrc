@@ -389,7 +389,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
@@ -462,7 +462,7 @@ if cppcho_enable_vimwiki
 
     let link = printf('[%s](/%s)', filename, filename)
     execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
-    execute ":VimwikiFollowLink"
+    execute "VimwikiFollowLink"
 
     if line('$') == 1 && getline(1) == ''
       " append title if the file is empty
@@ -478,14 +478,10 @@ if cppcho_enable_vimwiki
   endfunction
 
   function! s:vimwiki_zettel_capture(...)
-    let filename = strftime("%Y%m%d-%H%M%S")
-    let link = printf('_inbox/%s', filename)
-
-    execute ":VimwikiGoto ".fnameescape(link)
-    if line('$') == 1 && getline(1) == ''
-      call append(0, '# '.filename)
-      call append('$', '')
-    end
+    execute 'VimwikiMakeDiaryNote'
+    call append('$', '')
+    call append('$', '# '.strftime("Quick Capture %H:%M:%S"))
+    call append('$', '')
     execute 'normal! G'
     execute ':startinsert'
   endfunction
@@ -508,7 +504,7 @@ if cppcho_enable_vimwiki
   imap <silent> <C-L><C-L> <esc>:VimwikiAutoComplete<CR>
   nmap <silent> T :VimwikiYankName<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  map <C-n> :VimwikiZettelCapture<CR>
+  nmap <C-N> :VimwikiZettelCapture<CR>
   nmap <leader>wo :VimwikiSearchInbox<CR>
 endif
 
