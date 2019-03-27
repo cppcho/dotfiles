@@ -460,7 +460,7 @@ if cppcho_enable_vimwiki
       let filename = filename . ' ' . title
     end
 
-    let link = printf('[%s](/%s)', filename, filename)
+    let link = printf('- [%s](/%s)', filename, filename)
     execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
     execute ":VimwikiFollowLink"
 
