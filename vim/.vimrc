@@ -335,6 +335,7 @@ if cppcho_enable_vimwiki
         \ 'ext': '.md',
         \ 'auto_toc': 1,
         \ }]
+
   let g:vimwiki_auto_chdir = 0
   let g:vimwiki_hl_cb_checked = 1
   let g:vimwiki_hl_headers = 1
@@ -477,8 +478,10 @@ if cppcho_enable_vimwiki
   endfunction
 
   function! s:vimwiki_zettel_capture(...)
-    let filename = strftime("%Y-%m-%d %H:%M:%S")
-    execute ":VimwikiGoto _inbox/".fnameescape(filename)
+    let filename = strftime("%Y%m%d-%H%M%S")
+    let link = printf('_inbox/%s', filename)
+
+    execute ":VimwikiGoto ".fnameescape(link)
     if line('$') == 1 && getline(1) == ''
       call append(0, '# '.filename)
       call append('$', '')
@@ -493,6 +496,11 @@ if cppcho_enable_vimwiki
         \'dir': s:vimwiki_dir,
         \}), <bang>0)
 
+  command! -bang -nargs=? VimwikiSearchInbox
+        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
+        \'dir': s:vimwiki_dir.'_inbox',
+        \}), <bang>0)
+
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
   command! -bang -nargs=* VimwikiZettelCapture call <sid>vimwiki_zettel_capture()
   command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
@@ -501,6 +509,7 @@ if cppcho_enable_vimwiki
   nmap <silent> T :VimwikiYankName<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   map <C-n> :VimwikiZettelCapture<CR>
+  nmap <leader>wo :VimwikiSearchInbox<CR>
 endif
 
 nmap ++ <Plug>VimwikiNormalizeLink
