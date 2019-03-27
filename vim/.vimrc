@@ -45,6 +45,11 @@ end
 " General Configurations
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+let cppcho_enable_vimwiki=0
+if has("gui_macvim")
+  let cppcho_enable_vimwiki=1
+endif
+
 set autoindent                                        " Copy indent from current line when starting a new line
 set autoread                                          " Don't bother me hen a file changes
 set autowrite                                         " Write on :next/:prev/^Z
@@ -140,15 +145,25 @@ if !has('gui_running')
   endif
 endif
 
+let g:lightline = {
+      \ 'colorscheme': 'PaperColor_light',
+      \ }
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" MacVim
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
 if has("gui_macvim")
   set guifont=Fira\ Code:h12
   set macligatures
   set background=dark
-endif
 
-let g:lightline = {
-      \ 'colorscheme': 'PaperColor_light',
-      \ }
+  let g:auto_save = 1
+  let g:auto_save_no_updatetime = 1
+  let g:auto_save_in_insert_mode = 0
+  set wrap lbr
+  set clipboard=unnamed
+endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " Key Mappings
@@ -253,7 +268,17 @@ function! FZFOpen(command_str)
   exe 'normal! ' . a:command_str . "\<cr>"
 endfunction
 
-nnoremap <Leader>/ :Rg<space>
+command! -bang -nargs=* Rg
+      \ call fzf#vim#grep(
+      \   'rg --column --line-number --no-heading --color=always --smart-case -- '.shellescape(<q-args>), 1,
+      \   <bang>0 ? fzf#vim#with_preview('up:60%')
+      \           : fzf#vim#with_preview(),
+      \   <bang>0)
+
+command! -bang -nargs=? -complete=dir Files
+      \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
+
+nnoremap <leader>/ :Rg<space>
 
 " FZF mappings
 nnoremap ; :call FZFOpen(':Buffers')<cr>
@@ -302,29 +327,23 @@ map <C-e> :NERDTreeToggle<cr>
 nnoremap <C-f> :NERDTreeFind<cr>
 
 " Vimwiki
-let s:vimwiki_dir = '~/Documents/vimwiki/'
-let g:vimwiki_list = [{
-            \ 'path': s:vimwiki_dir,
-            \ 'syntax': 'markdown',
-            \ 'ext': '.md',
-            \ 'auto_toc': 1,
-            \ }]
-let g:vimwiki_auto_chdir = 0
-let g:vimwiki_hl_headers = 1
-let g:vimwiki_hl_cb_checked = 1
+if cppcho_enable_vimwiki
+  let s:vimwiki_dir = '~/Documents/vimwiki/'
+  let g:vimwiki_list = [{
+        \ 'path': s:vimwiki_dir,
+        \ 'syntax': 'markdown',
+        \ 'ext': '.md',
+        \ 'auto_toc': 1,
+        \ }]
+  let g:vimwiki_auto_chdir = 0
+  let g:vimwiki_hl_cb_checked = 1
+  let g:vimwiki_hl_headers = 1
+  let g:vimwiki_table_mappings = 0
+  let g:vimwiki_toc_header = 'Table of Contents'
 
-" Allow "normal" editor style tab/shift-tab indent/dedent. (Only in vimwiki
-" buffers!)
-let g:vimwiki_table_mappings = 1
-
-" Open vimwiki on start when using MacVim
-if has("gui_macvim")
-  let g:auto_save = 1
-  let g:auto_save_no_updatetime = 1
-  let g:auto_save_in_insert_mode = 0
-  set wrap lbr
-  set clipboard=unnamed
-endif
+  " Disable markdown syntax as it will conflict with the vimwiki one
+  let g:polyglot_disabled = ['markdown']
+end
 
 " vim-tmux-navigator
 let g:tmux_navigator_save_on_switch = 2
@@ -337,10 +356,6 @@ let g:tmux_navigator_disable_when_zoomed = 1
 augroup vimrc
   " Remove ALL autocommands for the current group.
   autocmd!
-
-  if has("gui_macvim")
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
-  endif
 
   " Forcing wrap lines in vimdiff
   autocmd FilterWritePre * if &diff | setlocal wrap< | endif
@@ -371,6 +386,10 @@ augroup vimrc
   autocmd! FileType fzf
   autocmd  FileType fzf set laststatus=0 noshowmode noruler
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
+
+  if cppcho_enable_vimwiki
+    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
+  endif
 augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -397,9 +416,7 @@ noremap <silent> <C-w> :call <SID>__bclose()<CR>
 let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-if has("gui_macvim")
-  let g:polyglot_disabled = ['markdown']
-
+if cppcho_enable_vimwiki
   " Reference: https://github.com/michal-h21/vim-zettel
 
   function! s:get_visual_selection_lines()
@@ -435,7 +452,7 @@ if has("gui_macvim")
 
   function! s:vimwiki_zettel_new(...)
     let lines = <sid>get_visual_selection_lines()
-    let filename = strftime("%Y%m%d%H%M%S")
+    let filename = strftime("%y%m%d-%H%M")
 
     let title = join(a:000)
     if len(title) > 0
@@ -444,11 +461,30 @@ if has("gui_macvim")
 
     let link = printf('[%s](/%s)', filename, filename)
     execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
-    execute ":silent VimwikiFollowLink"
-    call append(0, '# '.filename)
+    execute ":VimwikiFollowLink"
+
+    if line('$') == 1 && getline(1) == ''
+      " append title if the file is empty
+      call append(0, '# '.filename)
+    else
+      call append("$", '')
+    end
+
     for line in lines
       call append("$", line)
     endfor
+    execute 'normal! G'
+  endfunction
+
+  function! s:vimwiki_zettel_capture(...)
+    let filename = strftime("%Y-%m-%d %H:%M:%S")
+    execute ":VimwikiGoto _inbox/".fnameescape(filename)
+    if line('$') == 1 && getline(1) == ''
+      call append(0, '# '.filename)
+      call append('$', '')
+    end
+    execute 'normal! G'
+    execute ':startinsert'
   endfunction
 
   command! -bang -nargs=? -complete=dir VimwikiAutoComplete
@@ -458,11 +494,13 @@ if has("gui_macvim")
         \}), <bang>0)
 
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
+  command! -bang -nargs=* VimwikiZettelCapture call <sid>vimwiki_zettel_capture()
   command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
 
   imap <silent> <C-L><C-L> <esc>:VimwikiAutoComplete<CR>
   nmap <silent> T :VimwikiYankName<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  map <C-n> :VimwikiZettelCapture<CR>
 endif
 
 nmap ++ <Plug>VimwikiNormalizeLink
@@ -470,3 +508,4 @@ vmap ++ <Plug>VimwikiNormalizeLinkVisual
 vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
 nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
 nmap <Leader>wgg :VimwikiGenerateLinks<CR>
+
