@@ -118,10 +118,31 @@ endif
 " UI
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+let s:cppcho_is_dark_background=1
+
+function! s:set_background()
+  if s:cppcho_is_dark_background
+    set background=dark
+  else
+    set background=light
+  end
+endfunction
+function! s:switch_background()
+  if s:cppcho_is_dark_background
+    let s:cppcho_is_dark_background=0
+  else
+    let s:cppcho_is_dark_background=1
+  end
+  call s:set_background()
+endfunction
+
+command! -bang SwitchBackground call <sid>switch_background()
+
 syntax on
 
+call <sid>set_background()
+
 " Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-set background=dark
 colorscheme solarized
 if !has('gui_running')
   " let g:solarized_termcolors=256
@@ -245,6 +266,8 @@ onoremap <C-s> <Esc>:w<CR>
 " Trim spaces at EOL and retab
 command! TEOL %s/\s\+$//
 command! CLEAN retab | TEOL
+
+nmap <leader>bg :SwitchBackground<CR>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " Plugins
