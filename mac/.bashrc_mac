@@ -14,3 +14,5 @@ alias update='brew update; brew upgrade; brew cleanup;'
 [[ -s $brew_prefix/etc/profile.d/autojump.sh ]] && . $brew_prefix/etc/profile.d/autojump.sh
 
 unset brew_prefix
+
+export PATH="/usr/local/opt/gettext/bin:$PATH"
