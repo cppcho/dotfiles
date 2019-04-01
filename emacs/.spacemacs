@@ -511,6 +511,7 @@ before packages are loaded."
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
   (spacemacs/set-leader-keys "oj" 'cppcho/open-today-journal)
   (spacemacs/set-leader-keys "oJ" 'org-journal-new-entry)
+  (define-key evil-normal-state-map (kbd "C-n") 'org-journal-new-entry)
 
   (evil-define-key 'normal evil-org-mode-map
     "gt" 'org-todo
@@ -581,7 +582,23 @@ before packages are loaded."
     (insert (concat zd-link-indicator (zd-lift-id file-name)
                     (zd-lift-title file-name))))
 
+  (defun zd-copy-file-link ()
+    "Put the current file link on the clipboard"
+    (interactive)
+    (let ((link (concat "[[./"
+                        (file-name-base)
+                        ".org]["
+                        (file-name-base)
+                        "]]")))
+
+      (kill-new link)
+      (message link)))
+
+  (evil-define-key 'normal evil-org-mode-map (kbd "T") 'zd-copy-file-link)
+
   (require 'org-tempo)
+
+  (setq create-lockfiles nil)
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
