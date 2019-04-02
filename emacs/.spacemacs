@@ -511,7 +511,6 @@ before packages are loaded."
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
   (spacemacs/set-leader-keys "oj" 'cppcho/open-today-journal)
   (spacemacs/set-leader-keys "oJ" 'org-journal-new-entry)
-  (define-key evil-normal-state-map (kbd "C-n") 'org-journal-new-entry)
 
   (evil-define-key 'normal evil-org-mode-map
     "gt" 'org-todo
@@ -585,21 +584,35 @@ before packages are loaded."
   (defun zd-copy-file-link ()
     "Put the current file link on the clipboard"
     (interactive)
-    (let ((link (concat "[[./"
-                        (file-name-base)
-                        ".org]["
-                        (file-name-base)
-                        "]]")))
-
+    (let* ((file-path (file-relative-name buffer-file-name org-directory))
+           (link (concat "[[./" file-path "][" file-path "]]")))
       (kill-new link)
       (message link)))
 
   (evil-define-key 'normal evil-org-mode-map (kbd "T") 'zd-copy-file-link)
 
   (require 'org-tempo)
+  (setq vc-follow-symlinks t)
 
   (setq create-lockfiles nil)
   (setq org-adapt-indentation nil)
+  (setq org-journal-hide-entries-p nil)
+
+  (setq org-capture-templates
+        '(("t" "Task" entry (file+headline org-default-notes-file "Inbox") "* TODO %?\n%T\n")
+          ("n" "Note" entry (file+headline org-default-notes-file "Inbox") "* Quick Capture %T\n%?")))
+
+  (define-key evil-normal-state-map (kbd "C-t")
+    (lambda () (interactive) (org-capture nil "t")))
+  (define-key evil-normal-state-map (kbd "C-n")
+    (lambda () (interactive) (org-capture nil "n")))
+
+
+  (setq org-link-frame-setup '((vm . vm-visit-folder)
+                               (vm-imap . vm-visit-imap-folder)
+                               (gnus . gnus)
+                               (file . find-file)
+                               (wl . wl)))
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
@@ -616,7 +629,7 @@ This function is called at the very end of Spacemacs initialization."
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (org-journal reveal-in-osx-finder osx-trash osx-dictionary org-projectile org-category-capture org-present org-pomodoro alert log4e gntp org-mime org-download org-brain launchctl htmlize helm-org-rifle gnuplot evil-org ws-butler writeroom-mode visual-fill-column winum volatile-highlights vi-tilde-fringe uuidgen treemacs-projectile treemacs-evil treemacs ht pfuture toc-org symon string-inflection spaceline-all-the-icons spaceline powerline restart-emacs request rainbow-delimiters popwin persp-mode password-generator paradox spinner overseer org-bullets open-junk-file nameless move-text macrostep lorem-ipsum link-hint indent-guide hungry-delete hl-todo highlight-parentheses highlight-numbers parent-mode highlight-indentation helm-xref helm-themes helm-swoop helm-purpose window-purpose imenu-list helm-projectile helm-mode-manager helm-make helm-flx helm-descbinds helm-ag google-translate golden-ratio flx-ido flx fill-column-indicator fancy-battery eyebrowse expand-region evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-surround evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-lisp-state evil-lion evil-indent-plus evil-iedit-state iedit evil-goggles evil-exchange evil-escape evil-ediff evil-cleverparens smartparens paredit evil-args evil-anzu anzu eval-sexp-fu elisp-slime-nav editorconfig dumb-jump doom-modeline eldoc-eval shrink-path all-the-icons memoize f dash s define-word counsel-projectile projectile counsel swiper ivy pkg-info epl column-enforce-mode clean-aindent-mode centered-cursor-mode auto-highlight-symbol auto-compile packed aggressive-indent ace-window ace-link ace-jump-helm-line helm avy helm-core popup which-key use-package pcre2el org-plus-contrib hydra font-lock+ evil goto-chg undo-tree dotenv-mode diminish bind-map bind-key async))))
+    (reveal-in-osx-finder osx-trash osx-dictionary launchctl ws-butler winum which-key volatile-highlights vi-tilde-fringe uuidgen use-package toc-org symon string-inflection spaceline-all-the-icons restart-emacs request rainbow-delimiters popwin persp-mode pcre2el password-generator paradox overseer org-projectile org-present org-pomodoro org-mime org-journal org-download org-bullets org-brain open-junk-file neotree nameless move-text macrostep lorem-ipsum link-hint indent-guide hungry-delete htmlize hl-todo highlight-parentheses highlight-numbers highlight-indentation helm-xref helm-themes helm-swoop helm-purpose helm-projectile helm-mode-manager helm-make helm-flx helm-descbinds helm-ag google-translate golden-ratio gnuplot font-lock+ flx-ido fill-column-indicator fancy-battery eyebrowse expand-region evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-surround evil-org evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-lisp-state evil-lion evil-indent-plus evil-iedit-state evil-goggles evil-exchange evil-escape evil-ediff evil-cleverparens evil-args evil-anzu eval-sexp-fu elisp-slime-nav editorconfig dumb-jump dotenv-mode doom-modeline diminish define-word counsel-projectile column-enforce-mode clean-aindent-mode centered-cursor-mode auto-highlight-symbol auto-compile aggressive-indent ace-window ace-link ace-jump-helm-line))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
