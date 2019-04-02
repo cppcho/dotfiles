@@ -599,6 +599,7 @@ before packages are loaded."
   (require 'org-tempo)
 
   (setq create-lockfiles nil)
+  (setq org-adapt-indentation nil)
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
