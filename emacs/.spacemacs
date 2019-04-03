@@ -250,7 +250,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil then the last auto saved layouts are resumed automatically upon
    ;; start. (default nil)
-   dotspacemacs-auto-resume-layouts nil
+   dotspacemacs-auto-resume-layouts t
 
    ;; If non-nil, auto-generate layout name when creating new layouts. Only has
    ;; effect when using the "jump to layout by number" commands. (default nil)
@@ -459,22 +459,48 @@ Put your configuration code here, except for variables that should be set
 before packages are loaded."
   ;; common
   (setq cppcho/org-directory "~/Documents/org")
+  (setq cppcho/org-index-file-name "index.org")
   (setq scroll-margin 5)
+  (setq vc-follow-symlinks t)
+  (setq create-lockfiles nil)
+
+  (global-set-key (kbd "C-s") (lambda () (interactive) (save-buffer)))
+  (define-key evil-normal-state-map (kbd ";") 'helm-buffers-list)
 
   ;; org
+  (require 'org-tempo) ;; enable <s for code block
   (setq org-directory cppcho/org-directory)
   (setq org-journal-dir (concat org-directory "/journal/"))
   (setq org-agenda-files (list org-directory org-journal-dir))
-  (setq org-default-notes-file (concat org-directory "/index.org"))
+  (setq org-default-notes-file (concat org-directory "/" cppcho/org-index-file-name))
   (setq org-journal-file-format "%Y-%m-%d")
   (setq org-journal-date-format "%Y-%m-%d (%A)")
-  (setq org-journal-find-file 'find-file) ; open journal in the current window
-  (setq org-startup-folded nil) ; no fold for org headings on startup
+  (setq org-journal-find-file 'find-file) ;; open journal in the current window
+  (setq org-adapt-indentation nil) ;; no indent for org mode content
+  (setq org-journal-hide-entries-p nil) ;; do not hide journal entry will creating a new one
+  (setq projectile-project-search-path (list org-directory))
+  (setq org-startup-folded nil) ;; no fold org headings
+
+  (setq org-capture-templates
+        '(("t" "Task" entry (file+headline org-default-notes-file "Inbox") "* TODO %?\n%T\n")
+          ("n" "Note" entry (file+headline org-default-notes-file "Inbox") "* NOTE %?\n%T\n")))
+
+  (define-key evil-normal-state-map (kbd "C-t")
+    (lambda () (interactive) (org-capture nil "t")))
+  (define-key evil-normal-state-map (kbd "C-n")
+    (lambda () (interactive) (org-capture nil "n")))
 
   (add-hook 'org-insert-heading-hook 'evil-insert-state)
   (add-hook 'org-capture-mode-hook 'evil-insert-state)
   (add-hook 'org-journal-mode-hook 'evil-insert-state)
   (add-hook 'org-journal-after-entry-create-hook 'evil-insert-state)
+
+  ;; do no open a new window when following an org link
+  (setq org-link-frame-setup '((vm . vm-visit-folder)
+                               (vm-imap . vm-visit-imap-folder)
+                               (gnus . gnus)
+                               (file . find-file)
+                               (wl . wl)))
 
   (defun cppcho/org-mode-hook ()
     "Set all org-level headers to same font size"
@@ -509,8 +535,8 @@ before packages are loaded."
   (define-key evil-normal-state-map (kbd "C-p") 'helm-projectile-find-file)
 
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
-  (spacemacs/set-leader-keys "oj" 'cppcho/open-today-journal)
-  (spacemacs/set-leader-keys "oJ" 'org-journal-new-entry)
+  (spacemacs/set-leader-keys "oj" 'org-journal-new-entry)
+  (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
 
   (evil-define-key 'normal evil-org-mode-map
     "gt" 'org-todo
@@ -522,97 +548,89 @@ before packages are loaded."
     "gN" 'widen
     "gn" 'org-narrow-to-subtree)
 
-  ;; TODO
-  (setq zd-id-format "%y%m%d-%H%M")
-  (setq zd-id-regex "[0-9]\\{6\\}-[0-9]\\{4\\}")
-  (setq zd-link-indicator "Z:")
-  (defun zd-generate-id ()
-    "Generate an ID in the format of `zd-id-format'."
-    (format-time-string zd-id-format))
+  ;; Zettelkasten
+  ;; Ref: https://github.com/EFLS/zetteldeft/
 
-  (defun zd-lift-id (path)
+  (setq cppcho/zd-id-format "%y%m%d%H%M")
+  (setq cppcho/zd-id-regex "[0-9]\\{6\\}-[0-9]\\{4\\}")
+
+  (defun cppcho/zd-generate-id ()
+    "Generate an ID in the format of `zd-id-format'"
+    (format-time-string cppcho/zd-id-format))
+
+  (defun cppcho/zd-lift-id (path)
     "Extract the Zettel ID from path"
-    (car (s-match zd-id-regex (file-name-base path))))
+    (car (s-match cppcho/zd-id-regex (file-name-base path))))
 
-  (defun zd-lift-title (path)
-    "Return the title of a Zettel note."
-    (s-trim (s-replace-regexp zd-id-regex
-                              ""
-                              (file-name-base path))))
+  (defun cppcho/zd-lift-title (path)
+    "Return the title of a Zettel note"
+    (s-trim (s-replace-regexp cppcho/zd-id-regex "" (file-name-base path))))
+
+  (defun cppcho/zd-check ()
+    "Check if the currently visited file is in `zetteldeft' territory:
+whether it has `deft-directory' somewhere in its path."
+    (unless (buffer-file-name)
+      (user-error "empty buffer-file-name"))
+    (unless (string-match-p
+             (regexp-quote (file-truename org-directory))
+             (buffer-file-name))
+      (user-error "file not in org directory"))
+    (unless (s-equals? (file-name-nondirectory buffer-file-name) cppcho/org-index-file-name)
+      (unless (cppcho/zd-lift-id buffer-file-name)
+        (user-error "not a zettel"))))
 
   (defun cppcho/get-selected-text (start end)
     "Get the selected text in current buffer and return as string"
     (interactive "r")
-    (if (use-region-p) (buffer-substring start end))
-    )
+    (if (use-region-p) (buffer-substring start end)))
 
-  (defun zd-new-note (title start end)
-    "Create a new note."
+  (defun cppcho/zd-get-link (path)
+    (let ((file (file-relative-name path org-directory)))
+      (concat "[[./" file "][" file "]]")))
+
+  (defun cppcho/zd-new-note (title start end)
+    "Create a new note from selection (if any)"
     (interactive (list (read-string "title: ")
                        (region-beginning)
                        (region-end)))
     (if (s-blank-str? title)
-      (user-error "title cannot be empty"))
-    (let* ((zd-id (zd-generate-id))
+        (user-error "title cannot be empty"))
+    (if (use-region-p) (cppcho/zd-check))
+    (let* ((zd-id (cppcho/zd-generate-id))
            (zd-title (concat zd-id " " title))
-           (zd-text (cppcho/get-selected-text start end)))
+           (zd-text (cppcho/get-selected-text start end))
+           (zd-path (concat org-directory "/" zd-title ".org" ))
+           (zd-link (cppcho/zd-get-link zd-path)))
       (delete-region start end)
+      (insert zd-link)
       (evil-edit (concat org-directory "/" zd-title ".org" ))
       (insert "* " zd-title "\n")
-      (if zd-text (insert zd-text)))
-    )
+      (if zd-text (insert zd-text))))
 
-  (defun zd-all-notes ()
-    (directory-files org-directory nil (concat "^" zd-id-regex ".*\\.org$")))
+  (evil-define-key 'visual evil-org-mode-map (kbd "RET") 'cppcho/zd-new-note)
+  (spacemacs/set-leader-keys "on" 'cppcho/zd-new-note)
 
-  (evil-define-key 'visual evil-org-mode-map
-    (kbd "RET") 'zd-new-note)
+  (defun cppcho/zd-notes-list ()
+    (directory-files org-directory nil (concat "^" cppcho/zd-id-regex ".*\\.org$")))
 
-  (defun zd-find-file-id-insert (file-name)
-    "Find deft file FILE and insert a link."
-    (interactive (list (completing-read "Title: "
-                                        (zd-all-notes))))
-    (insert (concat zd-link-indicator (zd-lift-id file-name))))
+  (defun cppcho/zd-search-and-insert-link (file-name)
+    "Search zettel and insert its link"
+    (interactive (list (helm-comp-read "Title: "
+                                       (cppcho/zd-notes-list)
+                                       :must-match t)))
+    (cppcho/zd-check)
+    (insert (cppcho/zd-get-link file-name)))
 
-  (defun zd-find-file-id-title-insert (file-name)
-    "Find deft file FILE and insert a link."
-    (interactive (list (completing-read "Title: "
-                                        (zd-all-notes))))
-    (insert (concat zd-link-indicator (zd-lift-id file-name)
-                    (zd-lift-title file-name))))
-
-  (defun zd-copy-file-link ()
-    "Put the current file link on the clipboard"
+  (defun cppcho/zd-copy-file-link ()
+    "Yank the current file link on the clipboard"
     (interactive)
-    (let* ((file-path (file-relative-name buffer-file-name org-directory))
-           (link (concat "[[./" file-path "][" file-path "]]")))
+    (cppcho/zd-check)
+    (let ((link (cppcho/zd-get-link buffer-file-name)))
       (kill-new link)
       (message link)))
 
-  (evil-define-key 'normal evil-org-mode-map (kbd "T") 'zd-copy-file-link)
-
-  (require 'org-tempo)
-  (setq vc-follow-symlinks t)
-
-  (setq create-lockfiles nil)
-  (setq org-adapt-indentation nil)
-  (setq org-journal-hide-entries-p nil)
-
-  (setq org-capture-templates
-        '(("t" "Task" entry (file+headline org-default-notes-file "Inbox") "* TODO %?\n%T\n")
-          ("n" "Note" entry (file+headline org-default-notes-file "Inbox") "* Quick Capture %T\n%?")))
-
-  (define-key evil-normal-state-map (kbd "C-t")
-    (lambda () (interactive) (org-capture nil "t")))
-  (define-key evil-normal-state-map (kbd "C-n")
-    (lambda () (interactive) (org-capture nil "n")))
-
-
-  (setq org-link-frame-setup '((vm . vm-visit-folder)
-                               (vm-imap . vm-visit-imap-folder)
-                               (gnus . gnus)
-                               (file . find-file)
-                               (wl . wl)))
+  (spacemacs/set-leader-keys "ok" 'cppcho/zd-search-and-insert-link)
+  (spacemacs/set-leader-keys "oy" 'cppcho/zd-copy-file-link)
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
