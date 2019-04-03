@@ -537,6 +537,7 @@ before packages are loaded."
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
   (spacemacs/set-leader-keys "oj" 'org-journal-new-entry)
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
+  (spacemacs/set-leader-keys "/" 'helm-org-rifle)
 
   (evil-define-key 'normal evil-org-mode-map
     "gt" 'org-todo
