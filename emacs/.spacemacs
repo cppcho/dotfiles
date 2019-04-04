@@ -45,7 +45,7 @@ This function should only modify configuration layer settings."
      emacs-lisp
      ;; git
      ;; markdown
-     ;;multiple-cursors
+     ;; multiple-cursors
      ;; treemacs
      (org :variables
           org-enable-org-journal-support t)
@@ -460,6 +460,7 @@ before packages are loaded."
   ;; common
   (setq cppcho/org-directory "~/Documents/org")
   (setq cppcho/org-index-file-name "index.org")
+  (setq cppcho/org-projects-file-name "projects.org")
   (setq scroll-margin 5)
   (setq vc-follow-symlinks t)
   (setq create-lockfiles nil)
@@ -515,7 +516,12 @@ before packages are loaded."
   (defun cppcho/open-default-org-file ()
     "Open index.org"
     (interactive)
-    (find-file  org-default-notes-file))
+    (find-file org-default-notes-file))
+
+  (defun cppcho/open-projects-org-file ()
+    "Open projects.org"
+    (interactive)
+    (find-file (concat org-directory "/" cppcho/org-projects-file-name)))
 
   (defun cppcho/open-today-journal ()
     "Open today journal without entering new timestamp"
@@ -536,6 +542,7 @@ before packages are loaded."
 
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
   (spacemacs/set-leader-keys "oj" 'org-journal-new-entry)
+  (spacemacs/set-leader-keys "op" 'cppcho/open-projects-org-file)
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
   (spacemacs/set-leader-keys "/" 'helm-org-rifle)
 
