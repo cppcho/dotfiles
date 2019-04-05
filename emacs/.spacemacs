@@ -481,6 +481,7 @@ before packages are loaded."
   (setq org-journal-hide-entries-p nil) ;; do not hide journal entry will creating a new one
   (setq projectile-project-search-path (list org-directory))
   (setq org-startup-folded nil) ;; no fold org headings
+  (setq org-agenda-window-setup 'only-window) 
 
   (setq org-capture-templates
         '(("t" "Task" entry (file+headline org-default-notes-file "Inbox") "* TODO %?\n%T\n")
@@ -546,6 +547,8 @@ before packages are loaded."
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
   (spacemacs/set-leader-keys "/" 'helm-org-rifle)
 
+  (spacemacs/set-leader-keys "oa" '(lambda () (interactive) (org-agenda nil "n")))
+
   (evil-define-key 'normal evil-org-mode-map
     "gt" 'org-todo
     "gH" 'org-toggle-heading
@@ -560,7 +563,7 @@ before packages are loaded."
   ;; Ref: https://github.com/EFLS/zetteldeft/
 
   (setq cppcho/zd-id-format "%y%m%d%H%M")
-  (setq cppcho/zd-id-regex "[0-9]\\{6\\}-[0-9]\\{4\\}")
+  (setq cppcho/zd-id-regex "[0-9]\\{10\\}")
 
   (defun cppcho/zd-generate-id ()
     "Generate an ID in the format of `zd-id-format'"
@@ -593,8 +596,10 @@ whether it has `deft-directory' somewhere in its path."
     (if (use-region-p) (buffer-substring start end)))
 
   (defun cppcho/zd-get-link (path)
-    (let ((file (file-relative-name path org-directory)))
-      (concat "[[./" file "][" file "]]")))
+    (let* ((zd-id (cppcho/zd-lift-id path))
+           (zd-title (cppcho/zd-lift-title path))
+           (file (file-relative-name path org-directory)))
+      (concat "[[./" file "][" zd-id "]] (" zd-title ")")))
 
   (defun cppcho/zd-new-note (title start end)
     "Create a new note from selection (if any)"
@@ -610,7 +615,7 @@ whether it has `deft-directory' somewhere in its path."
            (zd-path (concat org-directory "/" zd-title ".org" ))
            (zd-link (cppcho/zd-get-link zd-path)))
       (delete-region start end)
-      (insert zd-link)
+      (insert "- " zd-link "\n")
       (evil-edit (concat org-directory "/" zd-title ".org" ))
       (insert "* " zd-title "\n")
       (if zd-text (insert zd-text))))
@@ -627,7 +632,7 @@ whether it has `deft-directory' somewhere in its path."
                                        (cppcho/zd-notes-list)
                                        :must-match t)))
     (cppcho/zd-check)
-    (insert (cppcho/zd-get-link file-name)))
+    (insert (concat " " (cppcho/zd-get-link file-name) " ")))
 
   (defun cppcho/zd-copy-file-link ()
     "Yank the current file link on the clipboard"
