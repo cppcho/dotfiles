@@ -65,7 +65,10 @@ This function should only modify configuration layer settings."
    ;; To use a local version of a package, use the `:location' property:
    ;; '(your-package :location "~/path/to/your-package/")
    ;; Also include the dependencies as they will not be resolved automatically.
-   dotspacemacs-additional-packages '()
+   dotspacemacs-additional-packages '(
+                                      exec-path-from-shell
+                                      ag
+                                      )
 
    ;; A list of packages that cannot be updated.
    dotspacemacs-frozen-packages '()
@@ -458,7 +461,10 @@ configuration.
 Put your configuration code here, except for variables that should be set
 before packages are loaded."
   ;; common
-  (setq cppcho/org-directory "~/Documents/org")
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize))
+
+  (setq cppcho/org-directory "~/Dropbox/org")
   (setq cppcho/org-index-file-name "index.org")
   (setq cppcho/org-projects-file-name "projects.org")
   (setq scroll-margin 5)
@@ -562,8 +568,8 @@ before packages are loaded."
   ;; Zettelkasten
   ;; Ref: https://github.com/EFLS/zetteldeft/
 
-  (setq cppcho/zd-id-format "%y%m%d%H%M")
-  (setq cppcho/zd-id-regex "[0-9]\\{10\\}")
+  (setq cppcho/zd-id-format "%y%m%d%H%M%S")
+  (setq cppcho/zd-id-regex "[0-9]\\{6\\}[0-9]\\{6\\}")
 
   (defun cppcho/zd-generate-id ()
     "Generate an ID in the format of `zd-id-format'"
@@ -615,7 +621,7 @@ whether it has `deft-directory' somewhere in its path."
            (zd-path (concat org-directory "/" zd-title ".org" ))
            (zd-link (cppcho/zd-get-link zd-path)))
       (delete-region start end)
-      (insert "- " zd-link "\n")
+      (if (use-region-p) (insert "- " zd-link "\n"))
       (evil-edit (concat org-directory "/" zd-title ".org" ))
       (insert "* " zd-title "\n")
       (if zd-text (insert zd-text))))
@@ -642,8 +648,37 @@ whether it has `deft-directory' somewhere in its path."
       (kill-new link)
       (message link)))
 
+  (defun cppcho/zd-get-related-files-from-id (zd-file-id)
+    (-filter 's-present-p
+             (split-string (shell-command-to-string
+                            (concat "cd "
+                                    org-directory
+                                    " && rg -l "
+                                    zd-file-id
+                                    " *.org | sort"))
+                           "\n")))
+
+  (defun cppcho/zd-get-related-zettel-for-current-buffer ()
+    (interactive)
+    (cppcho/zd-check)
+    (let* ((zd-id (cppcho/zd-lift-id buffer-file-name))
+           (file-list (cppcho/zd-get-related-files-from-id zd-id))
+           (filtered-file-list (-remove (lambda (x) (s-contains? zd-id x)) file-list)))
+      (unless filtered-file-list
+          (user-error "no related zettel"))
+      (helm :sources (helm-build-sync-source "zd"
+                       :candidates filtered-file-list
+                       :action helm-projectile-file-actions)
+            :buffer "*helm related zettel*"
+            :truncate-lines helm-projectile-truncate-lines)))
+
   (spacemacs/set-leader-keys "ok" 'cppcho/zd-search-and-insert-link)
   (spacemacs/set-leader-keys "oy" 'cppcho/zd-copy-file-link)
+  (spacemacs/set-leader-keys "or" 'cppcho/zd-get-related-zettel-for-current-buffer)
+
+  (add-hook 'text-mode-hook 'spacemacs/toggle-truncate-lines-off)
+  (setq treemacs-no-png-images t)
+  (setq treemacs-indentation 1)
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
