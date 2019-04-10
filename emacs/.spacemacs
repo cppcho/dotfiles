@@ -510,15 +510,15 @@ before packages are loaded."
                                (file . find-file)
                                (wl . wl)))
 
-  (defun cppcho/org-mode-hook ()
-    "Set all org-level headers to same font size"
-    (dolist (face '(org-level-1
-                    org-level-2
-                    org-level-3
-                    org-level-4
-                    org-level-5))
-      (set-face-attribute face nil :weight 'semi-bold :height 1.0)))
-  (add-hook 'org-mode-hook 'cppcho/org-mode-hook)
+  ;; (defun cppcho/org-mode-hook ()
+  ;;   "Set all org-level headers to same font size"
+  ;;   (dolist (face '(org-level-1
+  ;;                   org-level-2
+  ;;                   org-level-3
+  ;;                   org-level-4
+  ;;                   org-level-5))
+  ;;     (set-face-attribute face nil :weight 'semi-bold :height 1.0)))
+  ;; (add-hook 'org-mode-hook 'cppcho/org-mode-hook)
 
   (defun cppcho/open-default-org-file ()
     "Open index.org"
@@ -549,7 +549,7 @@ before packages are loaded."
 
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
   (spacemacs/set-leader-keys "oj" 'org-journal-new-entry)
-  (spacemacs/set-leader-keys "op" 'cppcho/open-projects-org-file)
+  ;; (spacemacs/set-leader-keys "op" 'cppcho/open-projects-org-file)
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
   (spacemacs/set-leader-keys "/" 'helm-org-rifle)
 
@@ -679,6 +679,14 @@ whether it has `deft-directory' somewhere in its path."
   (add-hook 'text-mode-hook 'spacemacs/toggle-truncate-lines-off)
   (setq treemacs-no-png-images t)
   (setq treemacs-indentation 1)
+
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "WATCH(w)" "LATER(l)" "|" "DONE(d)")))
+
+  (setq org-todo-keyword-faces
+        '(("WATCH" . (:foreground "IndianRed1" :weight bold))
+          ("LATER" . (:foreground "coral" :weight bold))
+          ))
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
