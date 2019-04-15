@@ -551,7 +551,7 @@ before packages are loaded."
   (spacemacs/set-leader-keys "oj" 'org-journal-new-entry)
   ;; (spacemacs/set-leader-keys "op" 'cppcho/open-projects-org-file)
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
-  (spacemacs/set-leader-keys "/" 'helm-org-rifle)
+  (spacemacs/set-leader-keys "/" 'helm-org-rifle-org-directory)
 
   (spacemacs/set-leader-keys "oa" '(lambda () (interactive) (org-agenda nil "n")))
 
