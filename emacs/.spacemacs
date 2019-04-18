@@ -687,6 +687,8 @@ whether it has `deft-directory' somewhere in its path."
         '(("WATCH" . (:foreground "IndianRed1" :weight bold))
           ("LATER" . (:foreground "coral" :weight bold))
           ))
+
+  (setq which-key-dont-use-unicode t)
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
