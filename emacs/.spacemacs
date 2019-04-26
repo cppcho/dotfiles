@@ -67,7 +67,6 @@ This function should only modify configuration layer settings."
    ;; Also include the dependencies as they will not be resolved automatically.
    dotspacemacs-additional-packages '(
                                       exec-path-from-shell
-                                      ag
                                       )
 
    ;; A list of packages that cannot be updated.
@@ -253,7 +252,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil then the last auto saved layouts are resumed automatically upon
    ;; start. (default nil)
-   dotspacemacs-auto-resume-layouts t
+   dotspacemacs-auto-resume-layouts nil
 
    ;; If non-nil, auto-generate layout name when creating new layouts. Only has
    ;; effect when using the "jump to layout by number" commands. (default nil)
@@ -311,7 +310,7 @@ It should only modify the values of Spacemacs settings."
    ;; If non-nil the frame is maximized when Emacs starts up.
    ;; Takes effect only if `dotspacemacs-fullscreen-at-startup' is nil.
    ;; (default nil) (Emacs 24.4+ only)
-   dotspacemacs-maximized-at-startup nil
+   dotspacemacs-maximized-at-startup t
 
    ;; A value from the range (0..100), in increasing opacity, which describes
    ;; the transparency level of a frame when it's active or selected.
@@ -374,7 +373,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil, start an Emacs server if one is not already running.
    ;; (default nil)
-   dotspacemacs-enable-server nil
+   dotspacemacs-enable-server t
 
    ;; Set the emacs server socket location.
    ;; If nil, uses whatever the Emacs default is, otherwise a directory path
@@ -385,7 +384,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil, advise quit functions to keep server open when quitting.
    ;; (default nil)
-   dotspacemacs-persistent-server nil
+   dotspacemacs-persistent-server t
 
    ;; List of search tool executable names. Spacemacs uses the first installed
    ;; tool of the list. Supported tools are `rg', `ag', `pt', `ack' and `grep'.
@@ -466,7 +465,6 @@ before packages are loaded."
 
   (setq cppcho/org-directory "~/Dropbox/org")
   (setq cppcho/org-index-file-name "index.org")
-  (setq cppcho/org-projects-file-name "projects.org")
   (setq scroll-margin 5)
   (setq vc-follow-symlinks t)
   (setq create-lockfiles nil)
@@ -484,9 +482,9 @@ before packages are loaded."
   (setq org-journal-date-format "%Y-%m-%d (%A)")
   (setq org-journal-find-file 'find-file) ;; open journal in the current window
   (setq org-adapt-indentation nil) ;; no indent for org mode content
-  (setq org-journal-hide-entries-p nil) ;; do not hide journal entry will creating a new one
+  (setq org-journal-hide-entries-p nil) ;; do not hide journal entry when creating a new one
   (setq projectile-project-search-path (list org-directory))
-  (setq org-startup-folded nil) ;; no fold org headings
+  ;; (setq org-startup-folded nil) ;; no fold org headings
   (setq org-agenda-window-setup 'only-window) 
 
   (setq org-capture-templates
@@ -510,25 +508,20 @@ before packages are loaded."
                                (file . find-file)
                                (wl . wl)))
 
-  ;; (defun cppcho/org-mode-hook ()
-  ;;   "Set all org-level headers to same font size"
-  ;;   (dolist (face '(org-level-1
-  ;;                   org-level-2
-  ;;                   org-level-3
-  ;;                   org-level-4
-  ;;                   org-level-5))
-  ;;     (set-face-attribute face nil :weight 'semi-bold :height 1.0)))
-  ;; (add-hook 'org-mode-hook 'cppcho/org-mode-hook)
+  (defun cppcho/org-mode-hook ()
+    "Set all org-level headers to same font size"
+    (dolist (face '(org-level-1
+                    org-level-2
+                    org-level-3
+                    org-level-4
+                    org-level-5))
+      (set-face-attribute face nil :weight 'semi-bold :height 1.0)))
+  (add-hook 'org-mode-hook 'cppcho/org-mode-hook)
 
   (defun cppcho/open-default-org-file ()
     "Open index.org"
     (interactive)
     (find-file org-default-notes-file))
-
-  (defun cppcho/open-projects-org-file ()
-    "Open projects.org"
-    (interactive)
-    (find-file (concat org-directory "/" cppcho/org-projects-file-name)))
 
   (defun cppcho/open-today-journal ()
     "Open today journal without entering new timestamp"
@@ -548,8 +541,8 @@ before packages are loaded."
   (define-key evil-normal-state-map (kbd "C-p") 'helm-projectile-find-file)
 
   (spacemacs/set-leader-keys "oi" 'cppcho/open-default-org-file)
-  (spacemacs/set-leader-keys "oj" 'org-journal-new-entry)
-  ;; (spacemacs/set-leader-keys "op" 'cppcho/open-projects-org-file)
+  (spacemacs/set-leader-keys "oj" 'cppcho/open-today-journal)
+  (spacemacs/set-leader-keys "oJ" 'org-journal-new-entry)
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
   (spacemacs/set-leader-keys "/" 'helm-org-rifle-org-directory)
 
@@ -564,6 +557,10 @@ before packages are loaded."
     "gl" 'outline-next-visible-heading
     "gN" 'widen
     "gn" 'org-narrow-to-subtree)
+
+  (evil-define-key 'normal org-journal-mode-map
+    (kbd "<C-left>") 'org-journal-open-previous-entry
+    (kbd "<C-right>") 'org-journal-open-next-entry)
 
   ;; Zettelkasten
   ;; Ref: https://github.com/EFLS/zetteldeft/
