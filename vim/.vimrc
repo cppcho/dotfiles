@@ -46,9 +46,6 @@ end
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 let cppcho_enable_vimwiki=0
-if has("gui_macvim")
-  let cppcho_enable_vimwiki=1
-endif
 
 set autoindent                                        " Copy indent from current line when starting a new line
 set autoread                                          " Don't bother me hen a file changes
@@ -438,102 +435,4 @@ endfun
 noremap <silent> <C-w> :call <SID>__bclose()<CR>
 
 let g:fzf_history_dir = '~/.config/vim-fzf-history'
-
-""""""""""""""""""""""""""""""""""""""""""""""""""
-if cppcho_enable_vimwiki
-  " Reference: https://github.com/michal-h21/vim-zettel
-
-  function! s:get_visual_selection_lines()
-    " Why is this not a built-in Vim script function?!
-    let [line_start, column_start] = getpos("'<")[1:2]
-    let [line_end, column_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
-    if len(lines) == 0
-      return ''
-    endif
-    " let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
-    " let lines[0] = lines[0][column_start - 1:]
-    return lines
-  endfunction
-
-  function! s:vimwiki_yank_name()
-    let filepath = expand("%")
-    let filename = fnamemodify(filepath, ":r")
-    let link = printf('[%s](/%s)', filename, filename)
-    let @" = link
-    let @* = link
-    return link
-  endfunction
-
-  function! s:vimwiki_search_handler(line)
-    let parts =  split(a:line,"\V:")
-    let filename = parts[0]
-    let fileparts = split(filename, '\V.')
-    let filename_without_ext = join(fileparts[0:-2],".")
-    let link = printf('[%s](/%s)', filename_without_ext, filename_without_ext)
-    execute 'normal! a' . link
-  endfunction
-
-  function! s:vimwiki_zettel_new(...)
-    let lines = <sid>get_visual_selection_lines()
-    let filename = strftime("%y%m%d-%H%M")
-
-    let title = join(a:000)
-    if len(title) > 0
-      let filename = filename . ' ' . title
-    end
-
-    let link = printf('- [%s](/%s)', filename, filename)
-    execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
-    execute ":silent VimwikiFollowLink"
-
-    if line('$') == 1 && getline(1) == ''
-      " append title if the file is empty
-      call append(0, '# '.filename)
-    else
-      call append("$", '')
-    end
-
-    for line in lines
-      call append("$", line)
-    endfor
-    execute 'normal! G'
-  endfunction
-
-  function! s:vimwiki_zettel_capture(...)
-    execute ":silent VimwikiMakeDiaryNote"
-    call append('$', '')
-    call append('$', '# Quick Capture '.strftime("%H:%M:%S"))
-    call append('$', '')
-    execute 'normal! G'
-    execute ':startinsert'
-  endfunction
-
-  command! -bang -nargs=? -complete=dir VimwikiAutoComplete
-        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'sink':function('<sid>vimwiki_search_handler'),
-        \'dir': s:vimwiki_dir,
-        \}), <bang>0)
-
-  command! -bang -nargs=? VimwikiSearchInbox
-        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'dir': s:vimwiki_dir.'_inbox',
-        \}), <bang>0)
-
-  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-  command! -bang -nargs=* VimwikiZettelCapture call <sid>vimwiki_zettel_capture()
-  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
-
-  imap <silent> <C-L><C-L> <esc>:VimwikiAutoComplete<CR>
-  nmap <silent> T :VimwikiYankName<CR>
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  nmap <C-N> :VimwikiZettelCapture<CR>
-  nmap <leader>wo :VimwikiSearchInbox<CR>
-endif
-
-nmap ++ <Plug>VimwikiNormalizeLink
-vmap ++ <Plug>VimwikiNormalizeLinkVisual
-vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
-nmap <Leader>wgg :VimwikiGenerateLinks<CR>
 
