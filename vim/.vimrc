@@ -412,7 +412,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
@@ -459,7 +459,7 @@ if cppcho_enable_vimwiki
   function! s:vimwiki_yank_name()
     let filepath = expand("%")
     let filename = fnamemodify(filepath, ":r")
-    let link = printf('[%s](/%s)', filename, filename)
+    let link = printf('[[%s]]', filename)
     let @" = link
     let @* = link
     return link
@@ -470,13 +470,13 @@ if cppcho_enable_vimwiki
     let filename = parts[0]
     let fileparts = split(filename, '\V.')
     let filename_without_ext = join(fileparts[0:-2],".")
-    let link = printf('[%s](/%s)', filename_without_ext, filename_without_ext)
+    let link = printf('[[%s]]', filename_without_ext, filename_without_ext)
     execute 'normal! a' . link
   endfunction
 
   function! s:vimwiki_zettel_new(...)
     let lines = <sid>get_visual_selection_lines()
-    let filename = strftime("%y%m%d-%H%M")
+    let filename = strftime("%y%m%d%H%M%S")
 
     let title = join(a:000)
     if len(title) > 0
@@ -502,7 +502,6 @@ if cppcho_enable_vimwiki
 
   function! s:vimwiki_zettel_capture(...)
     execute ":silent VimwikiMakeDiaryNote"
-    call append('$', '')
     call append('$', '# Quick Capture '.strftime("%H:%M:%S"))
     call append('$', '')
     execute 'normal! G'
@@ -515,11 +514,6 @@ if cppcho_enable_vimwiki
         \'dir': s:vimwiki_dir,
         \}), <bang>0)
 
-  command! -bang -nargs=? VimwikiSearchInbox
-        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'dir': s:vimwiki_dir.'_inbox',
-        \}), <bang>0)
-
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
   command! -bang -nargs=* VimwikiZettelCapture call <sid>vimwiki_zettel_capture()
   command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
@@ -528,7 +522,6 @@ if cppcho_enable_vimwiki
   nmap <silent> T :VimwikiYankName<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   nmap <C-N> :VimwikiZettelCapture<CR>
-  nmap <leader>wo :VimwikiSearchInbox<CR>
 endif
 
 nmap ++ <Plug>VimwikiNormalizeLink
@@ -536,4 +529,5 @@ vmap ++ <Plug>VimwikiNormalizeLinkVisual
 vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
 nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
 nmap <Leader>wgg :VimwikiGenerateLinks<CR>
+nmap <Leader>fs :w<CR>
 
