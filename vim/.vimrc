@@ -22,7 +22,7 @@ Plug 'itchyny/lightline.vim'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
-Plug 'qpkorr/vim-bufkill'
+Plug 'moll/vim-bbye'
 Plug 'scrooloose/nerdtree'
 Plug 'sheerun/vim-polyglot'           " A solid language pack for Vim.
 Plug 'tpope/vim-commentary'
@@ -228,7 +228,7 @@ noremap k gk
 " Enter to clear highlight
 nnoremap <silent> <cr> :noh<cr><cr>
 
-noremap <C-x> :redraw!<cr>
+noremap <silent> <C-x> :redraw!<CR>
 
 " Upper/lower word
 nnoremap <leader>uu mQviwU`Q
@@ -280,7 +280,7 @@ let g:SuperTabLongestHighlight = 1
 let g:SuperTabDefaultCompletionType = "<c-n>"
 
 " EasyMotion
-nmap s <Plug>(easymotion-overwin-f2)
+nmap s <Plug>(easymotion-overwin-f)
 let g:EasyMotion_smartcase=1  " Turn on case insensitive feature
 let g:EasyMotion_do_mapping=0 " Disable default mappings
 
@@ -435,7 +435,9 @@ fun! s:__bclose()
 endfun
 
 " close pane using <C-w>
-noremap <silent> <C-w> :call <SID>__bclose()<CR>
+" noremap <silent> <C-w> :call <SID>__bclose()<CR>
+noremap <silent> <C-w> :bwipeout<CR>
+nnoremap <leader>bw :Bwipeout!<cr>
 
 let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
@@ -530,4 +532,22 @@ vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
 nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
 nmap <Leader>wgg :VimwikiGenerateLinks<CR>
 nmap <Leader>fs :w<CR>
+
+let g:easy_align_delimiters = {
+\  ' ': { 'pattern': ' ',  'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
+\  '=': { 'pattern': '===\|<=>\|\(&&\|||\|<<\|>>\)=\|=\~[#?]\?\|=>\|[:+/*!%^=><&|.-]\?=[#?]\?',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  ':': { 'pattern': ':',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
+\  ',': { 'pattern': ',',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
+\  '|': { 'pattern': '|',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '.': { 'pattern': '\.', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
+\  '#': { 'pattern': '#\+', 'delimiter_align': 'l', 'ignore_groups': ['!Comment']  },
+\  '&': { 'pattern': '\\\@<!&\|\\\\',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '{': { 'pattern': '(\@<!{',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '}': { 'pattern': '}',  'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
+\  '/': { 'pattern': '//=',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 }
+\ }
+>>>>>>> Stashed changes
 
