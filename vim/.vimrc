@@ -351,7 +351,7 @@ nnoremap <C-f> :NERDTreeFind<cr>
 
 " Vimwiki
 if cppcho_enable_vimwiki
-  let s:vimwiki_dir = '~/Documents/vimwiki/'
+  let s:vimwiki_dir = '~/Documents/Notes/'
   let g:vimwiki_list = [{
         \ 'path': s:vimwiki_dir,
         \ 'syntax': 'markdown',
