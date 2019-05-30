@@ -472,7 +472,7 @@ if cppcho_enable_vimwiki
     let filename = parts[0]
     let fileparts = split(filename, '\V.')
     let filename_without_ext = join(fileparts[0:-2],".")
-    let link = printf('[[%s]]', filename_without_ext, filename_without_ext)
+    let link = printf('[[%s]]', filename_without_ext)
     execute 'normal! a' . link
   endfunction
 
@@ -485,7 +485,7 @@ if cppcho_enable_vimwiki
       let filename = filename . ' ' . title
     end
 
-    let link = printf('- [%s](/%s)', filename, filename)
+    let link = printf('- [[%s]]', filename)
     execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
     execute ":silent VimwikiFollowLink"
 
