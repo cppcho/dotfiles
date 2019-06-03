@@ -412,7 +412,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
