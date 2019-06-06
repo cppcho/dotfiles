@@ -32,7 +32,4 @@ git config --global alias.ff "merge --ff-only"
 git config --global alias.noff "merge --no-ff"
 git config --global merge.log true
 git config --global push.default simple
-git config --global.alias.recent "!git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads/ | head -n 100"
-git config --global.alias.upstream "!git branch --set-upstream-to=origin/$(git current) $(git current)"
-git config --global.alias.bs "!BRANCH=`git recent | fzf` && git checkout ${BRANCH}"
 ```
