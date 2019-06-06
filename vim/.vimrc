@@ -14,6 +14,8 @@ endif
 call plug#begin('~/.vim/plugged')
 
 Plug 'altercation/vim-colors-solarized'
+Plug 'christoomey/vim-tmux-navigator'
+Plug 'drewtempelmeyer/palenight.vim'
 Plug 'easymotion/vim-easymotion'
 Plug 'editorconfig/editorconfig-vim'
 Plug 'ervandew/supertab'                  " Perform all your vim insert mode completions with Tab
@@ -29,11 +31,10 @@ Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-eunuch'               " eunuch.vim: helpers for UNIX
 Plug 'tpope/vim-fugitive', { 'tag': '*' }
 Plug 'tpope/vim-sensible'
-Plug 'tpope/vim-unimpaired'           " unimpaired.vim: Pairs of handy bracket mappings  (]op to insert paste mode)
 Plug 'tpope/vim-surround'
-Plug 'vimwiki/vimwiki'
+Plug 'tpope/vim-unimpaired'           " unimpaired.vim: Pairs of handy bracket mappings  (]op to insert paste mode)
 Plug 'vim-scripts/vim-auto-save'
-Plug 'christoomey/vim-tmux-navigator'
+Plug 'vimwiki/vimwiki'
 
 call plug#end()
 
@@ -143,7 +144,17 @@ syntax on
 call <sid>set_background()
 
 " Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-colorscheme solarized
+if has("gui_macvim")
+  colorscheme palenight
+  let g:lightline = {
+        \ 'colorscheme': 'palenight',
+        \ }
+else
+  colorscheme solarized
+  let g:lightline = {
+        \ 'colorscheme': 'PaperColor_light',
+        \ }
+end
 if !has('gui_running')
   " let g:solarized_termcolors=256
   if $TERM == "xterm-256color" || $TERM == "screen-256color" || $COLORTERM == "gnome-terminal" || $TERM == "screen"
@@ -166,9 +177,10 @@ if !has('gui_running')
   endif
 endif
 
-let g:lightline = {
-      \ 'colorscheme': 'PaperColor_light',
-      \ }
+" if (has("termguicolors"))
+"   set termguicolors
+" endif
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " MacVim
@@ -524,14 +536,16 @@ if cppcho_enable_vimwiki
   nmap <silent> T :VimwikiYankName<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   nmap <C-N> :VimwikiZettelCapture<CR>
-endif
 
-nmap ++ <Plug>VimwikiNormalizeLink
-vmap ++ <Plug>VimwikiNormalizeLinkVisual
-vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
-nmap <Leader>wgg :VimwikiGenerateLinks<CR>
-nmap <Leader>fs :w<CR>
+  " Other vimwiki mappings
+  nmap ++ <Plug>VimwikiNormalizeLink
+  vmap ++ <Plug>VimwikiNormalizeLinkVisual
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
+  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
+  nmap <Leader>fs :w<CR>
+  map <Leader><Space> <Plug>VimwikiToggleListItem
+endif
 
 let g:easy_align_delimiters = {
 \  ' ': { 'pattern': ' ',  'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
