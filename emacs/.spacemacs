@@ -190,8 +190,9 @@ It should only modify the values of Spacemacs settings."
    ;; List of themes, the first of the list is loaded when spacemacs starts.
    ;; Press `SPC T n' to cycle to the next theme in the list (works great
    ;; with 2 themes variants, one dark and one light)
-   dotspacemacs-themes '(spacemacs-dark
-                         spacemacs-light)
+   dotspacemacs-themes '(solarized-dark
+                         solarized-light
+                         )
 
    ;; Set the theme for the Spaceline. Supported themes are `spacemacs',
    ;; `all-the-icons', `custom', `doom', `vim-powerline' and `vanilla'. The
@@ -373,7 +374,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil, start an Emacs server if one is not already running.
    ;; (default nil)
-   dotspacemacs-enable-server t
+   dotspacemacs-enable-server nil
 
    ;; Set the emacs server socket location.
    ;; If nil, uses whatever the Emacs default is, otherwise a directory path
@@ -384,7 +385,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil, advise quit functions to keep server open when quitting.
    ;; (default nil)
-   dotspacemacs-persistent-server t
+   dotspacemacs-persistent-server nil
 
    ;; List of search tool executable names. Spacemacs uses the first installed
    ;; tool of the list. Supported tools are `rg', `ag', `pt', `ack' and `grep'.
@@ -514,9 +515,18 @@ before packages are loaded."
                     org-level-2
                     org-level-3
                     org-level-4
-                    org-level-5))
+                    org-level-5
+                    org-level-6
+                    org-level-7
+                    org-level-8))
       (set-face-attribute face nil :weight 'semi-bold :height 1.0)))
   (add-hook 'org-mode-hook 'cppcho/org-mode-hook)
+
+  ;; https://github.com/syl20bnr/spacemacs/issues/10537
+  (defun spacemacs/org-reveal (&rest _args)
+    (when (derived-mode-p 'org-mode)
+      (org-reveal)))
+  (advice-add 'helm-ag--find-file-action :after #'spacemacs/org-reveal)
 
   (defun cppcho/open-default-org-file ()
     "Open index.org"
@@ -544,9 +554,17 @@ before packages are loaded."
   (spacemacs/set-leader-keys "oj" 'cppcho/open-today-journal)
   (spacemacs/set-leader-keys "oJ" 'org-journal-new-entry)
   (spacemacs/set-leader-keys "." 'spacemacs/alternate-buffer)
-  (spacemacs/set-leader-keys "/" 'helm-org-rifle-org-directory)
+  (spacemacs/set-leader-keys "/" 'spacemacs/helm-project-do-rg)
 
   (spacemacs/set-leader-keys "oa" '(lambda () (interactive) (org-agenda nil "n")))
+
+  (defun spacemacs/helm-project-do-rg ()
+    "Search in current project with `rg'."
+    (interactive)
+    (let ((dir (projectile-project-root)))
+      (if dir
+          (spacemacs/helm-files-do-rg dir)
+        (message "error: Not in a project."))))
 
   (evil-define-key 'normal evil-org-mode-map
     "gt" 'org-todo
