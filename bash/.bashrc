@@ -7,7 +7,6 @@ case $- in
 esac
 
 [ -f ~/.bashrc_mac ] && source ~/.bashrc_mac
-[ -f ~/.bashrc_local ] && source ~/.bashrc_local
 
 # https://unix.stackexchange.com/questions/261687/is-it-possible-to-configure-bash-to-autocomplete-with-one-tab-like-zsh
 bind 'set show-all-if-ambiguous on'
@@ -123,3 +122,4 @@ fi
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 [ -f ~/.z.sh ] && source ~/.z.sh
 
+[ -f ~/.bashrc_local ] && source ~/.bashrc_local
