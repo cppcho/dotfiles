@@ -16,7 +16,6 @@ call plug#begin('~/.vim/plugged')
 Plug 'altercation/vim-colors-solarized'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'drewtempelmeyer/palenight.vim'
-Plug 'easymotion/vim-easymotion'
 Plug 'editorconfig/editorconfig-vim'
 Plug 'ervandew/supertab'                  " Perform all your vim insert mode completions with Tab
 Plug 'google/vim-searchindex'             " vim-searchindex: display number of search matches & index of a current match
@@ -24,7 +23,6 @@ Plug 'itchyny/lightline.vim'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-easy-align'
-Plug 'moll/vim-bbye'
 Plug 'scrooloose/nerdtree'
 Plug 'sheerun/vim-polyglot'           " A solid language pack for Vim.
 Plug 'tpope/vim-commentary'
@@ -177,15 +175,6 @@ if !has('gui_running')
   endif
 endif
 
-" if (has("termguicolors"))
-"   set termguicolors
-" endif
-
-
-""""""""""""""""""""""""""""""""""""""""""""""""""
-" MacVim
-""""""""""""""""""""""""""""""""""""""""""""""""""
-
 if has("gui_macvim")
   set guifont=Fira\ Code:h12
   set macligatures
@@ -281,6 +270,9 @@ command! CLEAN retab | TEOL
 
 nmap <leader>bg :SwitchBackground<CR>
 
+" close pane using <C-w>
+noremap <silent> <C-w> :bdelete<CR>
+
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " Plugins
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -290,11 +282,6 @@ let g:SuperTabClosePreviewOnPopupClose = 1
 let g:SuperTabLongestEnhanced = 1
 let g:SuperTabLongestHighlight = 1
 let g:SuperTabDefaultCompletionType = "<c-n>"
-
-" EasyMotion
-nmap s <Plug>(easymotion-overwin-f)
-let g:EasyMotion_smartcase=1  " Turn on case insensitive feature
-let g:EasyMotion_do_mapping=0 " Disable default mappings
 
 function! FZFOpen(command_str)
   if (expand('%') =~# 'NERD_tree' && winnr('$') > 1)
@@ -317,7 +304,6 @@ nnoremap <leader>/ :Rg<space>
 
 " FZF mappings
 nnoremap ; :call FZFOpen(':Buffers')<cr>
-" nnoremap <leader>p :call FZFOpen(':Files')<cr>
 nnoremap <C-p> :call FZFOpen(':Files')<cr>
 
 " An action can be a reference to a function that processes selected lines
@@ -352,9 +338,21 @@ xmap ga <Plug>(EasyAlign)
 nmap ga <Plug>(EasyAlign)
 
 let g:easy_align_delimiters = {
-      \ '?': {'pattern': '?'},
-      \ '>': {'pattern': '>>\|=>\|>'}
-      \ }
+\  ' ': { 'pattern': ' ',  'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
+\  '=': { 'pattern': '===\|<=>\|\(&&\|||\|<<\|>>\)=\|=\~[#?]\?\|=>\|[:+/*!%^=><&|.-]\?=[#?]\?',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  ':': { 'pattern': ':',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
+\  ',': { 'pattern': ',',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
+\  '|': { 'pattern': '|',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '.': { 'pattern': '\.', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
+\  '#': { 'pattern': '#\+', 'delimiter_align': 'l', 'ignore_groups': ['!Comment']  },
+\  '&': { 'pattern': '\\\@<!&\|\\\\',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '{': { 'pattern': '(\@<!{',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '}': { 'pattern': '}',  'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
+\  '/': { 'pattern': '//=',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 }
+\ }
 
 " NERDTree
 let NERDTreeShowHidden=1
@@ -437,19 +435,8 @@ if filereadable(expand("~/.vimrc.local"))
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" Lab
+" Labs
 """"""""""""""""""""""""""""""""""""""""""""""""""
-
-fun! s:__bclose()
-  if (len(getbufinfo({'buflisted': 1})) > 1)
-    bdelete
-  endif
-endfun
-
-" close pane using <C-w>
-" noremap <silent> <C-w> :call <SID>__bclose()<CR>
-noremap <silent> <C-w> :bwipeout<CR>
-nnoremap <leader>bw :Bwipeout!<cr>
 
 let g:fzf_history_dir = '~/.config/vim-fzf-history'
 
@@ -546,21 +533,3 @@ if cppcho_enable_vimwiki
   nmap <Leader>fs :w<CR>
   map <Leader><Space> <Plug>VimwikiToggleListItem
 endif
-
-let g:easy_align_delimiters = {
-\  ' ': { 'pattern': ' ',  'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
-\  '=': { 'pattern': '===\|<=>\|\(&&\|||\|<<\|>>\)=\|=\~[#?]\?\|=>\|[:+/*!%^=><&|.-]\?=[#?]\?',
-\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  ':': { 'pattern': ':',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
-\  ',': { 'pattern': ',',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
-\  '|': { 'pattern': '|',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  '.': { 'pattern': '\.', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
-\  '#': { 'pattern': '#\+', 'delimiter_align': 'l', 'ignore_groups': ['!Comment']  },
-\  '&': { 'pattern': '\\\@<!&\|\\\\',
-\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  '{': { 'pattern': '(\@<!{',
-\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  '}': { 'pattern': '}',  'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\  '/': { 'pattern': '//=',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 }
-\ }
-
