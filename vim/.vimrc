@@ -293,7 +293,7 @@ endfunction
 
 command! -bang -nargs=* Rg
       \ call fzf#vim#grep(
-      \   'rg --line-number --no-heading --color=always --smart-case --vimgrep -- '.shellescape(<q-args>), 1,
+      \   'rg --no-column --line-number --no-heading --color=always --smart-case --vimgrep --trim -- '.shellescape(<q-args>), 1,
       \   <bang>0 ? fzf#vim#with_preview('up:60%')
       \           : fzf#vim#with_preview(),
       \   <bang>0)
@@ -459,12 +459,12 @@ if cppcho_enable_vimwiki
   endfunction
 
   function! s:vimwiki_filename_to_link(filename)
-    return printf('[[%s]]', filename)
+    return printf('[[%s]]', a:filename)
   endfunction
 
   function! s:vimwiki_yank_name()
     let filepath = expand("%")
-    let filename = fnamemodify(filepath, ":r")
+    let filename = fnamemodify(filepath, ":tr")
     let link = <sid>vimwiki_filename_to_link(filename)
     if len(link) > 0
       let @" = link
@@ -537,7 +537,7 @@ if cppcho_enable_vimwiki
   function! VimwikiLinkHandler(link)
     " If the link has a zettel id, ignore the note title in the file name
     " when opening the link
-    let matches = matchlist(a:link, '\(\d\{12\}\)')
+    let matches = matchlist(a:link, '^\(\d\{12\}\)')
     if len(matches) > 1
       let zettel_id = matches[1]
       let paths = split(globpath(s:vimwiki_dir, zettel_id.'*'), '\n')
@@ -551,5 +551,27 @@ if cppcho_enable_vimwiki
 
     return 0
   endfunction
+
+  command! -bang -nargs=* RgZettelShowRelated
+        \ call fzf#vim#grep(
+        \   'rg --no-heading --color=always --smart-case --vimgrep --max-count=1 --fixed-strings --trim -- '.shellescape(<q-args>), 1,
+        \   <bang>0 ? fzf#vim#with_preview('up:60%')
+        \           : fzf#vim#with_preview(),
+        \   <bang>0)
+
+  function! s:vimwiki_zettel_show_related(...)
+    let filepath = expand("%")
+    let filename = fnamemodify(filepath, ":tr")
+    let matches = matchlist(filename, '^\(\d\{12\}\)')
+    if len(matches) > 1
+      let zettel_id = matches[1]
+      execute 'RgZettelShowRelated' zettel_id
+    else
+      echo "not a zettel"
+    end
+  endfunction
+
+  command! -bang -nargs=* VimwikiZettelShowRelated call <sid>vimwiki_zettel_show_related(<q-args>)
+  nmap <leader>ar :VimwikiZettelShowRelated<CR>
 endif
 
