@@ -488,7 +488,7 @@ if cppcho_enable_vimwiki
     end
 
     execute "normal! :'<,'>d\<CR>O\<ESC>0i".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
-    call vimwiki#base#open_link(':e', filename)
+    call vimwiki#base#edit_file(':e', filename, '')
 
     if line('$') == 1 && getline(1) == ''
       " append title if the file is empty
