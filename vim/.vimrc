@@ -293,7 +293,7 @@ endfunction
 
 command! -bang -nargs=* Rg
       \ call fzf#vim#grep(
-      \   'rg --column --line-number --no-heading --color=always --smart-case -- '.shellescape(<q-args>), 1,
+      \   'rg --line-number --no-heading --color=always --smart-case --vimgrep -- '.shellescape(<q-args>), 1,
       \   <bang>0 ? fzf#vim#with_preview('up:60%')
       \           : fzf#vim#with_preview(),
       \   <bang>0)
@@ -423,7 +423,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
@@ -542,7 +542,7 @@ if cppcho_enable_vimwiki
       let zettel_id = matches[1]
       let paths = split(globpath(s:vimwiki_dir, zettel_id.'*'), '\n')
       if len(paths) > 0
-        execute 'edit' paths[0]
+        execute 'edit' fnameescape(paths[0])
       else
         echo "zettel not found"
       end
