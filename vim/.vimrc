@@ -487,8 +487,8 @@ if cppcho_enable_vimwiki
       return 0
     end
 
-    execute "normal! :'<,'>d\<CR>O\<ESC>0i".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
-    call vimwiki#base#edit_file(':e', filename, '')
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    call vimwiki#base#edit_file(':e', filename.'.md', '')
 
     if line('$') == 1 && getline(1) == ''
       " append title if the file is empty
@@ -508,7 +508,7 @@ if cppcho_enable_vimwiki
     let filename = parts[0]
     let fileparts = split(filename, '\V.')
     let filename_without_ext = join(fileparts[0:-2],".")
-    execute 'normal! a '.<sid>vimwiki_filename_to_link(filename_without_ext)
+    execute 'normal! o- '.<sid>vimwiki_filename_to_link(filename_without_ext)
   endfunction
 
   command! -bang -nargs=? -complete=dir VimwikiAutoComplete
@@ -548,7 +548,6 @@ if cppcho_enable_vimwiki
       end
       return 1
     end
-
     return 0
   endfunction
 
