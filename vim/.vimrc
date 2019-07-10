@@ -361,7 +361,7 @@ map <C-e> :NERDTreeToggle<cr>
 nnoremap <C-f> :NERDTreeFind<cr>
 
 " Vimwiki
-let s:vimwiki_dir = '~/Documents/Notes/'
+let s:vimwiki_dir = '~/Dropbox/Notes/'
 if cppcho_enable_vimwiki
   let g:vimwiki_list = [{
         \ 'path': s:vimwiki_dir,
