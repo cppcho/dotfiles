@@ -195,6 +195,9 @@ endif
 let mapleader = "\<Space>"
 let maplocalleader = "\<Space>"
 
+nmap <Leader>fs :w<CR>
+nmap <leader>xb :SwitchBackground<CR>
+
 " use tab and shift tab to indent and de-indent code
 nnoremap <Tab>   >>
 nnoremap <S-Tab> <<
@@ -268,8 +271,6 @@ onoremap <C-s> <Esc>:w<CR>
 command! TEOL %s/\s\+$//
 command! CLEAN retab | TEOL
 
-nmap <leader>bg :SwitchBackground<CR>
-
 " close pane using <C-w>
 noremap <silent> <C-w> :bdelete<CR>
 
@@ -292,7 +293,7 @@ endfunction
 
 command! -bang -nargs=* Rg
       \ call fzf#vim#grep(
-      \   'rg --column --line-number --no-heading --color=always --smart-case -- '.shellescape(<q-args>), 1,
+      \   'rg --no-column --line-number --no-heading --color=always --smart-case --vimgrep --trim -- '.shellescape(<q-args>), 1,
       \   <bang>0 ? fzf#vim#with_preview('up:60%')
       \           : fzf#vim#with_preview(),
       \   <bang>0)
@@ -360,8 +361,8 @@ map <C-e> :NERDTreeToggle<cr>
 nnoremap <C-f> :NERDTreeFind<cr>
 
 " Vimwiki
+let s:vimwiki_dir = '~/Dropbox/Notes/'
 if cppcho_enable_vimwiki
-  let s:vimwiki_dir = '~/Documents/Notes/'
   let g:vimwiki_list = [{
         \ 'path': s:vimwiki_dir,
         \ 'syntax': 'markdown',
@@ -422,7 +423,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
@@ -457,22 +458,21 @@ if cppcho_enable_vimwiki
     return lines
   endfunction
 
-  function! s:vimwiki_yank_name()
-    let filepath = expand("%")
-    let filename = fnamemodify(filepath, ":r")
-    let link = printf('[[%s]]', filename)
-    let @" = link
-    let @* = link
-    return link
+  function! s:vimwiki_filename_to_link(filename)
+    return printf('[[%s]]', a:filename)
   endfunction
 
-  function! s:vimwiki_search_handler(line)
-    let parts =  split(a:line,"\V:")
-    let filename = parts[0]
-    let fileparts = split(filename, '\V.')
-    let filename_without_ext = join(fileparts[0:-2],".")
-    let link = printf('[[%s]]', filename_without_ext)
-    execute 'normal! a' . link
+  function! s:vimwiki_yank_name()
+    let filepath = expand("%")
+    let filename = fnamemodify(filepath, ":tr")
+    let link = <sid>vimwiki_filename_to_link(filename)
+    if len(link) > 0
+      let @" = link
+      let @* = link
+      echo link
+    else
+      echo "not a zettel note"
+    end
   endfunction
 
   function! s:vimwiki_zettel_new(...)
@@ -482,11 +482,13 @@ if cppcho_enable_vimwiki
     let title = join(a:000)
     if len(title) > 0
       let filename = filename . ' ' . title
+    else
+      echo "title is empty"
+      return 0
     end
 
-    let link = printf('- [[%s]]', filename)
-    execute "normal! :'<,'>d\<CR>O\<ESC>0i".link."\<ESC>"
-    execute ":silent VimwikiFollowLink"
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    call vimwiki#base#edit_file(':e', filename.'.md', '')
 
     if line('$') == 1 && getline(1) == ''
       " append title if the file is empty
@@ -501,37 +503,75 @@ if cppcho_enable_vimwiki
     execute 'normal! G'
   endfunction
 
-  function! s:vimwiki_zettel_capture(...)
-    execute ":silent VimwikiMakeDiaryNote"
-    call append('$', '# Quick Capture '.strftime("%H:%M:%S"))
-    call append('$', '')
-    execute 'normal! G'
-    execute ':startinsert'
+  function! s:vimwiki_zettel_autocomplete_handler(line)
+    let parts =  split(a:line,"\V:")
+    let filename = parts[0]
+    let fileparts = split(filename, '\V.')
+    let filename_without_ext = join(fileparts[0:-2],".")
+    execute 'normal! o- '.<sid>vimwiki_filename_to_link(filename_without_ext)
   endfunction
 
   command! -bang -nargs=? -complete=dir VimwikiAutoComplete
         \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'sink':function('<sid>vimwiki_search_handler'),
+        \'sink':function('<sid>vimwiki_zettel_autocomplete_handler'),
         \'dir': s:vimwiki_dir,
         \}), <bang>0)
 
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-  command! -bang -nargs=* VimwikiZettelCapture call <sid>vimwiki_zettel_capture()
   command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
 
-  imap <silent> <C-L><C-L> <esc>:VimwikiAutoComplete<CR>
-  nmap <silent> T :VimwikiYankName<CR>
+  " Custom keybindings
+  map <Leader><Space> <Plug>VimwikiToggleListItem
+  nmap T :VimwikiYankName<CR>
+  nmap <leader>ay :VimwikiYankName<CR>
+  nmap <leader>al :VimwikiAutoComplete<CR>
+  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
+  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  nmap <C-N> :VimwikiZettelCapture<CR>
 
-  " Other vimwiki mappings
+  " Remap
   nmap ++ <Plug>VimwikiNormalizeLink
   vmap ++ <Plug>VimwikiNormalizeLinkVisual
   vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
-  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
-  nmap <Leader>fs :w<CR>
-  map <Leader><Space> <Plug>VimwikiToggleListItem
+
+  function! VimwikiLinkHandler(link)
+    " If the link has a zettel id, ignore the note title in the file name
+    " when opening the link
+    let matches = matchlist(a:link, '^\(\d\{12\}\)')
+    if len(matches) > 1
+      let zettel_id = matches[1]
+      let paths = split(globpath(s:vimwiki_dir, zettel_id.'*'), '\n')
+      if len(paths) > 0
+        execute 'edit' fnameescape(paths[0])
+      else
+        echo "zettel not found"
+      end
+      return 1
+    end
+    return 0
+  endfunction
+
+  command! -bang -nargs=* RgZettelShowRelated
+        \ call fzf#vim#grep(
+        \   'rg --no-heading --color=always --smart-case --vimgrep --max-count=1 --fixed-strings --trim -- '.shellescape(<q-args>), 1,
+        \   <bang>0 ? fzf#vim#with_preview('up:60%')
+        \           : fzf#vim#with_preview(),
+        \   <bang>0)
+
+  function! s:vimwiki_zettel_show_related(...)
+    let filepath = expand("%")
+    let filename = fnamemodify(filepath, ":tr")
+    let matches = matchlist(filename, '^\(\d\{12\}\)')
+    if len(matches) > 1
+      let zettel_id = matches[1]
+      execute 'RgZettelShowRelated' zettel_id
+    else
+      echo "not a zettel"
+    end
+  endfunction
+
+  command! -bang -nargs=* VimwikiZettelShowRelated call <sid>vimwiki_zettel_show_related(<q-args>)
+  nmap <leader>ar :VimwikiZettelShowRelated<CR>
 endif
 
 set diffopt+=iwhite
