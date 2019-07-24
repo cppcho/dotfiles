@@ -533,3 +533,7 @@ if cppcho_enable_vimwiki
   nmap <Leader>fs :w<CR>
   map <Leader><Space> <Plug>VimwikiToggleListItem
 endif
+
+set diffopt+=iwhite
+nmap <Leader>ai :set diffopt+=iwhite<CR>
+nmap <Leader>aw :set diffopt-=iwhite<CR>
