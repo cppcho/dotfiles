@@ -423,7 +423,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
@@ -524,10 +524,12 @@ if cppcho_enable_vimwiki
   map <Leader><Space> <Plug>VimwikiToggleListItem
   nmap T :VimwikiYankName<CR>
   nmap <leader>ay :VimwikiYankName<CR>
-  nmap <leader>al :VimwikiAutoComplete<CR>
   nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
   nmap <Leader>wgg :VimwikiGenerateLinks<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
+  nnoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
 
   " Remap
   nmap ++ <Plug>VimwikiNormalizeLink
