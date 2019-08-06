@@ -423,7 +423,7 @@ augroup vimrc
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 
   if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
   endif
 augroup END
 
@@ -529,7 +529,6 @@ if cppcho_enable_vimwiki
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
-  nnoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
 
   " Remap
   nmap ++ <Plug>VimwikiNormalizeLink
@@ -579,5 +578,3 @@ endif
 set diffopt+=iwhite
 nmap <Leader>ai :set diffopt+=iwhite<CR>
 nmap <Leader>aw :set diffopt-=iwhite<CR>
-nmap == <Plug>VimwikiAddHeaderLevel
-nmap -- <Plug>VimwikiRemoveHeaderLevel
