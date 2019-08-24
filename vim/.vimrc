@@ -578,3 +578,6 @@ endif
 set diffopt+=iwhite
 nmap <Leader>ai :set diffopt+=iwhite<CR>
 nmap <Leader>aw :set diffopt-=iwhite<CR>
+
+nmap ]s <Plug>VimwikiNextLink
+nmap [s <Plug>VimwikiPrevLink
