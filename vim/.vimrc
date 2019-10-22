@@ -238,7 +238,7 @@ syntax on
 call <sid>set_background()
 
 " Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-if s:cppcho_vimwiki_dir
+if has("gui_macvim")
   colorscheme palenight
   let g:lightline = {
         \ 'colorscheme': 'palenight',
@@ -444,11 +444,13 @@ command! -nargs=? -complete=dir AF
 command! -bang -nargs=? -complete=dir Files
       \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
 
-nnoremap <C-p> :call :Files<cr>
+nnoremap <C-p> :Files<cr>
 nnoremap <silent><leader>af :AF<cr>
 nnoremap <silent><leader>l :BLines<cr>
 nnoremap <silent><leader>/ :Ag<cr>
 nnoremap <silent>; :Buffers<cr>
+
+nnoremap <C-f> :Dirvish<cr>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Autocommands {{{
@@ -491,7 +493,7 @@ augroup END
 if s:cppcho_enable_vimwiki
   augroup vimrc
     autocmd!
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:cppcho_vimwiki_dir)
+    autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:cppcho_vimwiki_dir)
     autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
     autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
   augroup END
