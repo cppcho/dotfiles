@@ -1,3 +1,19 @@
+let s:cppcho_is_dark_background=1
+
+let s:cppcho_enable_vimwiki=0
+if has("gui_macvim")
+  let s:cppcho_enable_vimwiki=1
+endif
+
+let s:cppcho_vimwiki_dir = '~/Dropbox/Notes/'
+
+" avoid stupid menu.vim (saves ~100ms)
+let g:did_install_default_menus = 1
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Plugins {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
 let plug_did_install=1
 let plug_file=expand('~/.vim/autoload/plug.vim')
 
@@ -14,25 +30,105 @@ endif
 call plug#begin('~/.vim/plugged')
 
 Plug 'altercation/vim-colors-solarized'
-Plug 'christoomey/vim-tmux-navigator'
 Plug 'drewtempelmeyer/palenight.vim'
+
+Plug 'christoomey/vim-tmux-navigator'
+let g:tmux_navigator_save_on_switch = 2
+let g:tmux_navigator_disable_when_zoomed = 1
+
 Plug 'editorconfig/editorconfig-vim'
-Plug 'ervandew/supertab'                  " Perform all your vim insert mode completions with Tab
-Plug 'google/vim-searchindex'             " vim-searchindex: display number of search matches & index of a current match
+
+" Directory viewer for Vim 
+Plug 'justinmk/vim-dirvish'
+let g:dirvish_mode = ':sort ,^.*[\/],'
+
+" Perform all your vim insert mode completions with Tab
+Plug 'ervandew/supertab'
+let g:SuperTabClosePreviewOnPopupClose = 1
+let g:SuperTabLongestEnhanced = 1
+let g:SuperTabLongestHighlight = 1
+let g:SuperTabDefaultCompletionType = "<c-n>"
+
+" display number of search matches & index of a current match
+Plug 'google/vim-searchindex'
+
+" A light and configurable statusline/tabline plugin for Vim
 Plug 'itchyny/lightline.vim'
+
+" A command-line fuzzy finder
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
+let g:fzf_history_dir = '~/.config/vim-fzf-history'
+
+" A Vim alignment plugin
 Plug 'junegunn/vim-easy-align'
-Plug 'scrooloose/nerdtree'
-Plug 'sheerun/vim-polyglot'           " A solid language pack for Vim.
+let g:easy_align_delimiters = {
+\  ' ': { 'pattern': ' ',  'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
+\  '=': { 'pattern': '===\|<=>\|\(&&\|||\|<<\|>>\)=\|=\~[#?]\?\|=>\|[:+/*!%^=><&|.-]\?=[#?]\?',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  ':': { 'pattern': ':',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
+\  ',': { 'pattern': ',',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
+\  '|': { 'pattern': '|',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '.': { 'pattern': '\.', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
+\  '#': { 'pattern': '#\+', 'delimiter_align': 'l', 'ignore_groups': ['!Comment']  },
+\  '&': { 'pattern': '\\\@<!&\|\\\\',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '{': { 'pattern': '(\@<!{',
+\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
+\  '}': { 'pattern': '}',  'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
+\  '/': { 'pattern': '//=',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 }
+\ }
+
+" A solid language pack for Vim.
+Plug 'sheerun/vim-polyglot'
+
+" comment stuff out
 Plug 'tpope/vim-commentary'
-Plug 'tpope/vim-eunuch'               " eunuch.vim: helpers for UNIX
-Plug 'tpope/vim-fugitive', { 'tag': '*' }
+
+" eunuch.vim: helpers for UNIX
+Plug 'tpope/vim-eunuch'
+
+" A Git wrapper so awesome, it should be illegal
+Plug 'tpope/vim-fugitive'
+
+" Defaults everyone can agree on
 Plug 'tpope/vim-sensible'
+
+" quoting/parenthesizing made simple
 Plug 'tpope/vim-surround'
-Plug 'tpope/vim-unimpaired'           " unimpaired.vim: Pairs of handy bracket mappings  (]op to insert paste mode)
+
+" Pairs of handy bracket mappings  (]op to insert paste mode)
+Plug 'tpope/vim-unimpaired'
+
+" enable repeating supported plugin maps with '.'
+Plug 'tpope/vim-repeat'
+
+" Automatically save changes to disk
 Plug 'vim-scripts/vim-auto-save'
-Plug 'vimwiki/vimwiki'
+
+" Personal Wiki for Vim
+if s:cppcho_enable_vimwiki
+  Plug 'vimwiki/vimwiki'
+
+  let g:vimwiki_list = [{
+        \ 'path': s:cppcho_vimwiki_dir,
+        \ 'syntax': 'markdown',
+        \ 'ext': '.md',
+        \ 'auto_toc': 1,
+        \ }]
+  let g:vimwiki_auto_chdir = 0
+  let g:vimwiki_hl_cb_checked = 1
+  let g:vimwiki_hl_headers = 1
+  let g:vimwiki_table_mappings = 0
+  let g:vimwiki_toc_header = 'Table of Contents'
+
+  " Disable markdown syntax as it will conflict with the vimwiki one
+  let g:polyglot_disabled = ['markdown']
+
+  let g:auto_save = 1
+  let g:auto_save_no_updatetime = 1
+  let g:auto_save_in_insert_mode = 0
+end
 
 call plug#end()
 
@@ -40,17 +136,12 @@ if plug_did_install == 0
   PlugInstall
 end
 
-"""""""""""""""""""""""""""""""""""""""""""""""""
-" General Configurations
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} General Configurations {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-let cppcho_enable_vimwiki=0
-if has("gui_macvim")
-  let cppcho_enable_vimwiki=1
-endif
-
 set autoindent                                        " Copy indent from current line when starting a new line
-set autoread                                          " Don't bother me hen a file changes
+set autoread                                          " Don't bother me when a file changes
 set autowrite                                         " Write on :next/:prev/^Z
 set backspace=eol,start,indent                        " Make backspace a more flexible
 set completeopt=menu                                  " Do not show preview for insert mode completion
@@ -68,7 +159,7 @@ set listchars=tab:›\ ,trail:•,extends:#,nbsp:.        " Highlight problemati
 set mouse=a                                           " Automatically enable mouse usage
 set mousehide                                         " Hide the mouse cursor while typing
 set nobackup                                          " No backup files
-set nocursorcolumn                                      " Do not highlight current column
+set nocursorcolumn                                    " Do not highlight current column
 set noerrorbells visualbell t_vb=
 set noexrc                                            " Don't use local version of .(g)vimrc, .exrc
 set nojoinspaces                                      " Prevents inserting two spaces after punctuation on a join (J)
@@ -99,7 +190,7 @@ set whichwrap=b,s,h,l,<,>,[,]                         " Backspace and cursor key
 set wildignore=*.class,*.o,*~,*.pyc,.git,node_modules " Ignore certain files in tab-completion
 set wildmenu                                          " Show autocomplete menus
 set wildmode=longest,full                             " Command <Tab> completion, list matches, then longest common part, then all.
-set nowrap lbr                                        " Wrap lines
+set nowrap lbr
 set guioptions=                                       " Remove macvim scrollbar
 
 if has('persistent_undo')
@@ -114,10 +205,8 @@ if has('persistent_undo')
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" UI
+" }}} UI {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
-
-let s:cppcho_is_dark_background=1
 
 function! s:set_background()
   if s:cppcho_is_dark_background
@@ -142,7 +231,7 @@ syntax on
 call <sid>set_background()
 
 " Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-if has("gui_macvim")
+if s:cppcho_vimwiki_dir
   colorscheme palenight
   let g:lightline = {
         \ 'colorscheme': 'palenight',
@@ -154,7 +243,6 @@ else
         \ }
 end
 if !has('gui_running')
-  " let g:solarized_termcolors=256
   if $TERM == "xterm-256color" || $TERM == "screen-256color" || $COLORTERM == "gnome-terminal" || $TERM == "screen"
     set t_Co=256
   elseif has("terminfo")
@@ -179,37 +267,17 @@ if has("gui_macvim")
   set guifont=Fira\ Code:h12
   set macligatures
   set background=dark
-
-  let g:auto_save = 1
-  let g:auto_save_no_updatetime = 1
-  let g:auto_save_in_insert_mode = 0
   set wrap lbr
   set clipboard=unnamed
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" Key Mappings
+" }}} Key Mappings {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 " Mapleader
 let mapleader = "\<Space>"
 let maplocalleader = "\<Space>"
-
-nmap <Leader>fs :w<CR>
-nmap <leader>xb :SwitchBackground<CR>
-
-" use tab and shift tab to indent and de-indent code
-nnoremap <Tab>   >>
-nnoremap <S-Tab> <<
-vnoremap <Tab>   >><Esc>gv
-vnoremap <S-Tab> <<<Esc>gv
-inoremap <S-Tab> <C-d>
-
-" Disable Q for entering Ex mode
-nnoremap Q <Nop>
-
-" Disable q: for viewing command history
-nnoremap q: <Nop>
 
 " Stupid shift key fixes
 if has("user_commands")
@@ -223,16 +291,45 @@ if has("user_commands")
   command! -bang QA qa<bang>
   command! -bang Qa qa<bang>
 endif
-cmap Tabe tabe
+
+" Disable Q for entering Ex mode
+nnoremap Q <Nop>
+
+" Disable q: for viewing command history
+nnoremap q: <Nop>
 
 " Wrapped lines goes down/up to next row, rather than next line in file.
 noremap j gj
 noremap k gk
 
+" use tab and shift tab to indent and de-indent code
+nnoremap <Tab>   >>
+nnoremap <S-Tab> <<
+vnoremap <Tab>   >><Esc>gv
+vnoremap <S-Tab> <<<Esc>gv
+inoremap <S-Tab> <C-d>
+
+" save using <C-s> in every mode
+" when in operator-pending or insert, takes you to normal mode
+nnoremap <C-s> :w<CR>
+vnoremap <C-s> <C-c>:w<CR>
+inoremap <C-s> <Esc>:w<CR>
+onoremap <C-s> <Esc>:w<CR>
+
 " Enter to clear highlight
 nnoremap <silent> <cr> :noh<cr><cr>
 
-noremap <silent> <C-x> :redraw!<CR>
+noremap <silent> <C-x> :redraw!<cr>
+
+" Folding
+nnoremap , za
+vnoremap , zf
+
+" Tmux
+nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
+
+nmap <Leader>fs :w<CR>
+nmap <leader>xb :SwitchBackground<CR>
 
 " Upper/lower word
 nnoremap <leader>uu mQviwU`Q
@@ -250,142 +347,66 @@ nnoremap <leader>cf :echo @%<cr>
 nnoremap <silent> <leader>rc :e $MYVIMRC<cr>
 nnoremap <silent> <leader>rr :so $MYVIMRC<cr>
 
-" Folding
-nnoremap , za
-vnoremap , zf
-
-" Tmux
-nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
-
 " Edit last file
 nmap <leader>. :e#<cr>
-
-" save using <C-s> in every mode
-" when in operator-pending or insert, takes you to normal mode
-nnoremap <C-s> :w<CR>
-vnoremap <C-s> <C-c>:w<CR>
-inoremap <C-s> <Esc>:w<CR>
-onoremap <C-s> <Esc>:w<CR>
 
 " Trim spaces at EOL and retab
 command! TEOL %s/\s\+$//
 command! CLEAN retab | TEOL
 
-" close pane using <C-w>
-noremap <silent> <C-w> :bdelete<CR>
-
-""""""""""""""""""""""""""""""""""""""""""""""""""
-" Plugins
-""""""""""""""""""""""""""""""""""""""""""""""""""
-
-" SuperTab
-let g:SuperTabClosePreviewOnPopupClose = 1
-let g:SuperTabLongestEnhanced = 1
-let g:SuperTabLongestHighlight = 1
-let g:SuperTabDefaultCompletionType = "<c-n>"
-
-function! FZFOpen(command_str)
-  if (expand('%') =~# 'NERD_tree' && winnr('$') > 1)
-    exe "normal! \<c-w>\<c-w>"
-  endif
-  exe 'normal! ' . a:command_str . "\<cr>"
-endfunction
-
-" command! -bang -nargs=* Rg
-"       \ call fzf#vim#grep(
-"       \   'rg --no-column --line-number --no-heading --color=always --smart-case '.shellescape(<q-args>), 1,
-"       \   <bang>0 ? fzf#vim#with_preview('up:60%')
-"       \           : fzf#vim#with_preview(),
-"       \   <bang>0)
-
-command! -bang -nargs=? -complete=dir Files
-      \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
-
-nnoremap <leader>/ :Rg<space>
-
-" FZF mappings
-nnoremap ; :call FZFOpen(':Buffers')<cr>
-nnoremap <C-p> :call FZFOpen(':Files')<cr>
-
-" An action can be a reference to a function that processes selected lines
-function! s:build_quickfix_list(lines)
-  call setqflist(map(copy(a:lines), '{ "filename": v:val }'))
-  copen
-  cc
-endfunction
-
-let g:fzf_action = {
-  \ 'ctrl-q': function('s:build_quickfix_list'),
-  \ 'ctrl-t': 'tab split',
-  \ 'ctrl-x': 'split',
-  \ 'ctrl-v': 'vsplit' }
-
 " Fugitive
 nnoremap <silent> <leader>ga :Gwrite<cr>
 nnoremap <silent> <leader>gs :Gstatus<cr>
 nnoremap <silent> <leader>gd :Gdiff<cr>
-nnoremap <silent> <leader>go :Gdiffoff<cr>
-nnoremap <silent> <leader>gl :Glog<cr>
 nnoremap <silent> <leader>gb :Gblame<cr>
-nnoremap <silent> <leader>gr :Gread<cr>
-nnoremap <silent> <leader>ge :Gedit<cr>
 nnoremap <silent> <leader>gf :BCommits<cr>
 nnoremap <silent> <leader>gh :Commits<cr>
 
 " EasyAlign
-" Start interactive EasyAlign in visual mode (e.g. vipga)
 xmap ga <Plug>(EasyAlign)
-" Start interactive EasyAlign for a motion/text object (e.g. gaip)
 nmap ga <Plug>(EasyAlign)
 
-let g:easy_align_delimiters = {
-\  ' ': { 'pattern': ' ',  'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
-\  '=': { 'pattern': '===\|<=>\|\(&&\|||\|<<\|>>\)=\|=\~[#?]\?\|=>\|[:+/*!%^=><&|.-]\?=[#?]\?',
-\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  ':': { 'pattern': ':',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
-\  ',': { 'pattern': ',',  'left_margin': 0, 'right_margin': 1, 'stick_to_left': 1 },
-\  '|': { 'pattern': '|',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  '.': { 'pattern': '\.', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
-\  '#': { 'pattern': '#\+', 'delimiter_align': 'l', 'ignore_groups': ['!Comment']  },
-\  '&': { 'pattern': '\\\@<!&\|\\\\',
-\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  '{': { 'pattern': '(\@<!{',
-\                          'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\  '}': { 'pattern': '}',  'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\  '/': { 'pattern': '//=',  'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 }
-\ }
-
-" NERDTree
-let NERDTreeShowHidden=1
-map <C-e> :NERDTreeToggle<cr>
-nnoremap <C-f> :NERDTreeFind<cr>
-
-" Vimwiki
-let s:vimwiki_dir = '~/Dropbox/Notes/'
-if cppcho_enable_vimwiki
-  let g:vimwiki_list = [{
-        \ 'path': s:vimwiki_dir,
-        \ 'syntax': 'markdown',
-        \ 'ext': '.md',
-        \ 'auto_toc': 1,
-        \ }]
-
-  let g:vimwiki_auto_chdir = 0
-  let g:vimwiki_hl_cb_checked = 1
-  let g:vimwiki_hl_headers = 1
-  let g:vimwiki_table_mappings = 0
-  let g:vimwiki_toc_header = 'Table of Contents'
-
-  " Disable markdown syntax as it will conflict with the vimwiki one
-  let g:polyglot_disabled = ['markdown']
-end
-
-" vim-tmux-navigator
-let g:tmux_navigator_save_on_switch = 2
-let g:tmux_navigator_disable_when_zoomed = 1
+set diffopt+=iwhite
+nmap <Leader>ai :set diffopt+=iwhite<CR>
+nmap <Leader>aw :set diffopt-=iwhite<CR>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" Autocommands
+" }}} FZF {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+let g:fzf_colors =
+      \ { 'fg':      ['fg', 'Normal'],
+      \ 'bg':      ['bg', 'Normal'],
+      \ 'hl':      ['fg', 'Comment'],
+      \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
+      \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
+      \ 'hl+':     ['fg', 'Statement'],
+      \ 'info':    ['fg', 'PreProc'],
+      \ 'border':  ['fg', 'Ignore'],
+      \ 'prompt':  ['fg', 'Conditional'],
+      \ 'pointer': ['fg', 'Exception'],
+      \ 'marker':  ['fg', 'Keyword'],
+      \ 'spinner': ['fg', 'Label'],
+      \ 'header':  ['fg', 'Comment'] }
+
+" All files
+command! -nargs=? -complete=dir AF
+      \ call fzf#run(fzf#wrap(fzf#vim#with_preview({
+      \   'source': 'fd --type f --hidden --follow --exclude .git --no-ignore . '.expand(<q-args>)
+      \ })))
+
+" FZF mappings
+command! -bang -nargs=? -complete=dir Files
+      \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
+
+nnoremap <C-p> :call :Files<cr>
+nnoremap <silent><leader>af :AF<cr>
+nnoremap <silent><leader>l :BLines<cr>
+nnoremap <silent><leader>/ :Rg<cr>
+nnoremap <silent>; :Buffers<cr>
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Autocommands {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 augroup vimrc
@@ -404,9 +425,6 @@ augroup vimrc
   autocmd BufNewFile,BufRead *.psgi,*.t,cpanfile set filetype=perl
   autocmd BufNewFile,BufRead *.tt set filetype=html
 
-  " close vim if the only window left open is a NERDTree
-  autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
-
   autocmd Filetype gitcommit setlocal tw=80
 
   " Fix annoyances in the QuickFix window, like scrolling too much
@@ -415,34 +433,24 @@ augroup vimrc
 
   " Resize panes when window/terminal gets resize
   autocmd VimResized * :wincmd =
-  autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-  autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
 
   autocmd! FileType fzf
   autocmd  FileType fzf set laststatus=0 noshowmode noruler
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
-
-  if cppcho_enable_vimwiki
-    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:vimwiki_dir)
-  endif
 augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" Misc
+" }}} Vimwiki {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-if filereadable(expand("~/.vimrc.local"))
-  source ~/.vimrc.local
-endif
+if s:cppcho_enable_vimwiki
+  augroup vimrc
+    autocmd!
+    autocmd VimEnter * execute 'VimwikiMakeDiaryNote' | execute 'cd' fnameescape(s:cppcho_vimwiki_dir)
+    autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+    autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
+  augroup END
 
-""""""""""""""""""""""""""""""""""""""""""""""""""
-" Labs
-""""""""""""""""""""""""""""""""""""""""""""""""""
-
-let g:fzf_history_dir = '~/.config/vim-fzf-history'
-
-""""""""""""""""""""""""""""""""""""""""""""""""""
-if cppcho_enable_vimwiki
   " Reference: https://github.com/michal-h21/vim-zettel
 
   function! s:get_visual_selection_lines()
@@ -514,7 +522,7 @@ if cppcho_enable_vimwiki
   command! -bang -nargs=? -complete=dir VimwikiAutoComplete
         \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
         \'sink':function('<sid>vimwiki_zettel_autocomplete_handler'),
-        \'dir': s:vimwiki_dir,
+        \'dir': s:cppcho_vimwiki_dir,
         \}), <bang>0)
 
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
@@ -541,7 +549,7 @@ if cppcho_enable_vimwiki
     let matches = matchlist(a:link, '^\(\d\{12\}\)')
     if len(matches) > 1
       let zettel_id = matches[1]
-      let paths = split(globpath(s:vimwiki_dir, zettel_id.'*'), '\n')
+      let paths = split(globpath(s:cppcho_vimwiki_dir, zettel_id.'*'), '\n')
       if len(paths) > 0
         execute 'edit' fnameescape(paths[0])
       else
@@ -573,11 +581,15 @@ if cppcho_enable_vimwiki
 
   command! -bang -nargs=* VimwikiZettelShowRelated call <sid>vimwiki_zettel_show_related(<q-args>)
   nmap <leader>ar :VimwikiZettelShowRelated<CR>
+
+  nmap ]s <Plug>VimwikiNextLink
+  nmap [s <Plug>VimwikiPrevLink
 endif
 
-set diffopt+=iwhite
-nmap <Leader>ai :set diffopt+=iwhite<CR>
-nmap <Leader>aw :set diffopt-=iwhite<CR>
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Misc {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
 
-nmap ]s <Plug>VimwikiNextLink
-nmap [s <Plug>VimwikiPrevLink
+if filereadable(expand("~/.vimrc.local"))
+  source ~/.vimrc.local
+endif
