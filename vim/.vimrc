@@ -55,6 +55,13 @@ Plug 'google/vim-searchindex'
 " A light and configurable statusline/tabline plugin for Vim
 Plug 'itchyny/lightline.vim'
 
+" The undo history visualizer for VIM
+Plug 'mbbill/undotree'
+let g:undotree_WindowLayout = 2
+
+" Vim plugin for the Perl module / CLI script 'ack'
+Plug 'mileszs/ack.vim'
+
 " A command-line fuzzy finder
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
@@ -370,6 +377,44 @@ set diffopt+=iwhite
 nmap <Leader>ai :set diffopt+=iwhite<CR>
 nmap <Leader>aw :set diffopt-=iwhite<CR>
 
+nnoremap U :UndotreeToggle<CR>
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Todo {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" https://github.com/junegunn/dotfiles/blob/master/vimrc#L965
+
+function! s:todo() abort
+  let entries = []
+  for cmd in ['git grep -niI -e TODO -e FIXME 2> /dev/null']
+    let lines = split(system(cmd), '\n')
+    if v:shell_error != 0 | continue | endif
+    for line in lines
+      let [fname, lno, text] = matchlist(line, '^\([^:]*\):\([^:]*\):\(.*\)')[1:3]
+      call add(entries, { 'filename': fname, 'lnum': lno, 'text': text })
+    endfor
+    break
+  endfor
+
+  if !empty(entries)
+    call setqflist(entries)
+    copen
+  endif
+endfunction
+command! Todo call s:todo()
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Grep {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if executable('ag')
+  let &grepprg = 'ag --nogroup --nocolor --column'
+else
+  let &grepprg = 'grep -rn $* *'
+endif
+command! -nargs=1 -bar Grep execute 'silent! grep! <q-args>' | redraw! | copen
+
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} FZF {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -402,7 +447,7 @@ command! -bang -nargs=? -complete=dir Files
 nnoremap <C-p> :call :Files<cr>
 nnoremap <silent><leader>af :AF<cr>
 nnoremap <silent><leader>l :BLines<cr>
-nnoremap <silent><leader>/ :Rg<cr>
+nnoremap <silent><leader>/ :Ag<cr>
 nnoremap <silent>; :Buffers<cr>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -593,3 +638,4 @@ endif
 if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
 endif
+
