@@ -109,3 +109,9 @@ export LANG=en_US.UTF-8
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
 
 alias ta='tmux new-session -A -s cppcho'
+
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_FIND_NO_DUPS
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
