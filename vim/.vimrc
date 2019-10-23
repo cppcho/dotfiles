@@ -373,7 +373,6 @@ nnoremap <silent> <leader>gh :Commits<cr>
 xmap ga <Plug>(EasyAlign)
 nmap ga <Plug>(EasyAlign)
 
-set diffopt+=iwhite
 nmap <Leader>ai :set diffopt+=iwhite<CR>
 nmap <Leader>aw :set diffopt-=iwhite<CR>
 
