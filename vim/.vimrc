@@ -1,14 +1,13 @@
-let s:cppcho_is_dark_background=1
-
 let s:cppcho_enable_vimwiki=0
-if has("gui_macvim")
-  let s:cppcho_enable_vimwiki=1
-endif
-
+let s:cppcho_is_dark_background=1
 let s:cppcho_vimwiki_dir = '~/Dropbox/Notes/'
 
-" avoid stupid menu.vim (saves ~100ms)
-let g:did_install_default_menus = 1
+if has("gui_macvim")
+  let s:cppcho_enable_vimwiki=1
+else
+  let g:did_install_default_menus = 1 " avoid stupid menu.vim (saves ~100ms)
+  let s:cppcho_enable_vimwiki=0
+endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
@@ -29,8 +28,10 @@ endif
 " - Avoid using standard Vim directory names like 'plugin'
 call plug#begin('~/.vim/plugged')
 
+" Colors
 Plug 'altercation/vim-colors-solarized'
 Plug 'drewtempelmeyer/palenight.vim'
+Plug 'NLKNguyen/papercolor-theme'
 
 Plug 'christoomey/vim-tmux-navigator'
 let g:tmux_navigator_save_on_switch = 2
@@ -215,6 +216,20 @@ endif
 " }}} UI {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+" Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
+if has("gui_macvim")
+  let s:cppcho_is_dark_background = 0
+  colorscheme PaperColor
+  let g:lightline = {
+        \ 'colorscheme': 'PaperColor_light',
+        \ }
+else
+  colorscheme solarized
+  let g:lightline = {
+        \ 'colorscheme': 'PaperColor_light',
+        \ }
+end
+
 function! s:set_background()
   if s:cppcho_is_dark_background
     set background=dark
@@ -237,18 +252,6 @@ syntax on
 
 call <sid>set_background()
 
-" Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-if has("gui_macvim")
-  colorscheme palenight
-  let g:lightline = {
-        \ 'colorscheme': 'palenight',
-        \ }
-else
-  colorscheme solarized
-  let g:lightline = {
-        \ 'colorscheme': 'PaperColor_light',
-        \ }
-end
 if !has('gui_running')
   if $TERM == "xterm-256color" || $TERM == "screen-256color" || $COLORTERM == "gnome-terminal" || $TERM == "screen"
     set t_Co=256
@@ -273,7 +276,6 @@ endif
 if has("gui_macvim")
   set guifont=Fira\ Code:h12
   set macligatures
-  set background=dark
   set wrap lbr
   set clipboard=unnamed
 endif
@@ -417,21 +419,6 @@ command! -nargs=1 -bar Grep execute 'silent! grep! <q-args>' | redraw! | copen
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} FZF {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
-
-let g:fzf_colors =
-      \ { 'fg':      ['fg', 'Normal'],
-      \ 'bg':      ['bg', 'Normal'],
-      \ 'hl':      ['fg', 'Comment'],
-      \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
-      \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
-      \ 'hl+':     ['fg', 'Statement'],
-      \ 'info':    ['fg', 'PreProc'],
-      \ 'border':  ['fg', 'Ignore'],
-      \ 'prompt':  ['fg', 'Conditional'],
-      \ 'pointer': ['fg', 'Exception'],
-      \ 'marker':  ['fg', 'Keyword'],
-      \ 'spinner': ['fg', 'Label'],
-      \ 'header':  ['fg', 'Comment'] }
 
 " All files
 command! -nargs=? -complete=dir AF
