@@ -330,6 +330,8 @@ nnoremap <silent> <cr> :noh<cr><cr>
 
 noremap <silent> <C-x> :redraw!<cr>
 
+nnoremap <C-w> :close<CR>
+
 " Folding
 nnoremap , za
 vnoremap , zf
