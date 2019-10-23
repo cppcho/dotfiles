@@ -480,8 +480,8 @@ if s:cppcho_enable_vimwiki
   augroup vimrc
     autocmd!
     autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:cppcho_vimwiki_dir)
-    autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-    autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
+    " autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+    " autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
   augroup END
 
   " Reference: https://github.com/michal-h21/vim-zettel
