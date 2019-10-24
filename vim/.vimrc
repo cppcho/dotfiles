@@ -39,9 +39,7 @@ let g:tmux_navigator_disable_when_zoomed = 1
 
 Plug 'editorconfig/editorconfig-vim'
 
-" Directory viewer for Vim 
-Plug 'justinmk/vim-dirvish'
-let g:dirvish_mode = ':sort ,^.*[\/],'
+Plug 'tpope/vim-vinegar'
 
 " Perform all your vim insert mode completions with Tab
 Plug 'ervandew/supertab'
@@ -438,7 +436,8 @@ nnoremap <silent><leader>l :BLines<cr>
 nnoremap <silent><leader>/ :Ag<cr>
 nnoremap <silent>; :Buffers<cr>
 
-nnoremap <C-f> :Dirvish<cr>
+nnoremap <C-f> :e %:h<cr>
+nnoremap <C-e> :e .<cr>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Autocommands {{{
