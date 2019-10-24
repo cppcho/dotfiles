@@ -441,7 +441,7 @@ nnoremap <C-p> :call FZFOpen(':Files')<cr>
 nnoremap <silent><leader>af :call FZFOpen(':AF')<cr>
 nnoremap <silent><leader>l :call FZFOpen(':BLines')<cr>
 nnoremap <silent><leader>/ :call FZFOpen(':Ag')<cr>
-nnoremap <silent>; :call FZFOpen('Buffers')<cr>
+nnoremap <silent>; :call FZFOpen(':Buffers')<cr>
 
 nnoremap <C-f> :NERDTreeFind<cr>
 nnoremap <C-e> :NERDTreeToggle<cr>
