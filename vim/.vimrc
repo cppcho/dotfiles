@@ -5,7 +5,6 @@ let s:cppcho_vimwiki_dir = '~/Dropbox/Notes/'
 if has("gui_macvim")
   let s:cppcho_enable_vimwiki=1
 else
-  let g:did_install_default_menus = 1 " avoid stupid menu.vim (saves ~100ms)
   let s:cppcho_enable_vimwiki=0
 endif
 
@@ -39,7 +38,8 @@ let g:tmux_navigator_disable_when_zoomed = 1
 
 Plug 'editorconfig/editorconfig-vim'
 
-Plug 'tpope/vim-vinegar'
+" A tree explorer plugin for vim.
+Plug 'scrooloose/nerdtree'
 
 " Perform all your vim insert mode completions with Tab
 Plug 'ervandew/supertab'
@@ -420,6 +420,13 @@ command! -nargs=1 -bar Grep execute 'silent! grep! <q-args>' | redraw! | copen
 " }}} FZF {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+function! FZFOpen(command_str)
+  if (expand('%') =~# 'NERD_tree' && winnr('$') > 1)
+    exe "normal! \<c-w>\<c-w>"
+  endif
+  exe 'normal! ' . a:command_str . "\<cr>"
+endfunction
+
 " All files
 command! -nargs=? -complete=dir AF
       \ call fzf#run(fzf#wrap(fzf#vim#with_preview({
@@ -430,14 +437,14 @@ command! -nargs=? -complete=dir AF
 command! -bang -nargs=? -complete=dir Files
       \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
 
-nnoremap <C-p> :Files<cr>
-nnoremap <silent><leader>af :AF<cr>
-nnoremap <silent><leader>l :BLines<cr>
-nnoremap <silent><leader>/ :Ag<cr>
-nnoremap <silent>; :Buffers<cr>
+nnoremap <C-p> :call FZFOpen(':Files')<cr>
+nnoremap <silent><leader>af :call FZFOpen(':AF')<cr>
+nnoremap <silent><leader>l :call FZFOpen(':BLines')<cr>
+nnoremap <silent><leader>/ :call FZFOpen(':Ag')<cr>
+nnoremap <silent>; :call FZFOpen('Buffers')<cr>
 
-nnoremap <C-f> :e %:h<cr>
-nnoremap <C-e> :e .<cr>
+nnoremap <C-f> :NERDTreeFind<cr>
+nnoremap <C-e> :NERDTreeToggle<cr>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Autocommands {{{
@@ -471,6 +478,10 @@ augroup vimrc
   autocmd! FileType fzf
   autocmd  FileType fzf set laststatus=0 noshowmode noruler
         \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
+
+  " https://github.com/scrooloose/nerdtree
+  " How can I close vim if the only window left open is a NERDTree?
+  autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -564,7 +575,6 @@ if s:cppcho_enable_vimwiki
 
   " Custom keybindings
   map <Leader><Space> <Plug>VimwikiToggleListItem
-  nmap T :VimwikiYankName<CR>
   nmap <leader>ay :VimwikiYankName<CR>
   nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
   nmap <Leader>wgg :VimwikiGenerateLinks<CR>
