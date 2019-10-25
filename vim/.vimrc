@@ -341,6 +341,7 @@ vnoremap , zf
 
 " Tmux
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
+nmap \tt :!tmux send-keys -t right "prove -lr -PPretty " % ENTER<cr><cr>
 
 nmap <Leader>fs :w<CR>
 nmap <leader>xb :SwitchBackground<CR>
@@ -373,6 +374,7 @@ nnoremap <silent> <leader>ga :Gwrite<cr>
 nnoremap <silent> <leader>gs :Gstatus<cr>
 nnoremap <silent> <leader>gd :Gdiff<cr>
 nnoremap <silent> <leader>gb :Gblame<cr>
+nnoremap <silent> <leader>gp :Gpush<cr>
 nnoremap <silent> <leader>gf :BCommits<cr>
 nnoremap <silent> <leader>gh :Commits<cr>
 
