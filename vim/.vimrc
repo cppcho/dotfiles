@@ -41,6 +41,7 @@ Plug 'editorconfig/editorconfig-vim'
 " A tree explorer plugin for vim.
 " Plug 'scrooloose/nerdtree'
 Plug 'justinmk/vim-dirvish'
+let g:dirvish_mode = ':sort ,^.*[\/],' " folder on top
 
 " Perform all your vim insert mode completions with Tab
 Plug 'ervandew/supertab'
