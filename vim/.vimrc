@@ -40,6 +40,7 @@ Plug 'editorconfig/editorconfig-vim'
 
 " The missing motion for Vim
 Plug 'justinmk/vim-sneak'
+let g:sneak#s_next = 1
 
 " A tree explorer plugin for vim.
 " Plug 'scrooloose/nerdtree'
@@ -339,8 +340,8 @@ noremap <silent> <C-x> :redraw!<cr>
 nnoremap <C-w> :close<CR>
 
 " Folding
-nnoremap , za
-vnoremap , zf
+" nnoremap , za
+" vnoremap , zf
 
 " Tmux
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
