@@ -319,11 +319,11 @@ noremap j gj
 noremap k gk
 
 " use tab and shift tab to indent and de-indent code
-nnoremap <Tab>   >>
-nnoremap <S-Tab> <<
-vnoremap <Tab>   >><Esc>gv
-vnoremap <S-Tab> <<<Esc>gv
-inoremap <S-Tab> <C-d>
+" nnoremap <Tab>   >>
+" nnoremap <S-Tab> <<
+" vnoremap <Tab>   >><Esc>gv
+" vnoremap <S-Tab> <<<Esc>gv
+" inoremap <S-Tab> <C-d>
 
 " save using <C-s> in every mode
 " when in operator-pending or insert, takes you to normal mode
@@ -596,20 +596,6 @@ if s:cppcho_enable_vimwiki
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
   command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
 
-  " Custom keybindings
-  map <Leader><Space> <Plug>VimwikiToggleListItem
-  nmap <leader>ay :VimwikiYankName<CR>
-  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
-  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
-
-  " Remap
-  nmap ++ <Plug>VimwikiNormalizeLink
-  vmap ++ <Plug>VimwikiNormalizeLinkVisual
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-
   function! VimwikiLinkHandler(link)
     " If the link has a zettel id, ignore the note title in the file name
     " when opening the link
@@ -649,8 +635,21 @@ if s:cppcho_enable_vimwiki
   command! -bang -nargs=* VimwikiZettelShowRelated call <sid>vimwiki_zettel_show_related(<q-args>)
   nmap <leader>ar :VimwikiZettelShowRelated<CR>
 
-  nmap ]s <Plug>VimwikiNextLink
-  nmap [s <Plug>VimwikiPrevLink
+  " Custom keybindings
+  " map <Leader><Space> <Plug>VimwikiToggleListItem
+  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
+  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
+  nmap <C-Y> :VimwikiYankName<CR>
+
+  " Remap
+  nmap <nop> <Plug>VimwikiNormalizeLink
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+
+  nmap + <Plug>VimwikiAddHeaderLevel
+  nmap _ <Plug>VimwikiRemoveHeaderLevel
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
