@@ -44,8 +44,6 @@ let g:sneak#s_next = 1
 
 " A tree explorer plugin for vim.
 Plug 'scrooloose/nerdtree'
-" Plug 'justinmk/vim-dirvish'
-" let g:dirvish_mode = ':sort ,^.*[\/],' " folder on top
 
 " Perform all your vim insert mode completions with Tab
 Plug 'ervandew/supertab'
@@ -133,7 +131,7 @@ if s:cppcho_enable_vimwiki
   " let g:vimwiki_hl_headers = 1
   let g:vimwiki_table_mappings = 0
   let g:vimwiki_toc_header = 'Table of Contents'
-  " let g:vimwiki_url_maxsave = 0
+  let g:vimwiki_url_maxsave = 0
   let g:vimwiki_use_calendar = 0
   let g:vimwiki_menu = ''
 
@@ -225,7 +223,6 @@ endif
 
 " Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
 if has("gui_macvim")
-  let s:cppcho_is_dark_background = 0
   colorscheme PaperColor
   let g:lightline = {
         \ 'colorscheme': 'PaperColor_light',
@@ -451,23 +448,11 @@ command! -bang -nargs=? -complete=dir Files
 nnoremap <C-p> :call FZFOpen(':Files')<cr>
 nnoremap <silent><leader>af :call FZFOpen(':AF')<cr>
 nnoremap <silent><leader>l :call FZFOpen(':BLines')<cr>
-" nnoremap <silent><leader>/ :call FZFOpen(':Ag')<cr>
 nnoremap <leader>/ :Ag<space>
 nnoremap <silent><leader>; :call FZFOpen(':Buffers')<cr>
 
 nnoremap <C-f> :NERDTreeFind<cr>
 nnoremap <C-e> :NERDTreeToggle<cr>
-"
-" function! DirvishToggle(command_str)
-"   if (&ft=='dirvish')
-"     exe 'normal gq'
-"   else
-"     exe 'normal! ' . a:command_str . "\<cr>"
-"   endif
-" endfunction
-
-" nnoremap <silent><C-f> :call DirvishToggle(':Dirvish %')<cr>
-" nnoremap <silent><C-e> :call DirvishToggle(':Dirvish')<cr>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Autocommands {{{
@@ -515,71 +500,27 @@ if s:cppcho_enable_vimwiki
   augroup vimrc
     autocmd!
     autocmd VimEnter * execute 'VimwikiIndex' | execute 'cd' fnameescape(s:cppcho_vimwiki_dir)
-    " autocmd FileType vimwiki imap <buffer> <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-    " autocmd FileType vimwiki imap <buffer> <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
   augroup END
 
   " Reference: https://github.com/michal-h21/vim-zettel
-
-  function! s:get_visual_selection_lines()
-    " Why is this not a built-in Vim script function?!
-    let [line_start, column_start] = getpos("'<")[1:2]
-    let [line_end, column_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
-    if len(lines) == 0
-      return ''
-    endif
-    " let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
-    " let lines[0] = lines[0][column_start - 1:]
-    return lines
-  endfunction
 
   function! s:vimwiki_filename_to_link(filename)
     return printf('[[%s]]', a:filename)
   endfunction
 
   function! s:vimwiki_yank_name()
-    let filepath = expand("%")
-    let filename = fnamemodify(filepath, ":tr")
+    let filename = fnamemodify(expand("%"), ":~:.")
     let link = <sid>vimwiki_filename_to_link(filename)
     if len(link) > 0
       let @" = link
       let @* = link
       echo link
     else
-      echo "not a zettel note"
+      echo "cannot yank file name"
     end
   endfunction
 
-  function! s:vimwiki_zettel_new(...)
-    let lines = <sid>get_visual_selection_lines()
-    let filename = strftime("%y%m%d%H%M%S")
-
-    let title = join(a:000)
-    if len(title) > 0
-      let filename = filename . ' ' . title
-    else
-      echo "title is empty"
-      return 0
-    end
-
-    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
-    call vimwiki#base#edit_file(':e', filename.'.md', '')
-
-    if line('$') == 1 && getline(1) == ''
-      " append title if the file is empty
-      call append(0, '# '.filename)
-    else
-      call append("$", '')
-    end
-
-    for line in lines
-      call append("$", line)
-    endfor
-    execute 'normal! G'
-  endfunction
-
-  function! s:vimwiki_zettel_autocomplete_handler(line)
+  function! s:vimwiki_autocomplete_handler(line)
     let parts =  split(a:line,"\V:")
     let filename = parts[0]
     let fileparts = split(filename, '\V.')
@@ -589,65 +530,50 @@ if s:cppcho_enable_vimwiki
 
   command! -bang -nargs=? -complete=dir VimwikiAutoComplete
         \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'sink':function('<sid>vimwiki_zettel_autocomplete_handler'),
+        \'sink':function('<sid>vimwiki_autocomplete_handler'),
         \'dir': s:cppcho_vimwiki_dir,
         \}), <bang>0)
 
-  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_zettel_new(<q-args>)
-
   function! VimwikiLinkHandler(link)
-    " If the link has a zettel id, ignore the note title in the file name
-    " when opening the link
-    let matches = matchlist(a:link, '^\(\d\{12\}\)')
-    if len(matches) > 1
-      let zettel_id = matches[1]
-      let paths = split(globpath(s:cppcho_vimwiki_dir, zettel_id.'*'), '\n')
-      if len(paths) > 0
-        execute 'edit' fnameescape(paths[0])
-      else
-        echo "zettel not found"
-      end
+    let filepath = expand(s:cppcho_vimwiki_dir . a:link . '.md')
+    if filereadable(filepath)
+      execute 'edit' filepath
       return 1
     end
     return 0
   endfunction
 
-  command! -bang -nargs=* RgZettelShowRelated
+  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
+
+  command! -bang -nargs=* RgShowRelated
         \ call fzf#vim#grep(
         \   'rg --no-heading --color=always --smart-case --vimgrep --max-count=1 --fixed-strings --trim -- '.shellescape(<q-args>), 1,
         \   <bang>0 ? fzf#vim#with_preview('up:60%')
         \           : fzf#vim#with_preview(),
         \   <bang>0)
 
-  function! s:vimwiki_zettel_show_related(...)
-    let filepath = expand("%")
-    let filename = fnamemodify(filepath, ":tr")
-    let matches = matchlist(filename, '^\(\d\{12\}\)')
-    if len(matches) > 1
-      let zettel_id = matches[1]
-      execute 'RgZettelShowRelated' zettel_id
+  function! s:vimwiki_show_related(...)
+    let filename = fnamemodify(expand("%"), ":~:.")
+    if len(filename) > 1
+      execute 'RgShowRelated' filename
     else
-      echo "not a zettel"
+      echo "error occurred in vimwiki_show_related()"
     end
   endfunction
 
-  command! -bang -nargs=* VimwikiZettelShowRelated call <sid>vimwiki_zettel_show_related(<q-args>)
-  nmap <leader>ar :VimwikiZettelShowRelated<CR>
+  command! -bang -nargs=* VimwikiShowRelated call <sid>vimwiki_show_related(<q-args>)
 
   " Custom keybindings
-  " map <Leader><Space> <Plug>VimwikiToggleListItem
   nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
   nmap <Leader>wgg :VimwikiGenerateLinks<CR>
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
   nmap <C-Y> :VimwikiYankName<CR>
+  nmap <leader>ar :VimwikiShowRelated<CR>
 
   " Remap
   nmap <nop> <Plug>VimwikiNormalizeLink
   vmap <nop> <Plug>VimwikiNormalizeLinkVisual
   vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-
   nmap + <Plug>VimwikiAddHeaderLevel
   nmap _ <Plug>VimwikiRemoveHeaderLevel
 endif
