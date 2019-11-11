@@ -43,9 +43,9 @@ Plug 'justinmk/vim-sneak'
 let g:sneak#s_next = 1
 
 " A tree explorer plugin for vim.
-" Plug 'scrooloose/nerdtree'
-Plug 'justinmk/vim-dirvish'
-let g:dirvish_mode = ':sort ,^.*[\/],' " folder on top
+Plug 'scrooloose/nerdtree'
+" Plug 'justinmk/vim-dirvish'
+" let g:dirvish_mode = ':sort ,^.*[\/],' " folder on top
 
 " Perform all your vim insert mode completions with Tab
 Plug 'ervandew/supertab'
@@ -455,19 +455,19 @@ nnoremap <silent><leader>l :call FZFOpen(':BLines')<cr>
 nnoremap <leader>/ :Ag<space>
 nnoremap <silent><leader>; :call FZFOpen(':Buffers')<cr>
 
-" nnoremap <C-f> :NERDTreeFind<cr>
-" nnoremap <C-e> :NERDTreeToggle<cr>
+nnoremap <C-f> :NERDTreeFind<cr>
+nnoremap <C-e> :NERDTreeToggle<cr>
 "
-function! DirvishToggle(command_str)
-  if (&ft=='dirvish')
-    exe 'normal gq'
-  else
-    exe 'normal! ' . a:command_str . "\<cr>"
-  endif
-endfunction
+" function! DirvishToggle(command_str)
+"   if (&ft=='dirvish')
+"     exe 'normal gq'
+"   else
+"     exe 'normal! ' . a:command_str . "\<cr>"
+"   endif
+" endfunction
 
-nnoremap <silent><C-f> :call DirvishToggle(':Dirvish %')<cr>
-nnoremap <silent><C-e> :call DirvishToggle(':Dirvish')<cr>
+" nnoremap <silent><C-f> :call DirvishToggle(':Dirvish %')<cr>
+" nnoremap <silent><C-e> :call DirvishToggle(':Dirvish')<cr>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Autocommands {{{
@@ -504,7 +504,7 @@ augroup vimrc
 
   " https://github.com/scrooloose/nerdtree
   " How can I close vim if the only window left open is a NERDTree?
-  " autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+  autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
