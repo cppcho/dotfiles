@@ -508,6 +508,49 @@ if s:cppcho_enable_vimwiki
     return printf('[[%s]]', a:filename)
   endfunction
 
+  function! s:get_visual_selection_lines()
+    " Why is this not a built-in Vim script function?!
+    let [line_start, column_start] = getpos("'<")[1:2]
+    let [line_end, column_end] = getpos("'>")[1:2]
+    let lines = getline(line_start, line_end)
+    if len(lines) == 0
+      return ''
+    endif
+    " let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
+    " let lines[0] = lines[0][column_start - 1:]
+    return lines
+  endfunction
+
+  function! s:vimwiki_new_note(...)
+    let lines = <sid>get_visual_selection_lines()
+    let filename = ''
+
+    let title = join(a:000)
+    if len(title) > 0
+      let filename = filename . title
+    else
+      echo "title is empty"
+      return 0
+    end
+
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    call vimwiki#base#edit_file(':e', filename.'.md', '')
+
+    if line('$') == 1 && getline(1) == ''
+      " append title if the file is empty
+      call append(0, '# '.filename)
+    else
+      call append("$", '')
+    end
+
+    for line in lines
+      call append("$", line)
+    endfor
+    execute 'normal! G'
+  endfunction
+
+  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
+
   function! s:vimwiki_yank_name()
     let filename = fnamemodify(expand("%"), ":~:.")
     let link = <sid>vimwiki_filename_to_link(filename)
@@ -567,6 +610,7 @@ if s:cppcho_enable_vimwiki
   nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
   nmap <Leader>wgg :VimwikiGenerateLinks<CR>
   inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   nmap <C-Y> :VimwikiYankName<CR>
   nmap <leader>ar :VimwikiShowRelated<CR>
 
