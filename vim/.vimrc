@@ -159,7 +159,7 @@ set autowrite                                         " Write on :next/:prev/^Z
 set backspace=eol,start,indent                        " Make backspace a more flexible
 set completeopt=menu                                  " Do not show preview for insert mode completion
 set nocursorline                                        " Whether to highlight the current line
-set diffopt+=vertical                                 " Start diff mode with vertical splits
+"set diffopt+=vertical                                 " Start diff mode with vertical splits
 set expandtab                                         " Tabs are spaces, not tabs
 set hidden                                            " Allow buffer switching without saving
 set hlsearch                                          " Highlight all matches when searching
