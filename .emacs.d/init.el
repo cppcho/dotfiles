@@ -9,6 +9,9 @@
 ;; disable startup message
 (defun display-startup-echo-area-message () (message ""))
 
+;; disable "Symbolic link to Git-controlled source file" warnings
+(setq vc-follow-symlinks t)
+
 ;; window title: buffer name + modified status
 ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Frame-Titles.html
 (setq-default frame-title-format "%b %& emacs")
