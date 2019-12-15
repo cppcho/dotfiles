@@ -37,6 +37,7 @@
 
 ;; don't backup anything
 (setq backup-inhibited t)
+(setq auto-save-default nil)
 
 ;; Show empty lines. Why?
 ;; .. without this you can't tell if there are blank lines at the end of the file.
@@ -192,8 +193,22 @@ There are two things you can do about this warning:
              (global-evil-leader-mode)
              (evil-leader/set-leader "<SPC>")
 
+             (evil-leader/set-key "<SPC>" 'execute-extended-command)
              (evil-leader/set-key "rc" (lambda() (interactive)(find-file "~/.emacs.d/init.el")))
              (evil-leader/set-key "rr" 'eval-buffer)
+
+             (evil-leader/set-key "ww" (lambda() (interactive)(find-file "~/Documents/org/index.org")))
+
+             (evil-leader/set-key "h?" 'help-for-help)
+             (evil-leader/set-key "hP" 'describe-package)
+             (evil-leader/set-key "hb" 'describe-bindings)
+             (evil-leader/set-key "hf" 'describe-function)
+             (evil-leader/set-key "hk" 'describe-key)
+             (evil-leader/set-key "ho" 'describe-symbol)
+             (evil-leader/set-key "hv" 'describe-variable)
+             (evil-leader/set-key "hw" 'where-is)
+
+             (evil-leader/set-key "<escape>" 'keyboard-escape-quit)
 
              ;; TODO:
              ;; Interactive file name search.
@@ -205,15 +220,21 @@ There are two things you can do about this warning:
              ;; Interactive open-buffer switch.
              (evil-leader/set-key ";" 'counsel-switch-buffer))
 
+
 ;; Main Vim emulation package. Why?
 ;; .. without this, you won't have Vim key bindings or modes.
 (use-package evil
   :after (evil-leader)
   :demand t
   :config
+  ;; unbind tab
+  ;; https://emacs.stackexchange.com/questions/23909/tab-always-indent-even-in-evil-normal-mode
+  ;;(setq evil-want-C-i-jump nil)
+
   ;; Initialize.
   (evil-mode)
 
+  ;;(define-key evil-insert-state-map (kbd "TAB") 'tab-to-tab-stop)
   ;; For some reasons evils own search isn't default.
   (setq evil-search-module 'evil-search))
 
@@ -250,6 +271,8 @@ There are two things you can do about this warning:
   ;; Vim style keys in ivy (holding Ctrl).
   (define-key ivy-minibuffer-map (kbd "C-j") 'next-line)
   (define-key ivy-minibuffer-map (kbd "C-k") 'previous-line)
+  (define-key ivy-switch-buffer-map (kbd "C-k") 'previous-line)
+  (define-key ivy-switch-buffer-map (kbd "C-d") 'ivy-switch-buffer-kill)
 
   (define-key ivy-minibuffer-map (kbd "C-h") 'minibuffer-keyboard-quit)
   (define-key ivy-minibuffer-map (kbd "C-l") 'ivy-done)
@@ -314,7 +337,11 @@ There are two things you can do about this warning:
   :demand t
   :config (global-git-gutter-mode t))
 
-(use-package org)
+(use-package org
+  :demand t
+  :config
+
+  )
 
 ;; ----------------------------------------------------------------------------
 ;; Key Bindings
@@ -331,6 +358,7 @@ There are two things you can do about this warning:
   (lambda ()
     (setq-local fill-column 120)
     (setq-local tab-width 2)
+
     (setq-local evil-shift-width 2)
     (setq-local indent-tabs-mode nil)
 
@@ -350,6 +378,7 @@ There are two things you can do about this warning:
     (modify-syntax-entry ?- "w")
     (modify-syntax-entry ?_ "w")))
 
+
 ;; ----------------------------------------------------------------------------
 ;; Custom Variables
 ;; ----------------------------------------------------------------------------
@@ -360,3 +389,56 @@ There are two things you can do about this warning:
 (setq custom-file "~/.emacs.d/custom.el")
 (load custom-file 'noerror)
 
+(setq initial-buffer-choice "~/Documents/org/index.org")
+(global-set-key (kbd "C-s") (lambda () (interactive) (save-buffer)))
+
+(setq org-directory "~/Documents/org/index.org")
+(setq org-journal-dir (concat org-directory "/journal/"))
+(setq org-agenda-files (list org-directory org-journal-dir))
+(setq org-default-notes-file (concat org-directory "/index.org"))
+(setq org-journal-file-format "%Y-%m-%d")
+(setq org-journal-date-format "%Y-%m-%d (%A)")
+(setq org-journal-find-file 'find-file) ;; open journal in the current window
+(setq org-adapt-indentation nil) ;; no indent for org mode content
+(setq org-journal-hide-entries-p nil) ;; do not hide journal entry when creating a new one
+(setq org-agenda-window-setup 'only-window) 
+(setq org-capture-templates
+      '(("t" "Task" entry (file+headline org-default-notes-file "Inbox") "* TODO %?\n%T\n")
+        ("n" "Note" entry (file+headline org-default-notes-file "Inbox") "* NOTE %?\n%T\n")))
+
+(define-key evil-normal-state-map (kbd "C-t")
+  (lambda () (interactive) (org-capture nil "t")))
+(define-key evil-normal-state-map (kbd "C-n")
+  (lambda () (interactive) (org-capture nil "n")))
+
+(add-hook 'org-insert-heading-hook 'evil-insert-state)
+(add-hook 'org-capture-mode-hook 'evil-insert-state)
+(add-hook 'org-journal-mode-hook 'evil-insert-state)
+(add-hook 'org-journal-after-entry-create-hook 'evil-insert-state)
+
+;; do no open a new window when following an org link
+(setq org-link-frame-setup '((vm . vm-visit-folder)
+                             (vm-imap . vm-visit-imap-folder)
+                             (gnus . gnus)
+                             (file . find-file)
+                             (wl . wl)))
+
+(defun cppcho/org-mode-hook ()
+  "Set all org-level headers to same font size"
+  (dolist (face '(org-level-1
+                  org-level-2
+                  org-level-3
+                  org-level-4
+                  org-level-5
+                  org-level-6
+                  org-level-7
+                  org-level-8))
+    (set-face-attribute face nil :weight 'semi-bold :height 1.0)))
+(add-hook 'org-mode-hook 'cppcho/org-mode-hook)
+
+(define-key evil-normal-state-map (kbd "j") 'evil-next-visual-line)
+(define-key evil-normal-state-map (kbd "k") 'evil-previous-visual-line)
+
+(evil-define-key 'normal org-journal-mode-map
+  (kbd "<C-left>") 'org-journal-open-previous-entry
+  (kbd "<C-right>") 'org-journal-open-next-entry)
