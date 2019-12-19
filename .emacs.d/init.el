@@ -393,14 +393,9 @@ There are two things you can do about this warning:
 (global-set-key (kbd "C-s") (lambda () (interactive) (save-buffer)))
 
 (setq org-directory "~/Documents/org/index.org")
-(setq org-journal-dir (concat org-directory "/journal/"))
-(setq org-agenda-files (list org-directory org-journal-dir))
+(setq org-agenda-files (list org-directory))
 (setq org-default-notes-file (concat org-directory "/index.org"))
-(setq org-journal-file-format "%Y-%m-%d")
-(setq org-journal-date-format "%Y-%m-%d (%A)")
-(setq org-journal-find-file 'find-file) ;; open journal in the current window
 (setq org-adapt-indentation nil) ;; no indent for org mode content
-(setq org-journal-hide-entries-p nil) ;; do not hide journal entry when creating a new one
 (setq org-agenda-window-setup 'only-window) 
 (setq org-capture-templates
       '(("t" "Task" entry (file+headline org-default-notes-file "Inbox") "* TODO %?\n%T\n")
@@ -413,8 +408,6 @@ There are two things you can do about this warning:
 
 (add-hook 'org-insert-heading-hook 'evil-insert-state)
 (add-hook 'org-capture-mode-hook 'evil-insert-state)
-(add-hook 'org-journal-mode-hook 'evil-insert-state)
-(add-hook 'org-journal-after-entry-create-hook 'evil-insert-state)
 
 ;; do no open a new window when following an org link
 (setq org-link-frame-setup '((vm . vm-visit-folder)
@@ -439,6 +432,10 @@ There are two things you can do about this warning:
 (define-key evil-normal-state-map (kbd "j") 'evil-next-visual-line)
 (define-key evil-normal-state-map (kbd "k") 'evil-previous-visual-line)
 
-(evil-define-key 'normal org-journal-mode-map
-  (kbd "<C-left>") 'org-journal-open-previous-entry
-  (kbd "<C-right>") 'org-journal-open-next-entry)
+(define-key evil-normal-state-map (kbd "C-j") 'evil-window-down)
+(define-key evil-normal-state-map (kbd "C-k") 'evil-window-up)
+(define-key evil-normal-state-map (kbd "C-h") 'evil-window-left)
+(define-key evil-normal-state-map (kbd "C-l") 'evil-window-right)
+
+(evil-define-key 'normal org-mode-map (kbd "<C-right>") 'org-demote-subtree)
+(evil-define-key 'normal org-mode-map (kbd "<C-left>") 'org-promote-subtree)
