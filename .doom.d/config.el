@@ -42,16 +42,6 @@
 ;; https://github.com/hlissner/doom-emacs/issues/548
 (evil-put-command-property 'evil-yank-line :motion 'evil-line)
 
-;; mappings
-(map! :leader "SPC" #'execute-extended-command)
-(map! :leader "/" #'+default/search-project)
-(map! :ne "C-h" #'evil-window-left)
-(map! :ne "C-l" #'evil-window-right)
-(map! :ne "C-j" #'evil-window-down)
-(map! :ne "C-k" #'evil-window-up)
-(map! :ne "C-p" #'+ivy/projectile-find-file)
-(map! :ge "<mouse-3>" 'clipboard-yank)
-
 ;; https://github.com/hlissner/doom-emacs/issues/1839
 (after! which-key
   (setq which-key-idle-delay 0.01)
@@ -63,18 +53,35 @@
 
 (after! org
   (setq
-   org-directory "~/notes/"
+   org-directory "~/org/"
+   org-default-notes-file "notes.org"
    org-capture-templates '(("t" "todo" entry
-                            (file+headline "tasks.org" "Inbox")
+                            (file+headline org-default-notes-file "tasks")
                             "* TODO %?\n%i\n%a" :prepend t)
-                           ("n" "notes" entry
-                            (file+headline "notes.org" "Inbox")
-                            "* %u %?\n%i\n%a" :prepend t))
+                           ("j" "Journal" entry
+                            (file+olp+datetree "journal.org")
+                            "**** %U %?")
+                           )
    )
   (map! :map org-mode-map
         :n "M-j" #'org-metadown
-        :n "M-k" #'org-metaup)
+        :n "M-k" #'org-metaup
+        )
   )
+
+;; mappings
+(map! :leader "SPC" #'execute-extended-command)
+(map! :leader "/" #'+default/search-project)
+(map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
+(map! :ne "C-h" #'evil-window-left)
+(map! :ne "C-l" #'evil-window-right)
+(map! :ne "C-j" #'evil-window-down)
+(map! :ne "C-k" #'evil-window-up)
+(map! :ne "C-p" #'+ivy/projectile-find-file)
+(map! :ne "C-SPC" #'org-capture)
+(map! :ge "<mouse-3>" 'clipboard-yank)
+
+(auto-save-visited-mode)
 
 ;; Here are some additional functions/macros that could help you configure Doom:
 ;;
