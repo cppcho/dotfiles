@@ -55,6 +55,9 @@
   (setq
    org-directory "~/org/"
    org-default-notes-file "notes.org"
+   org-journal-dir "~/org/journal/"
+   org-journal-enable-agenda-integration t
+   org-journal-date-format "%Y-%m-%d (%a)"
    org-capture-templates '(("t" "todo" entry
                             (file+headline org-default-notes-file "tasks")
                             "* TODO %?\n%i\n%a" :prepend t)
@@ -66,6 +69,10 @@
   (map! :map org-mode-map
         :n "M-j" #'org-metadown
         :n "M-k" #'org-metaup
+        :ne "C-j" #'evil-window-down
+        :ne "C-k" #'evil-window-up
+        :ne "C-h" #'evil-window-left
+        :ne "C-l" #'evil-window-right
         )
   )
 
