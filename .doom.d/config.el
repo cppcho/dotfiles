@@ -54,18 +54,28 @@
 (after! org
   (setq
    org-directory "~/org/"
-   org-default-notes-file "notes.org"
+   org-default-notes-file "~/org/notes.org"
    org-journal-dir "~/org/journal/"
    org-journal-enable-agenda-integration t
    org-journal-date-format "%Y-%m-%d (%a)"
    org-capture-templates '(("t" "todo" entry
                             (file+headline org-default-notes-file "tasks")
-                            "* TODO %?\n%i\n%a" :prepend t)
-                           ("j" "Journal" entry
-                            (file+olp+datetree "journal.org")
-                            "**** %U %?")
-                           )
+                            "* TODO %?\n%i\n%a" :prepend t))
+   org-todo-keywords
+   '((sequence
+      "TODO(t)"
+      "DOING(s)"
+      "WAIT(w)"
+      "|"
+      "DONE(d)"
+      "KILL(k)"))
+   org-todo-keyword-faces
+   '(("TODO" . "light green")
+     ("DOING" . "OrangeRed1")
+     ("WAIT" . "orange1")
+     ("KILL" . "PeachPuff4"))
    )
+
   (map! :map org-mode-map
         :n "M-j" #'org-metadown
         :n "M-k" #'org-metaup
@@ -73,6 +83,8 @@
         :ne "C-k" #'evil-window-up
         :ne "C-h" #'evil-window-left
         :ne "C-l" #'evil-window-right
+        :ne "gt" #'org-todo
+        :ne "g," #'org-priority
         )
   )
 
@@ -80,6 +92,8 @@
 (map! :leader "SPC" #'execute-extended-command)
 (map! :leader "/" #'+default/search-project)
 (map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
+(map! :leader "oj" #'org-journal-new-entry)
+(map! :leader "oJ" #'org-journal-new-scheduled-entry)
 (map! :ne "C-h" #'evil-window-left)
 (map! :ne "C-l" #'evil-window-right)
 (map! :ne "C-j" #'evil-window-down)
