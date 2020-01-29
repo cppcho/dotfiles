@@ -110,8 +110,13 @@ export LANG=en_US.UTF-8
 
 alias ta='tmux new-session -A -s cppcho'
 
+cht() {
+  curl "http://cht.sh/$1"
+}
+
 setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_FIND_NO_DUPS
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
+export PATH="/usr/local/sbin:$PATH"
