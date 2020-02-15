@@ -1,4 +1,12 @@
+let s:cppcho_enable_vimwiki=0
 let s:cppcho_is_dark_background=1
+let s:cppcho_vimwiki_dir = '~/Documents/Notes/'
+
+if has("gui_macvim")
+  let s:cppcho_enable_vimwiki=1
+else
+  let s:cppcho_enable_vimwiki=0
+endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
@@ -107,6 +115,31 @@ Plug 'tpope/vim-repeat'
 
 " Automatically save changes to disk
 Plug 'vim-scripts/vim-auto-save'
+
+" Personal Wiki for Vim
+if s:cppcho_enable_vimwiki
+  Plug 'vimwiki/vimwiki'
+
+  let g:vimwiki_list = [{
+        \ 'path': s:cppcho_vimwiki_dir,
+        \ 'syntax': 'markdown',
+        \ 'ext': '.md',
+        \ 'auto_toc': 1,
+        \ }]
+  let g:vimwiki_auto_chdir = 0
+  let g:vimwiki_table_mappings = 0
+  let g:vimwiki_toc_header = 'Table of Contents'
+  let g:vimwiki_url_maxsave = 0
+  let g:vimwiki_use_calendar = 0
+  let g:vimwiki_menu = ''
+
+  " Disable markdown syntax as it will conflict with the vimwiki one
+  let g:polyglot_disabled = ['markdown']
+
+  let g:auto_save = 1
+  let g:auto_save_no_updatetime = 1
+  let g:auto_save_in_insert_mode = 0
+end
 
 call plug#end()
 
@@ -456,6 +489,131 @@ augroup vimrc
   " How can I close vim if the only window left open is a NERDTree?
   autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 augroup END
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Vimwiki {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if s:cppcho_enable_vimwiki
+  " Reference: https://github.com/michal-h21/vim-zettel
+
+  function! s:vimwiki_filename_to_link(filename)
+    return printf('[[%s]]', a:filename)
+  endfunction
+
+  function! s:get_visual_selection_lines()
+    " Why is this not a built-in Vim script function?!
+    let [line_start, column_start] = getpos("'<")[1:2]
+    let [line_end, column_end] = getpos("'>")[1:2]
+    let lines = getline(line_start, line_end)
+    if len(lines) == 0
+      return ''
+    endif
+    " let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
+    " let lines[0] = lines[0][column_start - 1:]
+    return lines
+  endfunction
+
+  function! s:vimwiki_new_note(...)
+    let lines = <sid>get_visual_selection_lines()
+    let filename = ''
+
+    let title = join(a:000)
+    if len(title) > 0
+      let filename = filename . title
+    else
+      echo "title is empty"
+      return 0
+    end
+
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    call vimwiki#base#edit_file(':e', filename.'.md', '')
+
+    if line('$') == 1 && getline(1) == ''
+      " append title if the file is empty
+      call append(0, '# '.filename)
+    else
+      call append("$", '')
+    end
+
+    for line in lines
+      call append("$", line)
+    endfor
+    execute 'normal! G'
+  endfunction
+
+  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
+
+  function! s:vimwiki_yank_name()
+    let filename = fnamemodify(expand("%"), ":~:.")
+    let link = <sid>vimwiki_filename_to_link(filename)
+    if len(link) > 0
+      let @" = link
+      let @* = link
+      echo link
+    else
+      echo "cannot yank file name"
+    end
+  endfunction
+
+  function! s:vimwiki_autocomplete_handler(line)
+    let parts =  split(a:line,"\V:")
+    let filename = parts[0]
+    let fileparts = split(filename, '\V.')
+    let filename_without_ext = join(fileparts[0:-2],".")
+    execute 'normal! o- '.<sid>vimwiki_filename_to_link(filename_without_ext)
+  endfunction
+
+  command! -bang -nargs=? -complete=dir VimwikiAutoComplete
+        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
+        \'sink':function('<sid>vimwiki_autocomplete_handler'),
+        \'dir': s:cppcho_vimwiki_dir,
+        \}), <bang>0)
+
+  function! VimwikiLinkHandler(link)
+    let filepath = expand(s:cppcho_vimwiki_dir . a:link . '.md')
+    if filereadable(filepath)
+      execute 'edit' filepath
+      return 1
+    end
+    return 0
+  endfunction
+
+  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
+
+  command! -bang -nargs=* RgShowRelated
+        \ call fzf#vim#grep(
+        \   'rg --no-heading --color=always --smart-case --vimgrep --max-count=1 --fixed-strings --trim -- '.shellescape(<q-args>), 1,
+        \   <bang>0 ? fzf#vim#with_preview('up:60%')
+        \           : fzf#vim#with_preview(),
+        \   <bang>0)
+
+  function! s:vimwiki_show_related(...)
+    let filename = fnamemodify(expand("%"), ":~:.")
+    if len(filename) > 1
+      execute 'RgShowRelated' filename
+    else
+      echo "error occurred in vimwiki_show_related()"
+    end
+  endfunction
+
+  command! -bang -nargs=* VimwikiShowRelated call <sid>vimwiki_show_related(<q-args>)
+
+  " Custom keybindings
+  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
+  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
+  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  nmap <C-Y> :VimwikiYankName<CR>
+  nmap <leader>ar :VimwikiShowRelated<CR>
+
+  " Remap
+  nmap <nop> <Plug>VimwikiNormalizeLink
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+  nmap + <Plug>VimwikiAddHeaderLevel
+  nmap _ <Plug>VimwikiRemoveHeaderLevel
+endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Misc {{{
