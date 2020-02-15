@@ -126,7 +126,7 @@ if s:cppcho_enable_vimwiki
         \ 'ext': '.md',
         \ 'auto_toc': 1,
         \ }]
-  let g:vimwiki_auto_chdir = 0
+  let g:vimwiki_auto_chdir = 1
   let g:vimwiki_table_mappings = 0
   let g:vimwiki_toc_header = 'Table of Contents'
   let g:vimwiki_url_maxsave = 0
