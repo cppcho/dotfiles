@@ -109,6 +109,7 @@ export LANG=en_US.UTF-8
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
 
 alias ta='tmux new-session -A -s cppcho'
+alias update='brew update; brew upgrade; brew cleanup;'
 
 cht() {
   curl "http://cht.sh/$1"
