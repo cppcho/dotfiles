@@ -115,6 +115,8 @@ Plug 'tpope/vim-repeat'
 
 " Automatically save changes to disk
 Plug 'vim-scripts/vim-auto-save'
+let g:auto_save        = 1
+let g:auto_save_silent = 1  " do not display the auto-save notification
 
 " Personal Wiki for Vim
 if s:cppcho_enable_vimwiki
