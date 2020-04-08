@@ -27,6 +27,14 @@ endif
 " - Avoid using standard Vim directory names like 'plugin'
 call plug#begin('~/.vim/plugged')
 
+" https://github.com/iamcco/markdown-preview.nvim
+if has("gui_macvim")
+  Plug 'iamcco/markdown-preview.nvim', { 'do': { -> mkdp#util#install() } }
+  let g:mkdp_preview_options = {
+        \'mkit': { 'breaks': 1 },
+        \}
+endif
+
 " Colors
 Plug 'altercation/vim-colors-solarized'
 Plug 'drewtempelmeyer/palenight.vim'
@@ -115,8 +123,8 @@ Plug 'tpope/vim-repeat'
 
 " Automatically save changes to disk
 Plug 'vim-scripts/vim-auto-save'
-let g:auto_save        = 1
-let g:auto_save_silent = 1  " do not display the auto-save notification
+let g:auto_save        = 0
+let g:auto_save_silent = 0
 
 " Personal Wiki for Vim
 if s:cppcho_enable_vimwiki
@@ -131,7 +139,7 @@ if s:cppcho_enable_vimwiki
   let g:vimwiki_auto_chdir = 1
   let g:vimwiki_table_mappings = 0
   let g:vimwiki_toc_header = 'Table of Contents'
-  let g:vimwiki_url_maxsave = 0
+  "let g:vimwiki_url_maxsave = 0
   let g:vimwiki_use_calendar = 0
   let g:vimwiki_menu = ''
 
@@ -340,7 +348,7 @@ nnoremap <C-w> :close<CR>
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
 nmap \tt :!tmux send-keys -t right "prove -lr -PPretty " % ENTER<cr><cr>
 
-nmap <Leader>fs :w<CR>
+nmap <Leader>fs :wa<CR>
 nmap <leader>xb :SwitchBackground<CR>
 
 " Upper/lower word
@@ -611,6 +619,10 @@ if s:cppcho_enable_vimwiki
   vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
   nmap + <Plug>VimwikiAddHeaderLevel
   nmap _ <Plug>VimwikiRemoveHeaderLevel
+
+  nmap <Leader>tt <Plug>VimwikiToggleListItem
+  vmap <Leader>tt <Plug>VimwikiToggleListItem
+  nmap <leader>mp <Plug>MarkdownPreviewToggle
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
