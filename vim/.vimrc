@@ -4,8 +4,7 @@ let s:cppcho_vimwiki_dir = '~/Documents/Notes/'
 
 if has("gui_macvim")
   let s:cppcho_enable_vimwiki=1
-else
-  let s:cppcho_enable_vimwiki=0
+  let s:cppcho_is_dark_background=0
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -72,6 +71,9 @@ let g:undotree_WindowLayout = 2
 
 " Vim plugin for the Perl module / CLI script 'ack'
 Plug 'mileszs/ack.vim'
+if executable('ag')
+  let g:ackprg = 'ag --vimgrep'
+endif
 
 " A command-line fuzzy finder
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
@@ -139,7 +141,7 @@ if s:cppcho_enable_vimwiki
   let g:vimwiki_auto_chdir = 1
   let g:vimwiki_table_mappings = 0
   let g:vimwiki_toc_header = 'Table of Contents'
-  "let g:vimwiki_url_maxsave = 0
+  let g:vimwiki_url_maxsave = 0
   let g:vimwiki_use_calendar = 0
   let g:vimwiki_menu = ''
 
@@ -319,13 +321,6 @@ nnoremap q: <Nop>
 noremap j gj
 noremap k gk
 
-" use tab and shift tab to indent and de-indent code
-" nnoremap <Tab>   >>
-" nnoremap <S-Tab> <<
-" vnoremap <Tab>   >><Esc>gv
-" vnoremap <S-Tab> <<<Esc>gv
-" inoremap <S-Tab> <C-d>
-
 " save using <C-s> in every mode
 " when in operator-pending or insert, takes you to normal mode
 nnoremap <C-s> :w<CR>
@@ -341,12 +336,8 @@ noremap <silent> <C-x> :redraw!<cr>
 nnoremap <C-w> :close<CR>
 
 " Folding
-" nnoremap , za
-" vnoremap , zf
-
-" Tmux
-nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
-nmap \tt :!tmux send-keys -t right "prove -lr -PPretty " % ENTER<cr><cr>
+nnoremap , za
+vnoremap , zf
 
 nmap <Leader>fs :wa<CR>
 nmap <leader>xb :SwitchBackground<CR>
@@ -377,7 +368,7 @@ command! CLEAN retab | TEOL
 " Fugitive
 nnoremap <silent> <leader>ga :Gwrite<cr>
 nnoremap <silent> <leader>gs :Gstatus<cr>
-nnoremap <silent> <leader>gd :Gdiff<cr>
+nnoremap <silent> <leader>gd :Gvdiffsplit<cr>
 nnoremap <silent> <leader>gb :Gblame<cr>
 nnoremap <silent> <leader>gp :Gpush<cr>
 nnoremap <silent> <leader>gf :BCommits<cr>
@@ -421,12 +412,7 @@ command! Todo call s:todo()
 " }}} Grep {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-if executable('ag')
-  let &grepprg = 'ag --nogroup --nocolor --column'
-else
-  let &grepprg = 'grep -rn $* *'
-endif
-command! -nargs=1 -bar Grep execute 'silent! grep! <q-args>' | redraw! | copen
+nnoremap <leader><space> :Ack<space>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} FZF {{{
@@ -439,21 +425,12 @@ function! FZFOpen(command_str)
   exe 'normal! ' . a:command_str . "\<cr>"
 endfunction
 
-" All files
-command! -nargs=? -complete=dir AF
-      \ call fzf#run(fzf#wrap(fzf#vim#with_preview({
-      \   'source': 'fd --type f --hidden --follow --exclude .git --no-ignore . '.expand(<q-args>)
-      \ })))
-
-" FZF mappings
-command! -bang -nargs=? -complete=dir Files
-      \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
-
 nnoremap <C-p> :call FZFOpen(':Files')<cr>
-nnoremap <silent><leader>af :call FZFOpen(':AF')<cr>
 nnoremap <silent><leader>l :call FZFOpen(':BLines')<cr>
 nnoremap <leader>/ :Ag<space>
 nnoremap <silent><leader>; :call FZFOpen(':Buffers')<cr>
+nnoremap <silent><leader>hh :call FZFOpen(':History:')<cr>
+
 
 nnoremap <C-f> :NERDTreeFind<cr>
 nnoremap <C-e> :NERDTreeToggle<cr>
@@ -501,22 +478,23 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 if s:cppcho_enable_vimwiki
-  " Reference: https://github.com/michal-h21/vim-zettel
+  augroup cppcho_vimwiki
+    autocmd!
+    autocmd VimEnter * silent! VimwikiIndex
+    autocmd VimEnter * silent! cd %:p:h
+  augroup END
 
   function! s:vimwiki_filename_to_link(filename)
     return printf('[[%s]]', a:filename)
   endfunction
 
   function! s:get_visual_selection_lines()
-    " Why is this not a built-in Vim script function?!
     let [line_start, column_start] = getpos("'<")[1:2]
     let [line_end, column_end] = getpos("'>")[1:2]
     let lines = getline(line_start, line_end)
     if len(lines) == 0
       return ''
     endif
-    " let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
-    " let lines[0] = lines[0][column_start - 1:]
     return lines
   endfunction
 
@@ -562,56 +540,13 @@ if s:cppcho_enable_vimwiki
     end
   endfunction
 
-  function! s:vimwiki_autocomplete_handler(line)
-    let parts =  split(a:line,"\V:")
-    let filename = parts[0]
-    let fileparts = split(filename, '\V.')
-    let filename_without_ext = join(fileparts[0:-2],".")
-    execute 'normal! o- '.<sid>vimwiki_filename_to_link(filename_without_ext)
-  endfunction
-
-  command! -bang -nargs=? -complete=dir VimwikiAutoComplete
-        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'sink':function('<sid>vimwiki_autocomplete_handler'),
-        \'dir': s:cppcho_vimwiki_dir,
-        \}), <bang>0)
-
-  function! VimwikiLinkHandler(link)
-    let filepath = expand(s:cppcho_vimwiki_dir . a:link . '.md')
-    if filereadable(filepath)
-      execute 'edit' filepath
-      return 1
-    end
-    return 0
-  endfunction
-
   command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-
-  command! -bang -nargs=* RgShowRelated
-        \ call fzf#vim#grep(
-        \   'rg --no-heading --color=always --smart-case --vimgrep --max-count=1 --fixed-strings --trim -- '.shellescape(<q-args>), 1,
-        \   <bang>0 ? fzf#vim#with_preview('up:60%')
-        \           : fzf#vim#with_preview(),
-        \   <bang>0)
-
-  function! s:vimwiki_show_related(...)
-    let filename = fnamemodify(expand("%"), ":~:.")
-    if len(filename) > 1
-      execute 'RgShowRelated' filename
-    else
-      echo "error occurred in vimwiki_show_related()"
-    end
-  endfunction
-
-  command! -bang -nargs=* VimwikiShowRelated call <sid>vimwiki_show_related(<q-args>)
 
   " Custom keybindings
   nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
   nmap <Leader>wgg :VimwikiGenerateLinks<CR>
-  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
   vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
   nmap <C-Y> :VimwikiYankName<CR>
-  nmap <leader>ar :VimwikiShowRelated<CR>
 
   " Remap
   nmap <nop> <Plug>VimwikiNormalizeLink
@@ -622,12 +557,15 @@ if s:cppcho_enable_vimwiki
 
   nmap <Leader>tt <Plug>VimwikiToggleListItem
   vmap <Leader>tt <Plug>VimwikiToggleListItem
-  nmap <leader>mp <Plug>MarkdownPreviewToggle
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Misc {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
+
+" Tmux
+nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
+nmap \tt :!tmux send-keys -t right "USE_LOCAL_DB=1 prove -lr -PPretty " % ENTER<cr><cr>
 
 if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
