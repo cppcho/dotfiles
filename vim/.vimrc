@@ -563,9 +563,29 @@ endif
 " }}} Misc {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+" toggles the quickfix window.
+command -bang -nargs=? QFix call QFixToggle(<bang>0)
+function! QFixToggle(forced)
+  if exists("g:qfix_win") && a:forced == 0
+    cclose
+  else
+    execute "copen"
+  endif
+endfunction
+
+" used to track the quickfix window
+augroup QFixToggle
+  autocmd!
+  autocmd BufWinEnter quickfix let g:qfix_win = bufnr("$")
+  autocmd BufWinLeave * if exists("g:qfix_win") && expand("<abuf>") == g:qfix_win | unlet! g:qfix_win | endif
+augroup END
+
 " Tmux
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
 nmap \tt :!tmux send-keys -t right "USE_LOCAL_DB=1 prove -lr -PPretty " % ENTER<cr><cr>
+nmap \vv :vsplit<cr>
+nmap \ss :split<cr>
+nmap \cc :QFix<cr>
 
 if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
