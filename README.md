@@ -32,4 +32,5 @@ git config --global alias.ff "merge --ff-only"
 git config --global alias.noff "merge --no-ff"
 git config --global merge.log true
 git config --global push.default simple
+git config --global pull.rebase false
 ```
