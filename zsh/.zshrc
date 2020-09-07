@@ -2,7 +2,7 @@
 export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/Users/cppcho/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -102,6 +102,12 @@ export LANG=en_US.UTF-8
 [ -f ~/.z.sh ] && source ~/.z.sh
 [ -f ~/.zshrc_mac ] && source ~/.zshrc_mac
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
+
+alias ta='tmux new-session -A -s cppcho'
+
+cht() {
+  curl "http://cht.sh/$1"
+}
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
