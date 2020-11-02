@@ -1,11 +1,4 @@
-let s:cppcho_enable_vimwiki=0
 let s:cppcho_is_dark_background=1
-let s:cppcho_vimwiki_dir = '~/Documents/Notes/'
-
-if has("gui_macvim")
-  let s:cppcho_enable_vimwiki=1
-  let s:cppcho_is_dark_background=0
-endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
@@ -36,8 +29,8 @@ endif
 
 " Colors
 Plug 'altercation/vim-colors-solarized'
-Plug 'drewtempelmeyer/palenight.vim'
 Plug 'NLKNguyen/papercolor-theme'
+Plug 'morhetz/gruvbox'
 
 Plug 'christoomey/vim-tmux-navigator'
 let g:tmux_navigator_save_on_switch = 2
@@ -128,27 +121,6 @@ Plug 'vim-scripts/vim-auto-save'
 let g:auto_save        = 0
 let g:auto_save_silent = 0
 
-" Personal Wiki for Vim
-if s:cppcho_enable_vimwiki
-  Plug 'vimwiki/vimwiki'
-
-  let g:vimwiki_list = [{
-        \ 'path': s:cppcho_vimwiki_dir,
-        \ 'syntax': 'markdown',
-        \ 'ext': '.md',
-        \ 'auto_toc': 1,
-        \ }]
-  let g:vimwiki_auto_chdir = 1
-  let g:vimwiki_table_mappings = 0
-  let g:vimwiki_toc_header = 'Table of Contents'
-  let g:vimwiki_url_maxsave = 0
-  let g:vimwiki_use_calendar = 0
-  let g:vimwiki_menu = ''
-
-  " Disable markdown syntax as it will conflict with the vimwiki one
-  let g:polyglot_disabled = ['markdown']
-end
-
 call plug#end()
 
 if plug_did_install == 0
@@ -227,18 +199,10 @@ endif
 " }}} UI {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-" Make sure colored syntax mode is on, and make it Just Work with 256-color terminals.
-if has("gui_macvim")
-  colorscheme PaperColor
-  let g:lightline = {
-        \ 'colorscheme': 'PaperColor_light',
-        \ }
-else
-  colorscheme solarized
-  let g:lightline = {
-        \ 'colorscheme': 'PaperColor_light',
-        \ }
-end
+" set Vim-specific sequences for RGB colors
+set termguicolors
+let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
+let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
 function! s:set_background()
   if s:cppcho_is_dark_background
@@ -262,26 +226,7 @@ syntax on
 
 call <sid>set_background()
 
-if !has('gui_running')
-  if $TERM == "xterm-256color" || $TERM == "screen-256color" || $COLORTERM == "gnome-terminal" || $TERM == "screen"
-    set t_Co=256
-  elseif has("terminfo")
-    colorscheme default
-    set t_Co=8
-    set t_Sf=[3%p1%dm
-    set t_Sb=[4%p1%dm
-  else
-    colorscheme default
-    set t_Co=8
-    set t_Sf=[3%dm
-    set t_Sb=[4%dm
-  endif
-
-  " Disable Background Color Erase when within tmux - https://stackoverflow.com/q/6427650/102704
-  if $TMUX != ""
-    set t_ut=
-  endif
-endif
+autocmd vimenter * colorscheme gruvbox
 
 if has("gui_macvim")
   set guifont=Fira\ Code:h12
@@ -418,18 +363,11 @@ nnoremap <leader><space> :Ack<space>
 " }}} FZF {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-function! FZFOpen(command_str)
-  if (expand('%') =~# 'NERD_tree' && winnr('$') > 1)
-    exe "normal! \<c-w>\<c-w>"
-  endif
-  exe 'normal! ' . a:command_str . "\<cr>"
-endfunction
-
-nnoremap <C-p> :call FZFOpen(':Files')<cr>
-nnoremap <silent><leader>l :call FZFOpen(':BLines')<cr>
+nnoremap <C-p> :Files<cr>
+nnoremap <silent><leader>l :BLines<cr>
 nnoremap <leader>/ :Ag<space>
-nnoremap <silent><leader>; :call FZFOpen(':Buffers')<cr>
-nnoremap <silent><leader>hh :call FZFOpen(':History:')<cr>
+nnoremap <silent><leader>; :Buffers<cr>
+nnoremap <silent><leader>hh :History<cr>
 
 
 nnoremap <C-f> :NERDTreeFind<cr>
@@ -464,10 +402,6 @@ augroup vimrc
   " Resize panes when window/terminal gets resize
   autocmd VimResized * :wincmd =
 
-  autocmd! FileType fzf
-  autocmd  FileType fzf set laststatus=0 noshowmode noruler
-        \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
-
   " https://github.com/scrooloose/nerdtree
   " How can I close vim if the only window left open is a NERDTree?
   autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
@@ -476,88 +410,6 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Vimwiki {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
-
-if s:cppcho_enable_vimwiki
-  augroup cppcho_vimwiki
-    autocmd!
-    autocmd VimEnter * silent! VimwikiIndex
-    autocmd VimEnter * silent! cd %:p:h
-  augroup END
-
-  function! s:vimwiki_filename_to_link(filename)
-    return printf('[[%s]]', a:filename)
-  endfunction
-
-  function! s:get_visual_selection_lines()
-    let [line_start, column_start] = getpos("'<")[1:2]
-    let [line_end, column_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
-    if len(lines) == 0
-      return ''
-    endif
-    return lines
-  endfunction
-
-  function! s:vimwiki_new_note(...)
-    let lines = <sid>get_visual_selection_lines()
-    let filename = ''
-
-    let title = join(a:000)
-    if len(title) > 0
-      let filename = filename . title
-    else
-      echo "title is empty"
-      return 0
-    end
-
-    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
-    call vimwiki#base#edit_file(':e', filename.'.md', '')
-
-    if line('$') == 1 && getline(1) == ''
-      " append title if the file is empty
-      call append(0, '# '.filename)
-    else
-      call append("$", '')
-    end
-
-    for line in lines
-      call append("$", line)
-    endfor
-    execute 'normal! G'
-  endfunction
-
-  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
-
-  function! s:vimwiki_yank_name()
-    let filename = fnamemodify(expand("%"), ":~:.")
-    let link = <sid>vimwiki_filename_to_link(filename)
-    if len(link) > 0
-      let @" = link
-      let @* = link
-      echo link
-    else
-      echo "cannot yank file name"
-    end
-  endfunction
-
-  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-
-  " Custom keybindings
-  nmap <Leader>wgi <Plug>VimwikiDiaryGenerateLinks
-  nmap <Leader>wgg :VimwikiGenerateLinks<CR>
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  nmap <C-Y> :VimwikiYankName<CR>
-
-  " Remap
-  nmap <nop> <Plug>VimwikiNormalizeLink
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-  nmap + <Plug>VimwikiAddHeaderLevel
-  nmap _ <Plug>VimwikiRemoveHeaderLevel
-
-  nmap <Leader>tt <Plug>VimwikiToggleListItem
-  vmap <Leader>tt <Plug>VimwikiToggleListItem
-endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Misc {{{
@@ -582,7 +434,7 @@ augroup END
 
 " Tmux
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
-nmap \tt :!tmux send-keys -t right "USE_LOCAL_DB=1 prove -lr -PPretty " % ENTER<cr><cr>
+nmap \tt :!tmux send-keys -t right "prove -lr -PPretty " % ENTER<cr><cr>
 nmap \vv :vsplit<cr>
 nmap \ss :split<cr>
 nmap \cc :QFix<cr>
