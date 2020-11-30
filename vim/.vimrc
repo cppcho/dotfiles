@@ -29,6 +29,7 @@ endif
 
 " Colors
 Plug 'altercation/vim-colors-solarized'
+Plug 'lifepillar/vim-solarized8'
 Plug 'NLKNguyen/papercolor-theme'
 Plug 'morhetz/gruvbox'
 
@@ -204,6 +205,10 @@ set termguicolors
 let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
 let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
+let g:lightline = {
+      \ 'colorscheme': 'solarized',
+      \ }
+
 function! s:set_background()
   if s:cppcho_is_dark_background
     set background=dark
@@ -226,7 +231,7 @@ syntax on
 
 call <sid>set_background()
 
-autocmd vimenter * colorscheme gruvbox
+colorscheme solarized8_flat
 
 if has("gui_macvim")
   set guifont=Fira\ Code:h12
