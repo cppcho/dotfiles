@@ -19,14 +19,6 @@ endif
 " - Avoid using standard Vim directory names like 'plugin'
 call plug#begin('~/.vim/plugged')
 
-" https://github.com/iamcco/markdown-preview.nvim
-if has("gui_macvim")
-  Plug 'iamcco/markdown-preview.nvim', { 'do': { -> mkdp#util#install() } }
-  let g:mkdp_preview_options = {
-        \'mkit': { 'breaks': 1 },
-        \}
-endif
-
 " Colors
 Plug 'altercation/vim-colors-solarized'
 Plug 'lifepillar/vim-solarized8'
@@ -38,10 +30,6 @@ let g:tmux_navigator_save_on_switch = 2
 let g:tmux_navigator_disable_when_zoomed = 1
 
 Plug 'editorconfig/editorconfig-vim'
-
-" The missing motion for Vim
-Plug 'justinmk/vim-sneak'
-let g:sneak#s_next = 1
 
 " A tree explorer plugin for vim.
 Plug 'scrooloose/nerdtree'
@@ -73,6 +61,20 @@ endif
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 let g:fzf_history_dir = '~/.config/vim-fzf-history'
+let g:fzf_colors = {
+      \ 'fg':      ['fg', 'Normal'],
+      \ 'bg':      ['bg', 'Normal'],
+      \ 'hl':      ['fg', 'Comment'],
+      \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
+      \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
+      \ 'hl+':     ['fg', 'Statement'],
+      \ 'info':    ['fg', 'PreProc'],
+      \ 'border':  ['fg', 'Ignore'],
+      \ 'prompt':  ['fg', 'Conditional'],
+      \ 'pointer': ['fg', 'Exception'],
+      \ 'marker':  ['fg', 'Keyword'],
+      \ 'spinner': ['fg', 'Label'],
+      \ 'header':  ['fg', 'Comment'] }
 
 " A Vim alignment plugin
 Plug 'junegunn/vim-easy-align'
@@ -117,11 +119,6 @@ Plug 'tpope/vim-unimpaired'
 " enable repeating supported plugin maps with '.'
 Plug 'tpope/vim-repeat'
 
-" Automatically save changes to disk
-Plug 'vim-scripts/vim-auto-save'
-let g:auto_save        = 0
-let g:auto_save_silent = 0
-
 call plug#end()
 
 if plug_did_install == 0
@@ -137,7 +134,7 @@ set autoread                                          " Don't bother me when a f
 set autowrite                                         " Write on :next/:prev/^Z
 set backspace=eol,start,indent                        " Make backspace a more flexible
 set completeopt=menu                                  " Do not show preview for insert mode completion
-set nocursorline                                        " Whether to highlight the current line
+set nocursorline                                      " Whether to highlight the current line
 "set diffopt+=vertical                                 " Start diff mode with vertical splits
 set expandtab                                         " Tabs are spaces, not tabs
 set hidden                                            " Allow buffer switching without saving
@@ -205,10 +202,6 @@ set termguicolors
 let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
 let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
-let g:lightline = {
-      \ 'colorscheme': 'solarized',
-      \ }
-
 function! s:set_background()
   if s:cppcho_is_dark_background
     set background=dark
@@ -231,10 +224,10 @@ syntax on
 
 call <sid>set_background()
 
-colorscheme solarized8_flat
+colorscheme gruvbox
 
 if has("gui_macvim")
-  set guifont=Fira\ Code:h12
+  set guifont=Hack:h12
   set macligatures
   set wrap lbr
   set clipboard=unnamed
@@ -414,10 +407,6 @@ augroup vimrc
 augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" }}} Vimwiki {{{
-""""""""""""""""""""""""""""""""""""""""""""""""""
-
-""""""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Misc {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -449,18 +438,3 @@ if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
 endif
 
-
-let g:fzf_colors = {
-      \ 'fg':      ['fg', 'Normal'],
-      \ 'bg':      ['bg', 'Normal'],
-      \ 'hl':      ['fg', 'Comment'],
-      \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
-      \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
-      \ 'hl+':     ['fg', 'Statement'],
-      \ 'info':    ['fg', 'PreProc'],
-      \ 'border':  ['fg', 'Ignore'],
-      \ 'prompt':  ['fg', 'Conditional'],
-      \ 'pointer': ['fg', 'Exception'],
-      \ 'marker':  ['fg', 'Keyword'],
-      \ 'spinner': ['fg', 'Label'],
-      \ 'header':  ['fg', 'Comment'] }
