@@ -1,4 +1,4 @@
-let s:cppcho_is_dark_background=1
+let s:cppcho_is_dark_background=0
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
@@ -46,6 +46,9 @@ Plug 'google/vim-searchindex'
 
 " A light and configurable statusline/tabline plugin for Vim
 Plug 'itchyny/lightline.vim'
+let g:lightline = {
+      \ 'colorscheme': 'PaperColor',
+      \ }
 
 " The undo history visualizer for VIM
 Plug 'mbbill/undotree'
@@ -224,7 +227,7 @@ syntax on
 
 call <sid>set_background()
 
-colorscheme gruvbox
+colorscheme PaperColor
 
 if has("gui_macvim")
   set guifont=Hack:h12
