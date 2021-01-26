@@ -1,4 +1,4 @@
-let s:cppcho_is_dark_background=0
+let s:cppcho_is_dark_background=1
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
@@ -22,7 +22,7 @@ call plug#begin('~/.vim/plugged')
 " Colors
 Plug 'altercation/vim-colors-solarized'
 Plug 'lifepillar/vim-solarized8'
-Plug 'NLKNguyen/papercolor-theme'
+Plug 'lifepillar/vim-gruvbox8'
 Plug 'morhetz/gruvbox'
 
 Plug 'christoomey/vim-tmux-navigator'
@@ -227,7 +227,7 @@ syntax on
 
 call <sid>set_background()
 
-colorscheme PaperColor
+colorscheme gruvbox8
 
 if has("gui_macvim")
   set guifont=Hack:h12
