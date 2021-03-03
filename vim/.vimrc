@@ -438,9 +438,11 @@ augroup END
 " Tmux
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
 nmap \tt :!tmux send-keys -t right "prove -lr -PPretty " % ENTER<cr><cr>
-nmap \vv :vsplit<cr>
-nmap \ss :split<cr>
-nmap \cc :QFix<cr>
+
+nnoremap \vv :vsplit<cr>
+nnoremap \ss :split<cr>
+nnoremap \cc :QFix<cr>
+nnoremap <C-c> :QFix<cr>
 
 if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
@@ -464,6 +466,16 @@ if has("gui_macvim")
   nnoremap <leader>ww :TodotxtOpen todo.txt<cr>
   nnoremap <leader>wd :TodotxtOpen done.txt<cr>
   nnoremap <leader>wA :TodotxtArchive<cr>
+  nnoremap <leader>ss :%sort<cr>
+
+  function! s:remove_context()
+    :s/\s\+@\w\+//ge
+  endfunction
+
+  function! s:add_context(context)
+    call s:remove_context()
+    execute 'normal! A @' . a:context
+  endfunction
 
   function! s:remove_priority()
     :s/^(\w)\s\+//ge
@@ -488,12 +500,47 @@ if has("gui_macvim")
     execute 'normal! Ix '
   endfunction
 
+  function! s:search_to_qfix(term) abort
+    cclose
+    execute "vimgrep /" . a:term . "/ %"
+    execute "copen"
+  endfunction
+
+  function! s:search_no_context_to_qfix() abort
+    cclose
+    execute "cexpr system(\"rg -v " . shellescape('\\s+@', 1) . " --vimgrep " . shellescape(expand('%:p'), 1) . "\")"
+    copen
+  endfunction
+
+  " TODO: autocomplete
+  function! TodotxtContextList(A, L, P)
+    let terms = [ '@home', '@work' ]
+    let matches = []
+    for term in terms
+      if term =~? '^' . strpart(a:A, 1)
+        call add(matches, term)
+      endif
+    endfor
+    return matches
+  endfunction
+
   command! TodotxtMarkAsDone call s:mark_as_done()
   command! TodotxtRemovePriority call s:remove_priority()
   command! -nargs=1 TodotxtAddPriority call s:add_priority(<q-args>)
+  command! -nargs=1 TodotxtAddContext call s:add_context(<q-args>)
+  command! -nargs=1 -complete=customlist,TodotxtContextList TodotxtSearchToQFix call s:search_to_qfix(<q-args>)
+  command! TodotxtShowNoContext call s:search_no_context_to_qfix()
   nnoremap ta :TodotxtAddPriority A<cr>
   nnoremap tb :TodotxtAddPriority B<cr>
   nnoremap tc :TodotxtAddPriority C<cr>
+  nnoremap ti :TodotxtAddPriority W<cr>
+  nnoremap tz :TodotxtAddPriority Z<cr>
   nnoremap td :TodotxtRemovePriority<cr>
+  nnoremap tw :TodotxtAddContext work<cr>
+  nnoremap th :TodotxtAddContext home<cr>
+  nnoremap to :TodotxtAddContext office<cr>
+  nnoremap te :TodotxtAddContext errands<cr>
   nnoremap tx :TodotxtMarkAsDone<cr>
+  nnoremap <leader>sS :TodotxtSearchToQFix @
+  nnoremap <leader>sC :TodotxtShowNoContext<cr>
 end
