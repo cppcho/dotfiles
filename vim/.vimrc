@@ -31,6 +31,9 @@ let g:tmux_navigator_disable_when_zoomed = 1
 
 Plug 'editorconfig/editorconfig-vim'
 
+" linting
+Plug 'dense-analysis/ale'
+
 " A tree explorer plugin for vim.
 Plug 'scrooloose/nerdtree'
 
@@ -121,6 +124,8 @@ Plug 'tpope/vim-unimpaired'
 
 " enable repeating supported plugin maps with '.'
 Plug 'tpope/vim-repeat'
+
+Plug '~/dotfiles/vimplugins/todotxt'
 
 call plug#end()
 
@@ -230,8 +235,8 @@ call <sid>set_background()
 colorscheme gruvbox8
 
 if has("gui_macvim")
-  set guifont=Hack:h12
-  set macligatures
+  set guifont=SF\ Mono:h12
+  " set macligatures
   set wrap lbr
   set clipboard=unnamed
 endif
@@ -441,3 +446,54 @@ if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
 endif
 
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} WIP Stuffs {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if has("gui_macvim")
+  function! s:todotxt_open(file_name) abort
+    execute "e ~/Documents/todo/" .. a:file_name
+    execute "cd ~/Documents/todo/"
+  endfunction
+  function! s:todotxt_archive() abort
+    execute "!todo.sh archive"
+  endfunction
+
+  command! TodotxtArchive call s:todotxt_archive()
+  command! -nargs=1 TodotxtOpen call s:todotxt_open(<q-args>)
+  nnoremap <leader>ww :TodotxtOpen todo.txt<cr>
+  nnoremap <leader>wd :TodotxtOpen done.txt<cr>
+  nnoremap <leader>wA :TodotxtArchive<cr>
+
+  function! s:remove_priority()
+    :s/^(\w)\s\+//ge
+  endfunction
+
+  function! s:add_priority(priority)
+    execute 's/^\(([a-zA-Z]) \)\?/(' . a:priority . ') /'
+  endfunction
+
+  function! s:prepend_date()
+    execute 'normal! I' . strftime('%Y-%m-%d') . ' '
+  endfunction
+
+  function! s:mark_as_done()
+    let current_line = getline('.')
+    if (current_line =~ '^x ')
+      return
+    endif
+
+    call s:remove_priority()
+    call s:prepend_date()
+    execute 'normal! Ix '
+  endfunction
+
+  command! TodotxtMarkAsDone call s:mark_as_done()
+  command! TodotxtRemovePriority call s:remove_priority()
+  command! -nargs=1 TodotxtAddPriority call s:add_priority(<q-args>)
+  nnoremap ta :TodotxtAddPriority A<cr>
+  nnoremap tb :TodotxtAddPriority B<cr>
+  nnoremap tc :TodotxtAddPriority C<cr>
+  nnoremap td :TodotxtRemovePriority<cr>
+  nnoremap tx :TodotxtMarkAsDone<cr>
+end
