@@ -19,6 +19,11 @@ endif
 " - Avoid using standard Vim directory names like 'plugin'
 call plug#begin('~/.vim/plugged')
 
+Plug '907th/vim-auto-save'
+
+Plug 'embear/vim-foldsearch'
+let g:foldsearch_disable_mappings = 1
+
 " Colors
 Plug 'altercation/vim-colors-solarized'
 Plug 'lifepillar/vim-solarized8'
@@ -541,6 +546,20 @@ if has("gui_macvim")
   nnoremap to :TodotxtAddContext office<cr>
   nnoremap te :TodotxtAddContext errands<cr>
   nnoremap tx :TodotxtMarkAsDone<cr>
-  nnoremap <leader>sS :TodotxtSearchToQFix @
-  nnoremap <leader>sC :TodotxtShowNoContext<cr>
+  nnoremap <leader>wS :TodotxtSearchToQFix @
+  nnoremap <leader>wC :TodotxtShowNoContext<cr>
+
+  augroup cppcho_todotxt
+    " Remove ALL autocommands for the current group.
+    autocmd!
+    autocmd FileType todotxt let b:auto_save = 1
+  augroup END
 end
+
+nmap \w :Fp @work<CR>
+nmap \h :Fp @home<CR>
+nmap \o :Fp @office<CR>
+nmap \e :Fp @errands<CR>
+nmap \\ :Fe<CR>
+
+nnoremap <Leader>se :Fe<CR>

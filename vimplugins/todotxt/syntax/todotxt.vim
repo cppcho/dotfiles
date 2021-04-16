@@ -2,6 +2,8 @@ if exists("b:current_syntax")
     finish
 endif
 
+setlocal iskeyword+=40,41,43,45,@-@
+
 syntax  match  TodoDone      '^[xX]\s.*$'
 syntax  match  TodoPriorityA '^([aA])\s'
 syntax  match  TodoPriorityB '^([bB])\s'
