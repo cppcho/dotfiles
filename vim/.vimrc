@@ -1,5 +1,11 @@
 let s:cppcho_is_dark_background=1
+let s:cppcho_vimwiki_dir = '~/Dropbox/notes/'
 
+if has("gui_macvim")
+  let s:cppcho_enable_vimwiki=1
+else
+  let s:cppcho_enable_vimwiki=0
+endif
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -25,10 +31,8 @@ Plug 'embear/vim-foldsearch'
 let g:foldsearch_disable_mappings = 1
 
 " Colors
-Plug 'altercation/vim-colors-solarized'
 Plug 'lifepillar/vim-solarized8'
 Plug 'lifepillar/vim-gruvbox8'
-Plug 'morhetz/gruvbox'
 
 Plug 'christoomey/vim-tmux-navigator'
 let g:tmux_navigator_save_on_switch = 2
@@ -130,7 +134,26 @@ Plug 'tpope/vim-unimpaired'
 " enable repeating supported plugin maps with '.'
 Plug 'tpope/vim-repeat'
 
-Plug '~/dotfiles/vimplugins/todotxt'
+" Personal Wiki for Vim
+if s:cppcho_enable_vimwiki
+  Plug 'vimwiki/vimwiki', { 'branch': 'dev' }
+
+  let g:vimwiki_list = [{
+        \ 'path': s:cppcho_vimwiki_dir,
+        \ 'syntax': 'markdown',
+        \ 'ext': '.md',
+        \ 'auto_toc': 1,
+        \ }]
+  let g:vimwiki_auto_chdir = 1
+  let g:vimwiki_table_mappings = 0
+  let g:vimwiki_toc_header = 'Table of Contents'
+  let g:vimwiki_url_maxsave = 0
+  let g:vimwiki_use_calendar = 0
+  let g:vimwiki_menu = ''
+
+  " Disable markdown syntax as it will conflict with the vimwiki one
+  let g:polyglot_disabled = ['markdown']
+end
 
 call plug#end()
 
@@ -341,31 +364,6 @@ nmap <Leader>aw :set diffopt-=iwhite<CR>
 nnoremap U :UndotreeToggle<CR>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" }}} Todo {{{
-""""""""""""""""""""""""""""""""""""""""""""""""""
-
-" https://github.com/junegunn/dotfiles/blob/master/vimrc#L965
-
-function! s:todo() abort
-  let entries = []
-  for cmd in ['git grep -niI -e TODO -e FIXME 2> /dev/null']
-    let lines = split(system(cmd), '\n')
-    if v:shell_error != 0 | continue | endif
-    for line in lines
-      let [fname, lno, text] = matchlist(line, '^\([^:]*\):\([^:]*\):\(.*\)')[1:3]
-      call add(entries, { 'filename': fname, 'lnum': lno, 'text': text })
-    endfor
-    break
-  endfor
-
-  if !empty(entries)
-    call setqflist(entries)
-    copen
-  endif
-endfunction
-command! Todo call s:todo()
-
-""""""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Grep {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -381,6 +379,9 @@ nnoremap <leader>/ :Ag<space>
 nnoremap <silent><leader>; :Buffers<cr>
 nnoremap <silent><leader>hh :History<cr>
 
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} NERDTree {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
 
 nnoremap <C-f> :NERDTreeFind<cr>
 nnoremap <C-e> :NERDTreeToggle<cr>
@@ -454,112 +455,97 @@ if filereadable(expand("~/.vimrc.local"))
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
-" }}} WIP Stuffs {{{
+" }}} Vimwiki {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-if has("gui_macvim")
-  function! s:todotxt_open(file_name) abort
-    execute "e ~/Documents/todo/" .. a:file_name
-    execute "cd ~/Documents/todo/"
-  endfunction
-  function! s:todotxt_archive() abort
-    execute "!todo.sh archive"
+if s:cppcho_enable_vimwiki
+  " Reference: https://github.com/michal-h21/vim-zettel
+
+  function! s:vimwiki_filename_to_link(filename)
+    return printf('[[%s]]', a:filename)
   endfunction
 
-  command! TodotxtArchive call s:todotxt_archive()
-  command! -nargs=1 TodotxtOpen call s:todotxt_open(<q-args>)
-  nnoremap <leader>ww :TodotxtOpen todo.txt<cr>
-  nnoremap <leader>wd :TodotxtOpen done.txt<cr>
-  nnoremap <leader>wA :TodotxtArchive<cr>
-  nnoremap <leader>ss :%sort<cr>
-
-  function! s:remove_context()
-    :s/\s\+@\w\+//ge
-  endfunction
-
-  function! s:add_context(context)
-    call s:remove_context()
-    execute 'normal! A @' . a:context
-  endfunction
-
-  function! s:remove_priority()
-    :s/^(\w)\s\+//ge
-  endfunction
-
-  function! s:add_priority(priority)
-    execute 's/^\(([a-zA-Z]) \)\?/(' . a:priority . ') /'
-  endfunction
-
-  function! s:prepend_date()
-    execute 'normal! I' . strftime('%Y-%m-%d') . ' '
-  endfunction
-
-  function! s:mark_as_done()
-    let current_line = getline('.')
-    if (current_line =~ '^x ')
-      return
+  function! s:get_visual_selection_lines()
+    let [line_start, column_start] = getpos("'<")[1:2]
+    let [line_end, column_end] = getpos("'>")[1:2]
+    let lines = getline(line_start, line_end)
+    if len(lines) == 0
+      return ''
     endif
-
-    call s:remove_priority()
-    call s:prepend_date()
-    execute 'normal! Ix '
+    return lines
   endfunction
 
-  function! s:search_to_qfix(term) abort
-    cclose
-    execute "vimgrep /" . a:term . "/ %"
-    execute "copen"
-  endfunction
+  function! s:vimwiki_new_note(...)
+    let lines = <sid>get_visual_selection_lines()
+    let filename = ''
 
-  function! s:search_no_context_to_qfix() abort
-    cclose
-    execute "cexpr system(\"rg -v " . shellescape('\\s+@', 1) . " --vimgrep " . shellescape(expand('%:p'), 1) . "\")"
-    copen
-  endfunction
+    let title = join(a:000)
+    if len(title) > 0
+      let filename = filename . title
+    else
+      echo "title is empty"
+      return 0
+    end
 
-  " TODO: autocomplete
-  function! TodotxtContextList(A, L, P)
-    let terms = [ '@home', '@work' ]
-    let matches = []
-    for term in terms
-      if term =~? '^' . strpart(a:A, 1)
-        call add(matches, term)
-      endif
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    call vimwiki#base#edit_file(':e', filename.'.md', '')
+
+    if line('$') == 1 && getline(1) == ''
+      " append title if the file is empty
+      call append(0, '# '.filename)
+    else
+      call append("$", '')
+    end
+
+    for line in lines
+      call append("$", line)
     endfor
-    return matches
+    execute 'normal! G'
   endfunction
 
-  command! TodotxtMarkAsDone call s:mark_as_done()
-  command! TodotxtRemovePriority call s:remove_priority()
-  command! -nargs=1 TodotxtAddPriority call s:add_priority(<q-args>)
-  command! -nargs=1 TodotxtAddContext call s:add_context(<q-args>)
-  command! -nargs=1 -complete=customlist,TodotxtContextList TodotxtSearchToQFix call s:search_to_qfix(<q-args>)
-  command! TodotxtShowNoContext call s:search_no_context_to_qfix()
-  nnoremap ta :TodotxtAddPriority A<cr>
-  nnoremap tb :TodotxtAddPriority B<cr>
-  nnoremap tc :TodotxtAddPriority C<cr>
-  nnoremap ti :TodotxtAddPriority W<cr>
-  nnoremap tz :TodotxtAddPriority Z<cr>
-  nnoremap td :TodotxtRemovePriority<cr>
-  nnoremap tw :TodotxtAddContext work<cr>
-  nnoremap th :TodotxtAddContext home<cr>
-  nnoremap to :TodotxtAddContext office<cr>
-  nnoremap te :TodotxtAddContext errands<cr>
-  nnoremap tx :TodotxtMarkAsDone<cr>
-  nnoremap <leader>wS :TodotxtSearchToQFix @
-  nnoremap <leader>wC :TodotxtShowNoContext<cr>
+  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
 
-  augroup cppcho_todotxt
-    " Remove ALL autocommands for the current group.
-    autocmd!
-    autocmd FileType todotxt let b:auto_save = 1
-  augroup END
-end
+  function! s:vimwiki_yank_name()
+    let filename = fnamemodify(expand("%"), ":~:.")
+    let link = <sid>vimwiki_filename_to_link(filename)
+    if len(link) > 0
+      let @" = link
+      let @* = link
+      echo link
+    else
+      echo "cannot yank file name"
+    end
+  endfunction
 
-nmap \w :Fp @work<CR>
-nmap \h :Fp @home<CR>
-nmap \o :Fp @office<CR>
-nmap \e :Fp @errands<CR>
-nmap \\ :Fe<CR>
+  function! s:vimwiki_autocomplete_handler(line)
+    let parts =  split(a:line,"\V:")
+    let filename = parts[0]
+    let fileparts = split(filename, '\V.')
+    let filename_without_ext = join(fileparts[0:-2],".")
+    execute 'normal! a'.<sid>vimwiki_filename_to_link(filename_without_ext)
+  endfunction
 
-nnoremap <Leader>se :Fe<CR>
+  command! -bang -nargs=? -complete=dir VimwikiAutoComplete
+        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
+        \'sink':function('<sid>vimwiki_autocomplete_handler'),
+        \'dir': s:cppcho_vimwiki_dir,
+        \}), <bang>0)
+
+  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
+
+  " Custom keybindings
+  nmap <Leader>gwi <Plug>VimwikiDiaryGenerateLinks
+  nmap <Leader>gww <Plug>VimwikiGenerateLinks
+  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  nmap <C-Y> :VimwikiYankName<CR>
+
+  " Remap
+  nmap <nop> <Plug>VimwikiNormalizeLink
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+  nmap + <Plug>VimwikiAddHeaderLevel
+  nmap _ <Plug>VimwikiRemoveHeaderLevel
+  nnoremap \bb :~VimwikiBackLinks<CR>
+endif
+
