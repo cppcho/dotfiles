@@ -1,5 +1,5 @@
 let s:cppcho_is_dark_background=1
-let s:cppcho_vimwiki_dir = '~/Dropbox/notes/'
+let s:cppcho_vimwiki_dir = '~/OneDrive/notes/'
 
 if has("gui_macvim")
   let s:cppcho_enable_vimwiki=1
