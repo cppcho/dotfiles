@@ -68,7 +68,7 @@ HIST_STAMPS="yyyy-mm-dd"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git z)
+plugins=(git z taskwarrior)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -104,7 +104,6 @@ export LANG=en_US.UTF-8
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
 
 alias ta='tmux new-session -A -s cppcho'
-alias t='todo.sh -d ~/.todo.cfg'
 
 cht() {
   curl "http://cht.sh/$1"
