@@ -260,7 +260,7 @@ syntax on
 
 call <sid>set_background()
 
-colorscheme gruvbox8
+colorscheme gruvbox8_hard
 
 if has("gui_macvim")
   set guifont=SF\ Mono:h12
