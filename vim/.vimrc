@@ -346,11 +346,11 @@ command! CLEAN retab | TEOL
 
 " Fugitive
 nnoremap <silent> <leader>ga :Gwrite<cr>
-nnoremap <silent> <leader>gs :Gstatus<cr>
+nnoremap <silent> <leader>gs :Git<cr>
 nnoremap <silent> <leader>gd :Gvdiffsplit<cr>
 nnoremap <silent> <leader>gD :Gvdiffsplit master<cr>
-nnoremap <silent> <leader>gb :Gblame<cr>
-nnoremap <silent> <leader>gp :Gpush<cr>
+nnoremap <silent> <leader>gb :Git blame<cr>
+nnoremap <silent> <leader>gp :Git push<cr>
 nnoremap <silent> <leader>gf :BCommits<cr>
 nnoremap <silent> <leader>gh :Commits<cr>
 
