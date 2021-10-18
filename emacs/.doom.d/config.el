@@ -51,6 +51,7 @@
 
 
 (setq! evil-want-Y-yank-to-eol nil)
+(setq doom-localleader-key ",")
 ;; (setq scroll-margin 4)
 ;; (setq scroll-conservatively scroll-margin)
 
@@ -65,19 +66,21 @@
 (map! :n "C-l" #'evil-window-right)
 (map! :n "gt" #'org-todo)
 (map! :n "gp" #'org-priority)
-(map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
 
 ;; org config
 ;; must be set before org load
-(setq org-directory "~/org/")
+(setq org-directory "~/Documents/org/")
 
 (after! org
+
   (setq
    org-default-notes-file "notes.org"
+   org-archive-location "::* Archive"
 
    org-todo-keywords
    '((sequence
       "TODO(t)"  ; A task that needs doing & is ready to do
+      "PROJ(p)"  ; A project, which usually contains other tasks
       "STRT(s)"  ; A task that is in progress
       "WAIT(w)"  ; Something external is holding up this task
       "|"
@@ -89,7 +92,7 @@
    '(
      ("STRT" . +org-todo-active)
      ("WAIT" . +org-todo-onhold)
-     ("HOLD" . +org-todo-onhold)
+     ("PROJ" . +org-todo-project)
      ("KILL" . +org-todo-cancel)
      )
 
@@ -101,3 +104,6 @@
      )
    )
   )
+
+(map! :leader "ww" (lambda () (interactive) (find-file "~/Documents/org/notes.org")))
+(map! :n "C-f" #'org-agenda)
