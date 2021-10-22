@@ -60,16 +60,14 @@
 (setq which-key-idle-delay 0.01)
 
 (map! :leader "SPC" #'execute-extended-command)
-(map! :n "C-h" #'evil-window-left)
-(map! :n "C-j" #'evil-window-down)
-(map! :n "C-k" #'evil-window-up)
-(map! :n "C-l" #'evil-window-right)
-(map! :n "gt" #'org-todo)
-(map! :n "gp" #'org-priority)
+(map! :neg "C-h" #'evil-window-left)
+(map! :neg "C-j" #'evil-window-down)
+(map! :neg "C-k" #'evil-window-up)
+(map! :neg "C-l" #'evil-window-right)
 
 ;; org config
 ;; must be set before org load
-(setq org-directory "~/Documents/org/")
+(setq org-directory "~/org/")
 
 (after! org
 
@@ -100,10 +98,30 @@
    '(
      ("t" "todo" entry
       (file+headline org-default-notes-file "Inbox")
-      "* TODO %?\n%i\n%a" :prepend t)
+      "* TODO %?\n%i" :prepend t)
      )
    )
+
   )
 
-(map! :leader "ww" (lambda () (interactive) (find-file "~/Documents/org/notes.org")))
-(map! :n "C-f" #'org-agenda)
+(define-key key-translation-map (kbd "ESC") (kbd "C-g"))
+(map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
+(map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
+(map! :neg "C-f" #'org-agenda)
+(map! :map org-mode-map
+      :n "ta" (lambda () (interactive) (org-priority ?A))
+      :n "tb" (lambda () (interactive) (org-priority ?B))
+      :n "tc" (lambda () (interactive) (org-priority ?C))
+      :n "tt" (lambda () (interactive) (org-todo "TODO"))
+      :n "tp" (lambda () (interactive) (org-todo "PROJ"))
+      :n "ts" (lambda () (interactive) (org-todo "STRT"))
+      :n "tw" (lambda () (interactive) (org-todo "WAIT"))
+      :n "td" (lambda () (interactive) (org-todo "DONE"))
+      :n "tk" (lambda () (interactive) (org-todo "KILL"))
+      :n "t SPC" (lambda () (interactive) (org-priority 'remove))
+      :n "tr" #'+org/refile-to-current-file
+      :n "C-c TAB" #'org-force-cycle-archived
+      )
+
+(setq org-log-done 'time)
+(setq undo-no-redo t)
