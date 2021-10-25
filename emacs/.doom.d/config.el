@@ -86,26 +86,57 @@
       "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
      )
 
-   org-todo-keyword-faces
-   '(
-     ("STRT" . +org-todo-active)
-     ("WAIT" . +org-todo-onhold)
-     ("PROJ" . +org-todo-project)
-     ("KILL" . +org-todo-cancel)
-     )
-
    org-capture-templates
    '(
      ("t" "todo" entry
       (file+headline org-default-notes-file "Inbox")
       "* TODO %?\n%i" :prepend t)
      )
-   )
 
+   org-priority-faces
+   '((?A . error)
+     (?B . warning)
+     (?C . font-lock-doc-face)
+     )
+
+   org-agenda-custom-commands
+   '(("w" "Work"
+      ((agenda "" ((org-agenda-span 7)))
+       (tags-todo "+work+TODO={TODO\\|STRT}")
+       (tags-todo "+work+TODO={PROJ}")
+       (tags-todo "+work+TODO={WAIT}")
+       (tags-todo "+inbox"))
+      ((org-agenda-hide-tags-regexp "inbox\\|work")
+       (org-agenda-start-on-weekday 1)
+       (org-agenda-sorting-strategy '(priority-down))
+       (org-agenda-tags-column 0))
+      )
+     ("p" "Personal"
+      ((agenda "" ((org-agenda-span 7)))
+       (tags-todo "+personal+TODO={TODO\\|STRT}")
+       (tags-todo "+personal+TODO={PROJ}")
+       (tags-todo "+personal+TODO={WAIT}")
+       (tags-todo "+inbox"))
+      ((org-agenda-hide-tags-regexp "inbox\\|personal")
+       (org-agenda-start-on-weekday 1)
+       (org-agenda-sorting-strategy '(priority-down))
+       (org-agenda-tags-column 0))
+      )
+     ("d" "Completed"
+      ((todo "DONE|KILL"))
+      ((org-agenda-hide-tags-regexp "ARCHIVE")
+       (org-agenda-archives-mode 'trees)
+       ;; (org-agenda-sorting-strategy '(tsia-up))
+       (org-agenda-tags-column 0))
+      ))
+   )
   )
+
+(run-with-idle-timer 30 t #'save-some-buffers t)
 
 (define-key key-translation-map (kbd "ESC") (kbd "C-g"))
 (map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
+(map! :neg "C-SPC" (lambda () (interactive) (org-capture nil "t")))
 (map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
 (map! :neg "C-f" #'org-agenda)
 (map! :map org-mode-map
