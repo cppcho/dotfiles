@@ -59,12 +59,6 @@
 (require 'which-key)
 (setq which-key-idle-delay 0.01)
 
-(map! :leader "SPC" #'execute-extended-command)
-(map! :neg "C-h" #'evil-window-left)
-(map! :neg "C-j" #'evil-window-down)
-(map! :neg "C-k" #'evil-window-up)
-(map! :neg "C-l" #'evil-window-right)
-
 ;; org config
 ;; must be set before org load
 (setq org-directory "~/org/")
@@ -130,28 +124,48 @@
        (org-agenda-tags-column 0))
       ))
    )
+
+  (map! :map org-mode-map
+        :n "ga" (lambda () (interactive) (org-priority ?A))
+        :n "gb" (lambda () (interactive) (org-priority ?B))
+        :n "gc" (lambda () (interactive) (org-priority ?C))
+        :n "tt" (lambda () (interactive) (org-todo "TODO"))
+        :n "tp" (lambda () (interactive) (org-todo "PROJ"))
+        :n "ts" (lambda () (interactive) (org-todo "STRT"))
+        :n "tw" (lambda () (interactive) (org-todo "WAIT"))
+        :n "td" (lambda () (interactive) (org-todo "DONE"))
+        :n "tk" (lambda () (interactive) (org-todo "KILL"))
+        :n "t SPC" (lambda () (interactive) (org-priority 'remove))
+        :n "gr" #'+org/refile-to-current-file
+        :n "C-c TAB" #'org-force-cycle-archived
+        )
+  (map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
+  (map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
+  (map! :n "C-SPC" (lambda () (interactive) (org-capture nil "t")))
+  (map! :n "C-f" #'org-agenda)
   )
+
+(define-key key-translation-map (kbd "ESC") (kbd "C-g"))
+(map! :leader "SPC" #'execute-extended-command)
+(map! :n "C-h" #'evil-window-left)
+(map! :n "C-j" #'evil-window-down)
+(map! :n "C-k" #'evil-window-up)
+(map! :n "C-l" #'evil-window-right)
 
 (run-with-idle-timer 30 t #'save-some-buffers t)
 
-(define-key key-translation-map (kbd "ESC") (kbd "C-g"))
-(map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
-(map! :neg "C-SPC" (lambda () (interactive) (org-capture nil "t")))
-(map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
-(map! :neg "C-f" #'org-agenda)
-(map! :map org-mode-map
-      :n "ta" (lambda () (interactive) (org-priority ?A))
-      :n "tb" (lambda () (interactive) (org-priority ?B))
-      :n "tc" (lambda () (interactive) (org-priority ?C))
-      :n "tt" (lambda () (interactive) (org-todo "TODO"))
-      :n "tp" (lambda () (interactive) (org-todo "PROJ"))
-      :n "ts" (lambda () (interactive) (org-todo "STRT"))
-      :n "tw" (lambda () (interactive) (org-todo "WAIT"))
-      :n "td" (lambda () (interactive) (org-todo "DONE"))
-      :n "tk" (lambda () (interactive) (org-todo "KILL"))
-      :n "t SPC" (lambda () (interactive) (org-priority 'remove))
-      :n "tr" #'+org/refile-to-current-file
-      :n "C-c TAB" #'org-force-cycle-archived
+
+(map! :after evil-org-agenda
+      :map evil-org-agenda-mode-map
+      :m "C-SPC" (lambda () (interactive) (org-capture nil "t"))
+      :m "C-h" #'evil-window-left
+      :m "C-j" #'evil-window-down
+      :m "C-k" #'evil-window-up
+      :m "C-l" #'evil-window-right
+      ;; "ga" (lambda () (interactive) (org-priority ?A))
+      ;; "gb" (lambda () (interactive) (org-priority ?B))
+      ;; "gc" (lambda () (interactive) (org-priority ?C))
+      ;; "gr" #'+org/refile-to-current-file
       )
 
 (setq org-log-done 'time)
