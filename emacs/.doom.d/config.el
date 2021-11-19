@@ -25,7 +25,7 @@
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-one)
+(setq doom-theme 'doom-acario-light)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -52,8 +52,6 @@
 
 (setq! evil-want-Y-yank-to-eol nil)
 (setq doom-localleader-key ",")
-;; (setq scroll-margin 4)
-;; (setq scroll-conservatively scroll-margin)
 
 ;; https://github.com/hlissner/doom-emacs/issues/1839
 (require 'which-key)
@@ -67,7 +65,6 @@
 
   (setq
    org-default-notes-file "notes.org"
-   org-archive-location "::* Archive"
 
    org-todo-keywords
    '((sequence
@@ -90,29 +87,33 @@
    org-priority-faces
    '((?A . error)
      (?B . warning)
-     (?C . font-lock-doc-face)
+     (?C . font-lock-type-face)
      )
 
    org-agenda-custom-commands
    '(("w" "Work"
       ((agenda "" ((org-agenda-span 7)))
-       (tags-todo "+work+TODO={TODO\\|STRT}")
+       (tags-todo "TODO={STRT}")
+       (tags-todo "+work+TODO={TODO}")
        (tags-todo "+work+TODO={PROJ}")
        (tags-todo "+work+TODO={WAIT}")
-       (tags-todo "+inbox"))
+       (tags-todo "+inbox")
+       (todo "DONE|KILL")
+       )
       ((org-agenda-hide-tags-regexp "inbox\\|work")
-       (org-agenda-start-on-weekday 1)
        (org-agenda-sorting-strategy '(priority-down))
        (org-agenda-tags-column 0))
       )
      ("p" "Personal"
       ((agenda "" ((org-agenda-span 7)))
-       (tags-todo "+personal+TODO={TODO\\|STRT}")
+       (tags-todo "TODO={STRT}")
+       (tags-todo "+personal+TODO={TODO}")
        (tags-todo "+personal+TODO={PROJ}")
        (tags-todo "+personal+TODO={WAIT}")
-       (tags-todo "+inbox"))
+       (tags-todo "+inbox")
+       (todo "DONE|KILL")
+       )
       ((org-agenda-hide-tags-regexp "inbox\\|personal")
-       (org-agenda-start-on-weekday 1)
        (org-agenda-sorting-strategy '(priority-down))
        (org-agenda-tags-column 0))
       )
@@ -120,7 +121,6 @@
       ((todo "DONE|KILL"))
       ((org-agenda-hide-tags-regexp "ARCHIVE")
        (org-agenda-archives-mode 'trees)
-       ;; (org-agenda-sorting-strategy '(tsia-up))
        (org-agenda-tags-column 0))
       ))
    )
@@ -139,11 +139,9 @@
         :n "gr" #'+org/refile-to-current-file
         :n "C-c TAB" #'org-force-cycle-archived
         )
-  (map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
-  (map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
-  (map! :n "C-SPC" (lambda () (interactive) (org-capture nil "t")))
   (map! :n "C-f" #'org-agenda)
   )
+
 
 (define-key key-translation-map (kbd "ESC") (kbd "C-g"))
 (map! :leader "SPC" #'execute-extended-command)
@@ -151,6 +149,9 @@
 (map! :n "C-j" #'evil-window-down)
 (map! :n "C-k" #'evil-window-up)
 (map! :n "C-l" #'evil-window-right)
+(map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
+(map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
+(map! :n "C-SPC" (lambda () (interactive) (org-capture nil "t")))
 
 (run-with-idle-timer 30 t #'save-some-buffers t)
 
@@ -162,11 +163,12 @@
       :m "C-j" #'evil-window-down
       :m "C-k" #'evil-window-up
       :m "C-l" #'evil-window-right
-      ;; "ga" (lambda () (interactive) (org-priority ?A))
-      ;; "gb" (lambda () (interactive) (org-priority ?B))
-      ;; "gc" (lambda () (interactive) (org-priority ?C))
-      ;; "gr" #'+org/refile-to-current-file
+      :m "ga" (lambda () (interactive) (org-agenda-priority ?A))
+      :m "gb" (lambda () (interactive) (org-agenda-priority ?B))
+      :m "gc" (lambda () (interactive) (org-agenda-priority ?C))
+      :m "gr" #'org-agenda-refile
       )
 
 (setq org-log-done 'time)
 (setq undo-no-redo t)
+(setq confirm-kill-emacs nil)
