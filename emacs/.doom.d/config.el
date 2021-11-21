@@ -152,6 +152,8 @@
 (map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
 (map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
 (map! :n "C-SPC" (lambda () (interactive) (org-capture nil "t")))
+(map! :n "u" #'undo-fu-only-undo)
+(map! :n "\C-r" #'undo-fu-only-redo)
 
 (run-with-idle-timer 30 t #'save-some-buffers t)
 
@@ -172,3 +174,4 @@
 (setq org-log-done 'time)
 (setq undo-no-redo t)
 (setq confirm-kill-emacs nil)
+(setq undo-fu-ignore-keyboard-quit t)
