@@ -90,45 +90,45 @@
      (?C . font-lock-type-face)
      )
 
-   org-agenda-custom-commands
-   '(("w" "Work"
-      ((agenda "" ((org-agenda-span 7)))
-       (tags-todo "TODO={STRT}")
-       (tags-todo "+work+TODO={TODO}")
-       (tags-todo "+work+TODO={PROJ}")
-       (tags-todo "+work+TODO={WAIT}")
-       (tags-todo "+inbox")
-       (todo "DONE|KILL")
-       )
-      ((org-agenda-hide-tags-regexp "inbox\\|work")
-       (org-agenda-sorting-strategy '(priority-down))
-       (org-agenda-tags-column 0))
-      )
-     ("p" "Personal"
-      ((agenda "" ((org-agenda-span 7)))
-       (tags-todo "TODO={STRT}")
-       (tags-todo "+personal+TODO={TODO}")
-       (tags-todo "+personal+TODO={PROJ}")
-       (tags-todo "+personal+TODO={WAIT}")
-       (tags-todo "+inbox")
-       (todo "DONE|KILL")
-       )
-      ((org-agenda-hide-tags-regexp "inbox\\|personal")
-       (org-agenda-sorting-strategy '(priority-down))
-       (org-agenda-tags-column 0))
-      )
-     ("d" "Completed"
-      ((todo "DONE|KILL"))
-      ((org-agenda-hide-tags-regexp "ARCHIVE")
-       (org-agenda-archives-mode 'trees)
-       (org-agenda-tags-column 0))
-      ))
+   ;; org-agenda-custom-commands
+   ;; '(("w" "Work"
+   ;;    ((agenda "" ((org-agenda-span 7)))
+   ;;     (tags-todo "TODO={STRT}")
+   ;;     (tags-todo "+work+TODO={TODO}")
+   ;;     (tags-todo "+work+TODO={PROJ}")
+   ;;     (tags-todo "+work+TODO={WAIT}")
+   ;;     (tags-todo "+inbox")
+   ;;     (todo "DONE|KILL")
+   ;;     )
+   ;;    ((org-agenda-hide-tags-regexp "inbox\\|work")
+   ;;     (org-agenda-sorting-strategy '(priority-down))
+   ;;     (org-agenda-tags-column 0))
+   ;;    )
+   ;;   ("p" "Personal"
+   ;;    ((agenda "" ((org-agenda-span 7)))
+   ;;     (tags-todo "TODO={STRT}")
+   ;;     (tags-todo "+personal+TODO={TODO}")
+   ;;     (tags-todo "+personal+TODO={PROJ}")
+   ;;     (tags-todo "+personal+TODO={WAIT}")
+   ;;     (tags-todo "+inbox")
+   ;;     (todo "DONE|KILL")
+   ;;     )
+   ;;    ((org-agenda-hide-tags-regexp "inbox\\|personal")
+   ;;     (org-agenda-sorting-strategy '(priority-down))
+   ;;     (org-agenda-tags-column 0))
+   ;;    )
+   ;;   ("d" "Completed"
+   ;;    ((todo "DONE|KILL"))
+   ;;    ((org-agenda-hide-tags-regexp "ARCHIVE")
+   ;;     (org-agenda-archives-mode 'trees)
+   ;;     (org-agenda-tags-column 0))
+   ;;    ))
    )
 
   (map! :map org-mode-map
-        :n "ga" (lambda () (interactive) (org-priority ?A))
-        :n "gb" (lambda () (interactive) (org-priority ?B))
-        :n "gc" (lambda () (interactive) (org-priority ?C))
+        ;; :n "ga" (lambda () (interactive) (org-priority ?A))
+        ;; :n "gb" (lambda () (interactive) (org-priority ?B))
+        ;; :n "gc" (lambda () (interactive) (org-priority ?C))
         :n "tt" (lambda () (interactive) (org-todo "TODO"))
         :n "tp" (lambda () (interactive) (org-todo "PROJ"))
         :n "ts" (lambda () (interactive) (org-todo "STRT"))
@@ -139,7 +139,7 @@
         :n "gr" #'+org/refile-to-current-file
         :n "C-c TAB" #'org-force-cycle-archived
         )
-  (map! :n "C-f" #'org-agenda)
+  ;; (map! :n "C-f" #'org-agenda)
   )
 
 
@@ -157,21 +157,21 @@
 
 (run-with-idle-timer 30 t #'save-some-buffers t)
 
-
-(map! :after evil-org-agenda
-      :map evil-org-agenda-mode-map
-      :m "C-SPC" (lambda () (interactive) (org-capture nil "t"))
-      :m "C-h" #'evil-window-left
-      :m "C-j" #'evil-window-down
-      :m "C-k" #'evil-window-up
-      :m "C-l" #'evil-window-right
-      :m "ga" (lambda () (interactive) (org-agenda-priority ?A))
-      :m "gb" (lambda () (interactive) (org-agenda-priority ?B))
-      :m "gc" (lambda () (interactive) (org-agenda-priority ?C))
-      :m "gr" #'org-agenda-refile
-      )
+;; (map! :after evil-org-agenda
+;;       :map evil-org-agenda-mode-map
+;;       :m "C-SPC" (lambda () (interactive) (org-capture nil "t"))
+;;       :m "C-h" #'evil-window-left
+;;       :m "C-j" #'evil-window-down
+;;       :m "C-k" #'evil-window-up
+;;       :m "C-l" #'evil-window-right
+;;       :m "ga" (lambda () (interactive) (org-agenda-priority ?A))
+;;       :m "gb" (lambda () (interactive) (org-agenda-priority ?B))
+;;       :m "gc" (lambda () (interactive) (org-agenda-priority ?C))
+;;       :m "gr" #'org-agenda-refile
+;;       )
 
 (setq org-log-done 'time)
 (setq undo-no-redo t)
 (setq confirm-kill-emacs nil)
 (setq undo-fu-ignore-keyboard-quit t)
+(setq org-archive-location "%s_archive::datetree/* Archived Tasks")
