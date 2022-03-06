@@ -86,7 +86,7 @@
 (after! org
 
   (setq
-   org-default-notes-file "notes.org"
+   org-default-notes-file "personal.org"
 
    org-todo-keywords
    '((sequence
@@ -115,7 +115,7 @@
         :n "ga" (lambda () (interactive) (org-priority ?A))
         :n "gb" (lambda () (interactive) (org-priority ?B))
         :n "gc" (lambda () (interactive) (org-priority ?C))
-        :n "gd" (lambda () (interactive) (my/org-refile "Archive"))
+        :n "gx" (lambda () (interactive) (my/org-refile "Archive"))
         :n "tt" (lambda () (interactive) (org-todo "TODO"))
         :n "tp" (lambda () (interactive) (org-todo "PROJ"))
         :n "ts" (lambda () (interactive) (org-todo "STRT"))
@@ -134,13 +134,14 @@
 (map! :n "C-j" #'evil-window-down)
 (map! :n "C-k" #'evil-window-up)
 (map! :n "C-l" #'evil-window-right)
-(map! :leader "ww" (lambda () (interactive) (find-file "~/org/notes.org")))
+(map! :leader "ww" (lambda () (interactive) (find-file "~/org/work.org")))
+(map! :leader "we" (lambda () (interactive) (find-file "~/org/personal.org")))
 (map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
 (map! :n "C-SPC" (lambda () (interactive) (org-capture nil "t")))
 (map! :n "u" #'undo-fu-only-undo)
 (map! :n "\C-r" #'undo-fu-only-redo)
 
-(run-with-idle-timer 30 t #'save-some-buffers t)
+(run-with-idle-timer 10 t #'save-some-buffers t)
 
 (map! :after evil-org-agenda
       :map evil-org-agenda-mode-map
