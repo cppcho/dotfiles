@@ -130,6 +130,7 @@
 
 (define-key key-translation-map (kbd "ESC") (kbd "C-g"))
 (map! :leader "SPC" #'execute-extended-command)
+(map! :n "C-f" #'org-agenda)
 (map! :n "C-h" #'evil-window-left)
 (map! :n "C-j" #'evil-window-down)
 (map! :n "C-k" #'evil-window-up)
