@@ -173,6 +173,9 @@
       :m "C-j" #'evil-window-down
       :m "C-k" #'evil-window-up
       :m "C-l" #'evil-window-right
+      :m "C-f" #'org-agenda
+      :m "C-0" (lambda () (interactive) (find-file "~/org/work.org"))
+      :m "C-9" (lambda () (interactive) (find-file "~/org/personal.org"))
       :m "ga" (lambda () (interactive) (org-agenda-priority ?A))
       :m "gb" (lambda () (interactive) (org-agenda-priority ?B))
       :m "gc" (lambda () (interactive) (org-agenda-priority ?C))
