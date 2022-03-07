@@ -103,6 +103,28 @@
    '((?A . (:foreground "orange red"))
      (?B . (:foreground "light salmon"))
      (?C . (:foreground "light slate gray")))
+
+   org-deadline-warning-days 1
+
+   org-agenda-custom-commands
+   '(("0" "Work"
+      ((agenda "" ((org-agenda-span 10)))
+       (tags-todo "+work+TODO={STRT}")
+       (tags-todo "+work+TODO={TODO}")
+       (tags-todo "+work+TODO={WAIT}")
+       )
+      ((org-agenda-hide-tags-regexp "personal\\|work")
+       (org-agenda-sorting-strategy '(priority-down)))
+      )
+     ("9" "Personal"
+      ((agenda "" ((org-agenda-span 10)))
+       (tags-todo "+personal+TODO={STRT}")
+       (tags-todo "+personal+TODO={TODO}")
+       (tags-todo "+personal+TODO={WAIT}")
+       )
+      ((org-agenda-hide-tags-regexp "personal\\|work")
+       (org-agenda-sorting-strategy '(priority-down)))
+      ))
    )
 
   (defun my/org-refile (headline)
