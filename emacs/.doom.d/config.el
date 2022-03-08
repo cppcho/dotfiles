@@ -105,6 +105,9 @@
      (?C . (:foreground "light slate gray")))
 
    org-deadline-warning-days 1
+   org-agenda-show-future-repeats nil
+   org-agenda-todo-ignore-scheduled 'future
+   org-agenda-tags-todo-honor-ignore-options t
 
    org-agenda-custom-commands
    '(("0" "Work"
@@ -186,4 +189,4 @@
 (setq undo-no-redo t)
 (setq confirm-kill-emacs nil)
 (setq undo-fu-ignore-keyboard-quit t)
-(setq org-archive-location "%s_archive::datetree/* Archived Tasks")
+(setq org-archive-location "::* Archive")
