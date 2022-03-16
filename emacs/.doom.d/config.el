@@ -128,19 +128,19 @@
       ((org-agenda-hide-tags-regexp "personal\\|work")
        (org-agenda-sorting-strategy '(priority-down)))
       ))
+
+   org-capture-templates
+   '(("0" "Work todo"
+      entry (file+headline "~/org/work.org" "Inbox") "* TODO %?" :prepend t)
+     ("9" "Personal todo"
+      entry (file+headline "~/org/personal.org" "Inbox") "* TODO %?" :prepend t))
    )
 
-  (defun my/org-refile (headline)
-    (let ((pos (save-excursion
-                 (find-file (buffer-file-name))
-                 (org-find-exact-headline-in-buffer headline))))
-      (org-refile nil nil (list headline (buffer-file-name) nil pos))))
 
   (map! :map org-mode-map
         :n "ga" (lambda () (interactive) (org-priority ?A))
         :n "gb" (lambda () (interactive) (org-priority ?B))
         :n "gc" (lambda () (interactive) (org-priority ?C))
-        :n "gx" (lambda () (interactive) (my/org-refile "Archive"))
         :n "tt" (lambda () (interactive) (org-todo "TODO"))
         :n "tp" (lambda () (interactive) (org-todo "PROJ"))
         :n "ts" (lambda () (interactive) (org-todo "STRT"))
@@ -148,7 +148,7 @@
         :n "td" (lambda () (interactive) (org-todo "DONE"))
         :n "tk" (lambda () (interactive) (org-todo "KILL"))
         :n "gk" (lambda () (interactive) (org-priority 'remove))
-        :n "gr" #'+org/refile-to-current-file
+        :nv "gr" #'+org/refile-to-current-file
         :n "C-c TAB" #'org-force-cycle-archived
         )
   )
@@ -162,8 +162,12 @@
 (map! :n "C-l" #'evil-window-right)
 (map! :n "C-0" (lambda () (interactive) (find-file "~/org/work.org")))
 (map! :n "C-9" (lambda () (interactive) (find-file "~/org/personal.org")))
-(map! :leader "k" (lambda () (interactive) (org-capture nil "t")))
-(map! :n "C-SPC" (lambda () (interactive) (org-capture nil "t")))
+(map! :n "C-c 9" (lambda () (interactive) (org-capture nil "9")))
+(map! :n "C-c C-9" (lambda () (interactive) (org-capture nil "9")))
+(map! :n "C-c 0" (lambda () (interactive) (org-capture nil "0")))
+(map! :n "C-c C-0" (lambda () (interactive) (org-capture nil "0")))
+(map! :n "SPC 9" (lambda () (interactive) (org-agenda nil "9")))
+(map! :n "SPC 0" (lambda () (interactive) (org-agenda nil "0")))
 (map! :n "u" #'undo-fu-only-undo)
 (map! :n "\C-r" #'undo-fu-only-redo)
 
@@ -171,7 +175,12 @@
 
 (map! :after evil-org-agenda
       :map evil-org-agenda-mode-map
-      :m "C-SPC" (lambda () (interactive) (org-capture nil "t"))
+      :m "C-c 9" (lambda () (interactive) (org-capture nil "9"))
+      :m "C-c C-9" (lambda () (interactive) (org-capture nil "9"))
+      :m "C-c 0" (lambda () (interactive) (org-capture nil "0"))
+      :m "C-c C-0" (lambda () (interactive) (org-capture nil "0"))
+      :m "SPC 9" (lambda () (interactive) (org-agenda nil "9"))
+      :m "SPC 0" (lambda () (interactive) (org-agenda nil "0"))
       :m "C-h" #'evil-window-left
       :m "C-j" #'evil-window-down
       :m "C-k" #'evil-window-up
