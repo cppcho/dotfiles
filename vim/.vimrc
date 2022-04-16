@@ -462,7 +462,6 @@ endif
 
 if s:cppcho_enable_vimwiki
   nmap <Leader>ww <Plug>VimwikiIndex
-  nmap <Leader>wg <Plug>VimwikiGenerateLinks
   nmap <Leader>wd <Plug>VimwikiDeleteFile
   nmap <Leader>wr <Plug>VimwikiRenameFile
   nmap <Leader>wn <Plug>VimwikiGoto
@@ -484,6 +483,7 @@ if s:cppcho_enable_vimwiki
   nmap <S-BS> <Plug>VimwikiGoBackLink
   nmap <S-CR> <Plug>VimwikiFollowLink
 
+  autocmd FileType vimwiki nnoremap <silent><buffer> <Leader>wg <Esc>:VimwikiGenerateLinks<CR>
   autocmd FileType vimwiki inoremap <silent><buffer> <CR> <Esc>:VimwikiReturn 1 5<CR>
   autocmd FileType vimwiki inoremap <silent><buffer> <S-CR> <Esc>:VimwikiReturn 2 2<CR>
 endif
