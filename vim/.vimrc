@@ -1,5 +1,5 @@
 let s:cppcho_is_dark_background=1
-let s:cppcho_vimwiki_dir = '~/OneDrive/notes/'
+let s:cppcho_vimwiki_dir = '~/mywiki/'
 
 if has("gui_macvim")
   let s:cppcho_enable_vimwiki=1
@@ -26,12 +26,14 @@ endif
 call plug#begin('~/.vim/plugged')
 
 Plug '907th/vim-auto-save'
-
-Plug 'embear/vim-foldsearch'
-let g:foldsearch_disable_mappings = 1
+let g:auto_save = 0
+let g:auto_save_silent = 1
+augroup ft_markdown
+  au!
+  au FileType markdown let b:auto_save = 1
+augroup END
 
 " Colors
-Plug 'lifepillar/vim-solarized8'
 Plug 'lifepillar/vim-gruvbox8'
 
 Plug 'christoomey/vim-tmux-navigator'
@@ -39,9 +41,6 @@ let g:tmux_navigator_save_on_switch = 2
 let g:tmux_navigator_disable_when_zoomed = 1
 
 Plug 'editorconfig/editorconfig-vim'
-
-" linting
-Plug 'dense-analysis/ale'
 
 " A tree explorer plugin for vim.
 Plug 'scrooloose/nerdtree'
@@ -68,7 +67,9 @@ let g:undotree_WindowLayout = 2
 
 " Vim plugin for the Perl module / CLI script 'ack'
 Plug 'mileszs/ack.vim'
-if executable('ag')
+if executable('rg')
+  let g:ackprg = 'rg --vimgrep'
+elseif elseexecutable('ag')
   let g:ackprg = 'ag --vimgrep'
 endif
 
@@ -112,6 +113,9 @@ let g:easy_align_delimiters = {
 
 " A solid language pack for Vim.
 Plug 'sheerun/vim-polyglot'
+if s:cppcho_enable_vimwiki
+  let g:polyglot_disabled = ['markdown']
+end
 
 " comment stuff out
 Plug 'tpope/vim-commentary'
@@ -136,23 +140,22 @@ Plug 'tpope/vim-repeat'
 
 " Personal Wiki for Vim
 if s:cppcho_enable_vimwiki
-  Plug 'vimwiki/vimwiki', { 'branch': 'dev' }
+  Plug 'vimwiki/vimwiki'
 
   let g:vimwiki_list = [{
         \ 'path': s:cppcho_vimwiki_dir,
         \ 'syntax': 'markdown',
         \ 'ext': '.md',
-        \ 'auto_toc': 1,
+        \ 'auto_toc': 0,
         \ }]
   let g:vimwiki_auto_chdir = 1
-  let g:vimwiki_table_mappings = 0
-  let g:vimwiki_toc_header = 'Table of Contents'
+  let g:vimwiki_table_auto_fmt = 0
   let g:vimwiki_url_maxsave = 0
   let g:vimwiki_use_calendar = 0
+  let g:vimwiki_hl_headers = 1
+  let g:vimwiki_hl_cb_checked = 1
   let g:vimwiki_menu = ''
-
-  " Disable markdown syntax as it will conflict with the vimwiki one
-  let g:polyglot_disabled = ['markdown']
+  let g:vimwiki_key_mappings = { 'all_maps': 0, }
 end
 
 call plug#end()
@@ -171,7 +174,6 @@ set autowrite                                         " Write on :next/:prev/^Z
 set backspace=eol,start,indent                        " Make backspace a more flexible
 set completeopt=menu                                  " Do not show preview for insert mode completion
 set nocursorline                                      " Whether to highlight the current line
-"set diffopt+=vertical                                 " Start diff mode with vertical splits
 set expandtab                                         " Tabs are spaces, not tabs
 set hidden                                            " Allow buffer switching without saving
 set hlsearch                                          " Highlight all matches when searching
@@ -263,7 +265,7 @@ call <sid>set_background()
 colorscheme gruvbox8
 
 if has("gui_macvim")
-  set guifont=SF\ Mono:h12
+  set guifont=JetBrains\ Mono:h12
   " set macligatures
   set wrap lbr
   set clipboard=unnamed
@@ -375,7 +377,7 @@ nnoremap <leader><space> :Ack<space>
 
 nnoremap <C-p> :Files<cr>
 nnoremap <silent><leader>l :BLines<cr>
-nnoremap <leader>/ :Ag<space>
+nnoremap <leader>/ :Rg<space>
 nnoremap <silent><leader>; :Buffers<cr>
 nnoremap <silent><leader>hh :History<cr>
 
@@ -459,93 +461,30 @@ endif
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 if s:cppcho_enable_vimwiki
-  " Reference: https://github.com/michal-h21/vim-zettel
-
-  function! s:vimwiki_filename_to_link(filename)
-    return printf('[[%s]]', a:filename)
-  endfunction
-
-  function! s:get_visual_selection_lines()
-    let [line_start, column_start] = getpos("'<")[1:2]
-    let [line_end, column_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
-    if len(lines) == 0
-      return ''
-    endif
-    return lines
-  endfunction
-
-  function! s:vimwiki_new_note(...)
-    let lines = <sid>get_visual_selection_lines()
-    let filename = ''
-
-    let title = join(a:000)
-    if len(title) > 0
-      let filename = filename . title
-    else
-      echo "title is empty"
-      return 0
-    end
-
-    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
-    call vimwiki#base#edit_file(':e', filename.'.md', '')
-
-    if line('$') == 1 && getline(1) == ''
-      " append title if the file is empty
-      call append(0, '# '.filename)
-    else
-      call append("$", '')
-    end
-
-    for line in lines
-      call append("$", line)
-    endfor
-    execute 'normal! G'
-  endfunction
-
-  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
-
-  function! s:vimwiki_yank_name()
-    let filename = fnamemodify(expand("%"), ":~:.")
-    let link = <sid>vimwiki_filename_to_link(filename)
-    if len(link) > 0
-      let @" = link
-      let @* = link
-      echo link
-    else
-      echo "cannot yank file name"
-    end
-  endfunction
-
-  function! s:vimwiki_autocomplete_handler(line)
-    let parts =  split(a:line,"\V:")
-    let filename = parts[0]
-    let fileparts = split(filename, '\V.')
-    let filename_without_ext = join(fileparts[0:-2],".")
-    execute 'normal! a'.<sid>vimwiki_filename_to_link(filename_without_ext)
-  endfunction
-
-  command! -bang -nargs=? -complete=dir VimwikiAutoComplete
-        \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({
-        \'sink':function('<sid>vimwiki_autocomplete_handler'),
-        \'dir': s:cppcho_vimwiki_dir,
-        \}), <bang>0)
-
-  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-
-  " Custom keybindings
-  nmap <Leader>gwi <Plug>VimwikiDiaryGenerateLinks
-  nmap <Leader>gww <Plug>VimwikiGenerateLinks
-  inoremap <C-l><C-l> <ESC>:VimwikiAutoComplete<CR>
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  nmap <C-Y> :VimwikiYankName<CR>
-
-  " Remap
-  nmap <nop> <Plug>VimwikiNormalizeLink
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+  nmap <Leader>ww <Plug>VimwikiIndex
+  nmap <Leader>wg <Plug>VimwikiGenerateLinks
+  nmap <Leader>wd <Plug>VimwikiDeleteFile
+  nmap <Leader>wr <Plug>VimwikiRenameFile
+  nmap <Leader>wn <Plug>VimwikiGoto
   nmap + <Plug>VimwikiAddHeaderLevel
   nmap _ <Plug>VimwikiRemoveHeaderLevel
-  nnoremap \bb :~VimwikiBackLinks<CR>
+  nmap ]] <Plug>VimwikiGoToNextHeader
+  nmap [[ <Plug>VimwikiGoToPrevHeader
+  nmap <C-CR> <Plug>VimwikiToggleListItem
+  vmap <C-CR> <Plug>VimwikiToggleListItem
+  nmap <Tab> <Plug>VimwikiIncreaseLvlWholeItem
+  nmap <Tab> <Plug>VimwikiIncreaseLvlWholeItem
+  nmap <S-Tab> <Plug>VimwikiDecreaseLvlWholeItem
+  vmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+  vmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
+  imap <C-T> <Plug>VimwikiIncreaseLvlSingleItem
+  imap <C-D> <Plug>VimwikiDecreaseLvlSingleItem
+  nmap o <Plug>VimwikiListo
+  nmap O <Plug>VimwikiListO
+  nmap <S-BS> <Plug>VimwikiGoBackLink
+  nmap <S-CR> <Plug>VimwikiFollowLink
+
+  autocmd FileType vimwiki inoremap <silent><buffer> <CR> <Esc>:VimwikiReturn 1 5<CR>
+  autocmd FileType vimwiki inoremap <silent><buffer> <S-CR> <Esc>:VimwikiReturn 2 2<CR>
 endif
 
