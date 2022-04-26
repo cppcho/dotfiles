@@ -469,13 +469,12 @@ if s:cppcho_enable_vimwiki
   nmap <Leader>wn <Plug>VimwikiGoto
   nmap + <Plug>VimwikiAddHeaderLevel
   nmap _ <Plug>VimwikiRemoveHeaderLevel
-  nmap ]] <Plug>VimwikiGoToNextHeader
-  nmap [[ <Plug>VimwikiGoToPrevHeader
+  nmap ]] <Plug>VimwikiGoToNextSiblingHeader
+  nmap [[ <Plug>VimwikiGoToPrevSiblingHeader
   nmap <C-CR> <Plug>VimwikiToggleListItem
   vmap <C-CR> <Plug>VimwikiToggleListItem
-  nmap <Tab> <Plug>VimwikiIncreaseLvlWholeItem
-  nmap <Tab> <Plug>VimwikiIncreaseLvlWholeItem
-  nmap <S-Tab> <Plug>VimwikiDecreaseLvlWholeItem
+  nmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+  nmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
   vmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
   vmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
   imap <C-T> <Plug>VimwikiIncreaseLvlSingleItem
