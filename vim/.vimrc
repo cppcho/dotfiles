@@ -149,11 +149,13 @@ if s:cppcho_enable_vimwiki
         \ 'auto_toc': 0,
         \ }]
   let g:vimwiki_auto_chdir = 1
+  let g:vimwiki_auto_header = 1
   let g:vimwiki_table_auto_fmt = 0
   let g:vimwiki_url_maxsave = 0
   let g:vimwiki_use_calendar = 0
   let g:vimwiki_hl_headers = 1
   let g:vimwiki_hl_cb_checked = 1
+  let g:vimwiki_links_header_level = 2
   let g:vimwiki_menu = ''
   let g:vimwiki_key_mappings = { 'all_maps': 0, }
 end
