@@ -463,6 +463,73 @@ endif
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 if s:cppcho_enable_vimwiki
+  " Reference: https://github.com/michal-h21/vim-zettel
+
+  function! s:vimwiki_filename_to_link(filename)
+    return printf('[[%s]]', a:filename)
+  endfunction
+
+  function! s:get_visual_selection_lines()
+    let [line_start, column_start] = getpos("'<")[1:2]
+    let [line_end, column_end] = getpos("'>")[1:2]
+    let lines = getline(line_start, line_end)
+    if len(lines) == 0
+      return ''
+    endif
+    return lines
+  endfunction
+
+  function! s:vimwiki_new_note(...)
+    let lines = <sid>get_visual_selection_lines()
+    let filename = ''
+
+    let title = join(a:000)
+    if len(title) > 0
+      let filename = filename . title
+    else
+      echo "title is empty"
+      return 0
+    end
+
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    call vimwiki#base#edit_file(':e', filename.'.md', '')
+
+    if line('$') == 1 && getline(1) == ''
+      " append title if the file is empty
+      call append(0, '# '.filename)
+    else
+      call append("$", '')
+    end
+
+    for line in lines
+      call append("$", line)
+    endfor
+    execute 'normal! G'
+  endfunction
+
+  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
+
+  function! s:vimwiki_yank_name()
+    let filename = fnamemodify(expand("%"), ":~:.")
+    let link = <sid>vimwiki_filename_to_link(filename)
+    if len(link) > 0
+      let @" = link
+      let @* = link
+      echo link
+    else
+      echo "cannot yank file name"
+    end
+  endfunction
+
+  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
+
+  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
+  nmap <C-Y> :VimwikiYankName<CR>
+
+  nmap <nop> <Plug>VimwikiNormalizeLink
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
+  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
+
   nmap <Leader>ww <Plug>VimwikiIndex
   nmap <Leader>wd <Plug>VimwikiDeleteFile
   nmap <Leader>wr <Plug>VimwikiRenameFile
@@ -488,4 +555,3 @@ if s:cppcho_enable_vimwiki
   autocmd FileType vimwiki inoremap <silent><buffer> <CR> <Esc>:VimwikiReturn 1 5<CR>
   autocmd FileType vimwiki inoremap <silent><buffer> <S-CR> <Esc>:VimwikiReturn 2 2<CR>
 endif
-
