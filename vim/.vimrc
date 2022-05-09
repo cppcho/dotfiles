@@ -378,6 +378,7 @@ nnoremap <leader><space> :Ack<space>
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 nnoremap <C-p> :Files<cr>
+nnoremap <D-p> :Files<cr>
 nnoremap <silent><leader>l :BLines<cr>
 nnoremap <leader>/ :Rg<space>
 nnoremap <silent><leader>; :Buffers<cr>
