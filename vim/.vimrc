@@ -492,7 +492,7 @@ if s:cppcho_enable_vimwiki
       return 0
     end
 
-    execute "normal! :'<,'>d\<CR>O\<ESC>0I - ".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
+    execute "normal! :'<,'>d\<CR>O\<ESC>0I".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
     call vimwiki#base#edit_file(':e', filename.'.md', '')
 
     if line('$') == 1 && getline(1) == ''
