@@ -555,4 +555,6 @@ if s:cppcho_enable_vimwiki
   autocmd FileType vimwiki nnoremap <silent><buffer> <Leader>wg <Esc>:VimwikiGenerateLinks<CR>
   autocmd FileType vimwiki inoremap <silent><buffer> <CR> <Esc>:VimwikiReturn 1 5<CR>
   autocmd FileType vimwiki inoremap <silent><buffer> <S-CR> <Esc>:VimwikiReturn 2 2<CR>
+
+  autocmd FileType vimwiki setlocal listchars=tab:›\ ,extends:#,nbsp:.
 endif
