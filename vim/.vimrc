@@ -535,22 +535,22 @@ if s:cppcho_enable_vimwiki
   nmap <Leader>wd <Plug>VimwikiDeleteFile
   nmap <Leader>wr <Plug>VimwikiRenameFile
   nmap <Leader>wn <Plug>VimwikiGoto
-  nmap + <Plug>VimwikiAddHeaderLevel
-  nmap _ <Plug>VimwikiRemoveHeaderLevel
-  nmap ]] <Plug>VimwikiGoToNextSiblingHeader
-  nmap [[ <Plug>VimwikiGoToPrevSiblingHeader
-  nmap <C-CR> <Plug>VimwikiToggleListItem
-  vmap <C-CR> <Plug>VimwikiToggleListItem
-  nmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-  nmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
-  vmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-  vmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
-  imap <C-T> <Plug>VimwikiIncreaseLvlSingleItem
-  imap <C-D> <Plug>VimwikiDecreaseLvlSingleItem
-  nmap o <Plug>VimwikiListo
-  nmap O <Plug>VimwikiListO
-  nmap <S-BS> <Plug>VimwikiGoBackLink
-  nmap <S-CR> <Plug>VimwikiFollowLink
+  autocmd FileType vimwiki nmap + <Plug>VimwikiAddHeaderLevel
+  autocmd FileType vimwiki nmap _ <Plug>VimwikiRemoveHeaderLevel
+  autocmd FileType vimwiki nmap ]] <Plug>VimwikiGoToNextSiblingHeader
+  autocmd FileType vimwiki nmap [[ <Plug>VimwikiGoToPrevSiblingHeader
+  autocmd FileType vimwiki nmap <C-CR> <Plug>VimwikiToggleListItem
+  autocmd FileType vimwiki vmap <C-CR> <Plug>VimwikiToggleListItem
+  autocmd FileType vimwiki nmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+  autocmd FileType vimwiki nmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
+  autocmd FileType vimwiki vmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
+  autocmd FileType vimwiki vmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
+  autocmd FileType vimwiki imap <C-T> <Plug>VimwikiIncreaseLvlSingleItem
+  autocmd FileType vimwiki imap <C-D> <Plug>VimwikiDecreaseLvlSingleItem
+  autocmd FileType vimwiki nmap o <Plug>VimwikiListo
+  autocmd FileType vimwiki nmap O <Plug>VimwikiListO
+  autocmd FileType vimwiki nmap <S-BS> <Plug>VimwikiGoBackLink
+  autocmd FileType vimwiki nmap <S-CR> <Plug>VimwikiFollowLink
 
   autocmd FileType vimwiki nnoremap <silent><buffer> <Leader>wg <Esc>:VimwikiGenerateLinks<CR>
   autocmd FileType vimwiki inoremap <silent><buffer> <CR> <Esc>:VimwikiReturn 1 5<CR>
