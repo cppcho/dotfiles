@@ -67,9 +67,7 @@ let g:undotree_WindowLayout = 2
 
 " Vim plugin for the Perl module / CLI script 'ack'
 Plug 'mileszs/ack.vim'
-if executable('rg')
-  let g:ackprg = 'rg --vimgrep'
-elseif elseexecutable('ag')
+if executable('ag')
   let g:ackprg = 'ag --vimgrep'
 endif
 
@@ -158,6 +156,8 @@ if s:cppcho_enable_vimwiki
   let g:vimwiki_links_header_level = 2
   let g:vimwiki_menu = ''
   let g:vimwiki_key_mappings = { 'all_maps': 0, }
+  let g:vimwiki_conceal_onechar_markers = 0
+  let g:vimwiki_conceal_pre = 0
 end
 
 call plug#end()
@@ -531,10 +531,14 @@ if s:cppcho_enable_vimwiki
   vmap <nop> <Plug>VimwikiNormalizeLinkVisual
   vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
 
-  nmap <Leader>ww <Plug>VimwikiIndex
+  nmap <Leader>ww <Plug>VimwikiMakeDiaryNote
+  nmap <Leader>wm <Plug>VimwikiMakeTomorrowDiaryNote
+  nmap <Leader>wy <Plug>VimwikiMakeYesterdayDiaryNote
+  nmap <Leader>wi <Plug>VimwikiIndex
   nmap <Leader>wd <Plug>VimwikiDeleteFile
   nmap <Leader>wr <Plug>VimwikiRenameFile
   nmap <Leader>wn <Plug>VimwikiGoto
+
   autocmd FileType vimwiki nmap + <Plug>VimwikiAddHeaderLevel
   autocmd FileType vimwiki nmap _ <Plug>VimwikiRemoveHeaderLevel
   autocmd FileType vimwiki nmap ]] <Plug>VimwikiGoToNextSiblingHeader
@@ -557,4 +561,5 @@ if s:cppcho_enable_vimwiki
   autocmd FileType vimwiki inoremap <silent><buffer> <S-CR> <Esc>:VimwikiReturn 2 2<CR>
 
   autocmd FileType vimwiki setlocal listchars=tab:›\ ,extends:#,nbsp:.
+  autocmd FileType vimwiki setlocal nonumber
 endif
