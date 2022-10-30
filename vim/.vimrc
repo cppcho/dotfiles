@@ -34,7 +34,9 @@ augroup ft_markdown
 augroup END
 
 " Colors
-Plug 'lifepillar/vim-gruvbox8'
+Plug 'sainnhe/gruvbox-material'
+let g:gruvbox_material_background = 'hard'
+let g:gruvbox_material_foreground = 'material'
 
 Plug 'christoomey/vim-tmux-navigator'
 let g:tmux_navigator_save_on_switch = 2
@@ -56,10 +58,7 @@ let g:SuperTabDefaultCompletionType = "<c-n>"
 Plug 'google/vim-searchindex'
 
 " A light and configurable statusline/tabline plugin for Vim
-Plug 'itchyny/lightline.vim'
-let g:lightline = {
-      \ 'colorscheme': 'PaperColor',
-      \ }
+let g:lightline = {'colorscheme' : 'gruvbox_material'}
 
 " The undo history visualizer for VIM
 Plug 'mbbill/undotree'
@@ -238,9 +237,9 @@ endif
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
 " set Vim-specific sequences for RGB colors
-set termguicolors
-let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
-let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
+if has('termguicolors')
+  set termguicolors
+endif
 
 function! s:set_background()
   if s:cppcho_is_dark_background
@@ -264,7 +263,7 @@ syntax on
 
 call <sid>set_background()
 
-colorscheme gruvbox8
+colorscheme gruvbox-material
 
 if has("gui_macvim")
   set guifont=JetBrains\ Mono:h12
