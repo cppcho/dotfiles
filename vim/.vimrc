@@ -36,7 +36,6 @@ augroup END
 " Colors
 Plug 'sainnhe/gruvbox-material'
 let g:gruvbox_material_background = 'hard'
-let g:gruvbox_material_foreground = 'original'
 
 Plug 'christoomey/vim-tmux-navigator'
 let g:tmux_navigator_save_on_switch = 2
