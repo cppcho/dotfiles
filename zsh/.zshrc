@@ -107,6 +107,7 @@ export LANG=en_US.UTF-8
 
 alias ta='tmux new-session -A -s cppcho'
 alias update='brew update; brew upgrade; brew cleanup'
+alias vim='command -v nvim > /dev/null && nvim || vim'
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
