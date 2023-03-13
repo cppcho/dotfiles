@@ -185,7 +185,11 @@ set nowrap lbr
 set guioptions=                                       " Remove macvim scrollbar
 
 if has('persistent_undo')
-  let target_path = expand('~/.config/vim-persisted-undo/')
+  if has("nvim")
+    let target_path = expand('~/.config/vim-persisted-undo/')
+  else
+    let target_path = expand('~/.config/nvim-persisted-undo/')
+  endif
 
   if !isdirectory(target_path)
     call system('mkdir -p ' . target_path)
@@ -282,8 +286,8 @@ nnoremap <leader>cd :cd %:p:h<cr>:pwd<cr>
 nnoremap <leader>cf :echo @%<cr>
 
 " Quickly edit/reload the vimrc file
-nnoremap <silent> <leader>rc :e $MYVIMRC<cr>
-nnoremap <silent> <leader>rr :so $MYVIMRC<cr>
+nnoremap <silent> <leader>rc :e $HOME/.vimrc<cr>
+nnoremap <silent> <leader>rr :so $HOME/.vimrc<cr>
 
 " Edit last file
 nmap <leader>. :e#<cr>
@@ -368,6 +372,14 @@ augroup vimrc
   " How can I close vim if the only window left open is a NERDTree?
   autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 augroup END
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}} Neovim {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if has("nvim")
+  nnoremap Y Y
+end
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Misc {{{
