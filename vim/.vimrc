@@ -1,11 +1,3 @@
-let s:cppcho_is_dark_background=1
-let s:cppcho_vimwiki_dir = '~/mywiki/'
-
-if has("gui_macvim")
-  let s:cppcho_enable_vimwiki=1
-else
-  let s:cppcho_enable_vimwiki=0
-endif
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Plugins {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -109,9 +101,6 @@ let g:easy_align_delimiters = {
 
 " A solid language pack for Vim.
 Plug 'sheerun/vim-polyglot'
-if s:cppcho_enable_vimwiki
-  let g:polyglot_disabled = ['markdown']
-end
 
 " comment stuff out
 Plug 'tpope/vim-commentary'
@@ -133,30 +122,6 @@ Plug 'tpope/vim-unimpaired'
 
 " enable repeating supported plugin maps with '.'
 Plug 'tpope/vim-repeat'
-
-" Personal Wiki for Vim
-if s:cppcho_enable_vimwiki
-  Plug 'vimwiki/vimwiki'
-
-  let g:vimwiki_list = [{
-        \ 'path': s:cppcho_vimwiki_dir,
-        \ 'syntax': 'markdown',
-        \ 'ext': '.md',
-        \ 'auto_toc': 0,
-        \ }]
-  let g:vimwiki_auto_chdir = 1
-  let g:vimwiki_auto_header = 1
-  let g:vimwiki_table_auto_fmt = 0
-  let g:vimwiki_url_maxsave = 0
-  let g:vimwiki_use_calendar = 0
-  let g:vimwiki_hl_headers = 1
-  let g:vimwiki_hl_cb_checked = 1
-  let g:vimwiki_links_header_level = 2
-  let g:vimwiki_menu = ''
-  let g:vimwiki_key_mappings = { 'all_maps': 0, }
-  let g:vimwiki_conceal_onechar_markers = 0
-  let g:vimwiki_conceal_pre = 0
-end
 
 call plug#end()
 
@@ -180,9 +145,7 @@ set hlsearch                                          " Highlight all matches wh
 set ignorecase                                        " Ignore case when the pattern contains lowercase letters only
 set incsearch                                         " Search for the text as entered
 set infercase                                         " Completion recognizes capitalization
-set laststatus=2
 set list                                              " Display unprintable characters
-set listchars=tab:›\ ,trail:•,extends:#,nbsp:.        " Highlight problematic whitespace
 set mouse=a                                           " Automatically enable mouse usage
 set mousehide                                         " Hide the mouse cursor while typing
 set nobackup                                          " No backup files
@@ -240,28 +203,7 @@ if has('termguicolors')
   set termguicolors
 endif
 
-function! s:set_background()
-  if s:cppcho_is_dark_background
-    set background=dark
-  else
-    set background=light
-  end
-endfunction
-function! s:switch_background()
-  if s:cppcho_is_dark_background
-    let s:cppcho_is_dark_background=0
-  else
-    let s:cppcho_is_dark_background=1
-  end
-  call s:set_background()
-endfunction
-
-command! -bang SwitchBackground call <sid>switch_background()
-
 syntax on
-
-call <sid>set_background()
-
 colorscheme gruvbox-material
 
 if has("gui_macvim")
@@ -446,7 +388,6 @@ augroup END
 
 " Tmux
 nmap \r :!tmux send-keys -t right C-p C-j <cr><cr>
-nmap \tt :!tmux send-keys -t right "prove -lr -PPretty " % ENTER<cr><cr>
 
 nnoremap \vv :vsplit<cr>
 nnoremap \ss :split<cr>
@@ -457,107 +398,3 @@ if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
 endif
 
-""""""""""""""""""""""""""""""""""""""""""""""""""
-" }}} Vimwiki {{{
-""""""""""""""""""""""""""""""""""""""""""""""""""
-
-if s:cppcho_enable_vimwiki
-  " Reference: https://github.com/michal-h21/vim-zettel
-
-  function! s:vimwiki_filename_to_link(filename)
-    return printf('[[%s]]', a:filename)
-  endfunction
-
-  function! s:get_visual_selection_lines()
-    let [line_start, column_start] = getpos("'<")[1:2]
-    let [line_end, column_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
-    if len(lines) == 0
-      return ''
-    endif
-    return lines
-  endfunction
-
-  function! s:vimwiki_new_note(...)
-    let lines = <sid>get_visual_selection_lines()
-    let filename = ''
-
-    let title = join(a:000)
-    if len(title) > 0
-      let filename = filename . title
-    else
-      echo "title is empty"
-      return 0
-    end
-
-    execute "normal! :'<,'>d\<CR>O\<ESC>0I".<sid>vimwiki_filename_to_link(filename)."\<ESC>"
-    call vimwiki#base#edit_file(':e', filename.'.md', '')
-
-    if line('$') == 1 && getline(1) == ''
-      " append title if the file is empty
-      call append(0, '# '.filename)
-    else
-      call append("$", '')
-    end
-
-    for line in lines
-      call append("$", line)
-    endfor
-    execute 'normal! G'
-  endfunction
-
-  command! -bang -nargs=* VimwikiZettelNew call <sid>vimwiki_new_note(<q-args>)
-
-  function! s:vimwiki_yank_name()
-    let filename = fnamemodify(expand("%"), ":~:.")
-    let link = <sid>vimwiki_filename_to_link(filename)
-    if len(link) > 0
-      let @" = link
-      let @* = link
-      echo link
-    else
-      echo "cannot yank file name"
-    end
-  endfunction
-
-  command! -bang -nargs=* VimwikiYankName call <sid>vimwiki_yank_name()
-
-  vmap <CR> :<C-U>VimwikiZettelNew<SPACE>
-  nmap <C-Y> :VimwikiYankName<CR>
-
-  nmap <nop> <Plug>VimwikiNormalizeLink
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisual
-  vmap <nop> <Plug>VimwikiNormalizeLinkVisualCR
-
-  nmap <Leader>ww <Plug>VimwikiMakeDiaryNote
-  nmap <Leader>wm <Plug>VimwikiMakeTomorrowDiaryNote
-  nmap <Leader>wy <Plug>VimwikiMakeYesterdayDiaryNote
-  nmap <Leader>wi <Plug>VimwikiIndex
-  nmap <Leader>wd <Plug>VimwikiDeleteFile
-  nmap <Leader>wr <Plug>VimwikiRenameFile
-  nmap <Leader>wn <Plug>VimwikiGoto
-
-  autocmd FileType vimwiki nmap + <Plug>VimwikiAddHeaderLevel
-  autocmd FileType vimwiki nmap _ <Plug>VimwikiRemoveHeaderLevel
-  autocmd FileType vimwiki nmap ]] <Plug>VimwikiGoToNextSiblingHeader
-  autocmd FileType vimwiki nmap [[ <Plug>VimwikiGoToPrevSiblingHeader
-  autocmd FileType vimwiki nmap <C-CR> <Plug>VimwikiToggleListItem
-  autocmd FileType vimwiki vmap <C-CR> <Plug>VimwikiToggleListItem
-  autocmd FileType vimwiki nmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-  autocmd FileType vimwiki nmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
-  autocmd FileType vimwiki vmap <Tab> <Plug>VimwikiIncreaseLvlSingleItem
-  autocmd FileType vimwiki vmap <S-Tab> <Plug>VimwikiDecreaseLvlSingleItem
-  autocmd FileType vimwiki imap <C-T> <Plug>VimwikiIncreaseLvlSingleItem
-  autocmd FileType vimwiki imap <C-D> <Plug>VimwikiDecreaseLvlSingleItem
-  autocmd FileType vimwiki nmap o <Plug>VimwikiListo
-  autocmd FileType vimwiki nmap O <Plug>VimwikiListO
-  autocmd FileType vimwiki nmap <S-BS> <Plug>VimwikiGoBackLink
-  autocmd FileType vimwiki nmap <S-CR> <Plug>VimwikiFollowLink
-
-  autocmd FileType vimwiki nnoremap <silent><buffer> <Leader>wg <Esc>:VimwikiGenerateLinks<CR>
-  autocmd FileType vimwiki inoremap <silent><buffer> <CR> <Esc>:VimwikiReturn 1 5<CR>
-  autocmd FileType vimwiki inoremap <silent><buffer> <S-CR> <Esc>:VimwikiReturn 2 2<CR>
-
-  autocmd FileType vimwiki setlocal listchars=tab:›\ ,extends:#,nbsp:.
-  autocmd FileType vimwiki setlocal nonumber
-endif
