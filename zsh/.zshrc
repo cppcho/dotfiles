@@ -105,9 +105,17 @@ export LANG=en_US.UTF-8
 [ -f ~/.zshrc_mac ] && source ~/.zshrc_mac
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
 
+my_nvim_or_vim() {
+  if command -v nvim >/dev/null 2>&1; then
+    nvim "$@"
+  else
+    vim "$@"
+  fi
+}
+
 alias ta='tmux new-session -A -s cppcho'
 alias update='brew update; brew upgrade; brew cleanup'
-alias vim='command -v nvim > /dev/null && nvim || vim'
+alias vim='my_nvim_or_vim'
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
