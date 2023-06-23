@@ -30,6 +30,10 @@ Plug 'sainnhe/gruvbox-material'
 let g:gruvbox_material_disable_italic_comment = 1
 let g:gruvbox_material_background = 'hard'
 
+Plug 'sainnhe/everforest'
+let g:everforest_disable_italic_comment = 1
+let g:everforest_background = 'hard'
+
 Plug 'christoomey/vim-tmux-navigator'
 let g:tmux_navigator_save_on_switch = 2
 let g:tmux_navigator_disable_when_zoomed = 1
@@ -50,7 +54,8 @@ let g:SuperTabDefaultCompletionType = "<c-n>"
 Plug 'google/vim-searchindex'
 
 " A light and configurable statusline/tabline plugin for Vim
-let g:lightline = {'colorscheme' : 'gruvbox_material'}
+"let g:lightline = {'colorscheme' : 'gruvbox_material'}
+let g:lightline = {'colorscheme' : 'everforest'}
 
 " The undo history visualizer for VIM
 Plug 'mbbill/undotree'
@@ -212,7 +217,7 @@ let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
 syntax on
 set background=dark
-colorscheme gruvbox-material
+colorscheme everforest
 
 if has("gui_macvim")
   set guifont=JetBrains\ Mono:h12
