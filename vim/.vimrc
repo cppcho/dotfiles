@@ -25,11 +25,9 @@ augroup ft_markdown
   au FileType markdown let b:auto_save = 1
 augroup END
 
-" Colors
-Plug 'sainnhe/gruvbox-material'
-let g:gruvbox_material_disable_italic_comment = 1
-let g:gruvbox_material_background = 'hard'
+Plug 'lervag/wiki.vim'
 
+" Colors
 Plug 'sainnhe/everforest'
 let g:everforest_disable_italic_comment = 1
 let g:everforest_background = 'hard'
@@ -307,9 +305,6 @@ nnoremap <silent> <leader>gs :Git<cr>
 nnoremap <silent> <leader>gd :Gvdiffsplit<cr>
 nnoremap <silent> <leader>gD :Gvdiffsplit master<cr>
 nnoremap <silent> <leader>gb :Git blame<cr>
-nnoremap <silent> <leader>gp :Git push<cr>
-nnoremap <silent> <leader>gf :BCommits<cr>
-nnoremap <silent> <leader>gh :Commits<cr>
 
 " EasyAlign
 xmap ga <Plug>(EasyAlign)
