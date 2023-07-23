@@ -25,8 +25,6 @@ augroup ft_markdown
   au FileType markdown let b:auto_save = 1
 augroup END
 
-Plug 'lervag/wiki.vim'
-
 " Colors
 Plug 'sainnhe/everforest'
 let g:everforest_disable_italic_comment = 1
@@ -218,7 +216,7 @@ set background=dark
 colorscheme everforest
 
 if has("gui_macvim")
-  set guifont=JetBrains\ Mono:h12
+  set guifont=Iosevka\ Term:h12
   " set macligatures
   set wrap lbr
   set clipboard=unnamed
