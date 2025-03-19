@@ -53,10 +53,9 @@ Plug 'google/vim-searchindex'
 "let g:lightline = {'colorscheme' : 'gruvbox_material'}
 let g:lightline = {'colorscheme' : 'everforest'}
 
-" The undo history visualizer for VIM
-Plug 'mbbill/undotree'
-let g:undotree_WindowLayout = 2
-
+" " The undo history visualizer for VIM
+" Plug 'mbbill/undotree'
+" let g:undotree_WindowLayout = 2
 " Vim plugin for the Perl module / CLI script 'ack'
 Plug 'mileszs/ack.vim'
 if executable('ag')
@@ -272,7 +271,6 @@ nnoremap , za
 vnoremap , zf
 
 nmap <Leader>fs :wa<CR>
-nmap <leader>xb :SwitchBackground<CR>
 
 " Upper/lower word
 nnoremap <leader>uu mQviwU`Q
@@ -310,8 +308,6 @@ nmap ga <Plug>(EasyAlign)
 
 nmap <Leader>ai :set diffopt+=iwhite<CR>
 nmap <Leader>aw :set diffopt-=iwhite<CR>
-
-nnoremap U :UndotreeToggle<CR>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Grep {{{
