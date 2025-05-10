@@ -70,7 +70,7 @@ HIST_STAMPS="yyyy-mm-dd"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git z)
+plugins=(git z kubectl asdf uv taskwarrior)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -105,17 +105,10 @@ export LANG=en_US.UTF-8
 [ -f ~/.zshrc_mac ] && source ~/.zshrc_mac
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
 
-my_nvim_or_vim() {
-  if command -v nvim >/dev/null 2>&1; then
-    nvim "$@"
-  else
-    vim "$@"
-  fi
-}
-
 alias ta='tmux new-session -A -s cppcho'
 alias update='brew update; brew upgrade; brew cleanup'
-alias vim='my_nvim_or_vim'
+alias k=kubectl
+alias t=task
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
