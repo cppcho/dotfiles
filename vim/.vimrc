@@ -2,20 +2,19 @@
 " }}} Plugins {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-let plug_did_install=1
-let plug_file=expand('~/.vim/autoload/plug.vim')
-
-if !filereadable(plug_file)
-  echo "Installing vim-plug..."
-  echo ""
-  silent !curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-  let plug_did_install=0
+" Install vim-plug if not found
+" https://github.com/junegunn/vim-plug/wiki/tips#automatic-installation
+if empty(glob('~/.vim/autoload/plug.vim'))
+  silent !curl -fLo ~/.vim/autoload/plug.vim --create-dirs
+    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 endif
 
-" Specify a directory for plugins
-" - For Neovim: ~/.local/share/nvim/plugged
-" - Avoid using standard Vim directory names like 'plugin'
-call plug#begin('~/.vim/plugged')
+" Run PlugInstall if there are missing plugins
+autocmd VimEnter * if len(filter(values(g:plugs), '!isdirectory(v:val.dir)'))
+  \| PlugInstall --sync | source $MYVIMRC
+\| endif
+
+call plug#begin()
 
 Plug '907th/vim-auto-save'
 let g:auto_save = 0
@@ -37,7 +36,7 @@ let g:tmux_navigator_disable_when_zoomed = 1
 Plug 'editorconfig/editorconfig-vim'
 
 " A tree explorer plugin for vim.
-Plug 'scrooloose/nerdtree'
+Plug 'preservim/nerdtree', { 'on': 'NERDTreeToggle' }
 
 " Perform all your vim insert mode completions with Tab
 Plug 'ervandew/supertab'
@@ -46,11 +45,8 @@ let g:SuperTabLongestEnhanced = 1
 let g:SuperTabLongestHighlight = 1
 let g:SuperTabDefaultCompletionType = "<c-n>"
 
-" display number of search matches & index of a current match
-Plug 'google/vim-searchindex'
-
 " A light and configurable statusline/tabline plugin for Vim
-"let g:lightline = {'colorscheme' : 'gruvbox_material'}
+Plug 'itchyny/lightline.vim'
 let g:lightline = {'colorscheme' : 'everforest'}
 
 " " The undo history visualizer for VIM
@@ -126,20 +122,18 @@ Plug 'tpope/vim-repeat'
 
 call plug#end()
 
-if plug_did_install == 0
-  PlugInstall
-end
-
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} General Configurations {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+set encoding=utf-8
 set autoindent                                        " Copy indent from current line when starting a new line
 set autoread                                          " Don't bother me when a file changes
 set autowrite                                         " Write on :next/:prev/^Z
 set backspace=eol,start,indent                        " Make backspace a more flexible
 set completeopt=menu                                  " Do not show preview for insert mode completion
 set nocursorline                                      " Whether to highlight the current line
+set nocursorcolumn                                    " Do not highlight current column
 set expandtab                                         " Tabs are spaces, not tabs
 set hidden                                            " Allow buffer switching without saving
 set hlsearch                                          " Highlight all matches when searching
@@ -150,13 +144,12 @@ set list                                              " Display unprintable char
 set mouse=a                                           " Automatically enable mouse usage
 set mousehide                                         " Hide the mouse cursor while typing
 set nobackup                                          " No backup files
-set nocursorcolumn                                    " Do not highlight current column
+set nowritebackup                                     " No backup files
 set noerrorbells visualbell t_vb=
 set noexrc                                            " Don't use local version of .(g)vimrc, .exrc
 set nojoinspaces                                      " Prevents inserting two spaces after punctuation on a join (J)
 set nostartofline                                     " Leave the cursor where it was
 set noswapfile                                        " Use a swapfile for the buffer
-set nowritebackup                                     " No backup files
 set number                                            " Line numbers on
 set ruler                                             " Show the ruler
 set rulerformat=%30(%=\:b%n%y%m%r%w\ %l,%c%V\ %P%)    " A ruler on steroids
@@ -186,9 +179,9 @@ set guioptions=                                       " Remove macvim scrollbar
 
 if has('persistent_undo')
   if has("nvim")
-    let target_path = expand('~/.config/vim-persisted-undo/')
+    let target_path = expand('~/.config/nvim-persistent-undo/')
   else
-    let target_path = expand('~/.config/nvim-persisted-undo/')
+    let target_path = expand('~/.config/vim-persistent-undo/')
   endif
 
   if !isdirectory(target_path)
@@ -212,7 +205,7 @@ let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
 syntax on
 set background=dark
-colorscheme everforest
+silent! colorscheme everforest
 
 if has("gui_macvim")
   set guifont=Iosevka\ Term:h12
