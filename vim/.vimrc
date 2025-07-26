@@ -208,7 +208,7 @@ set background=dark
 silent! colorscheme everforest
 
 if has("gui_macvim")
-  set guifont=Iosevka\ Term:h12
+  set guifont=Iosevka:h12
   " set macligatures
   set wrap lbr
   set clipboard=unnamed
