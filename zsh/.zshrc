@@ -8,7 +8,48 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="robbyrussell"
+#ZSH_THEME="robbyrussell"
+ZSH_THEME="agnoster"
+
+# Agnoster Color Settings
+
+# https://github.com/sainnhe/everforest/blob/master/autoload/lightline/colorscheme/everforest.vim
+EVERFOREST_BG0=8
+EVERFOREST_BG1=9
+EVERFOREST_BG3=10
+EVERFOREST_ORANGE=11
+EVERFOREST_GREY0=12
+EVERFOREST_GREY1=13
+EVERFOREST_GREY2=14
+
+# color combinations (fg / bg):
+# - bg0 / green
+# - bg0 / white
+# - bg0 / red
+# - bg0 / orange
+# - bg0 / cyan
+# - bg0 / magenta
+# - grey1 / bg1
+# - grey2 / bg3
+# - white / bg1
+# - white / bg3
+
+CURRENT_FG=$EVERFOREST_BG0
+CURRENT_DEFAULT_FG=$EVERFOREST_BG0
+AGNOSTER_DIR_FG=$EVERFOREST_BG0
+AGNOSTER_DIR_BG=blue
+AGNOSTER_CONTEXT_FG=white
+AGNOSTER_CONTEXT_BG=$EVERFOREST_BG3
+AGNOSTER_GIT_CLEAN_FG=$EVERFOREST_BG0
+AGNOSTER_GIT_CLEAN_BG=green
+AGNOSTER_GIT_DIRTY_FG=$EVERFOREST_BG0
+AGNOSTER_GIT_DIRTY_BG=yellow
+AGNOSTER_VENV_FG=$EVERFOREST_BG0
+AGNOSTER_VENV_BG=cyan
+AGNOSTER_AWS_PROD_FG=$EVERFOREST_BG0
+AGNOSTER_AWS_PROD_BG=red
+AGNOSTER_AWS_FG=$EVERFOREST_BG0
+AGNOSTER_AWS_BG=cyan
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -25,7 +66,7 @@ ZSH_THEME="robbyrussell"
 
 # Uncomment one of the following lines to change the auto-update behavior
 # zstyle ':omz:update' mode disabled  # disable automatic updates
-# zstyle ':omz:update' mode auto      # update automatically without asking
+zstyle ':omz:update' mode auto      # update automatically without asking
 # zstyle ':omz:update' mode reminder  # just remind me to update when it's time
 
 # Uncomment the following line to change how often to auto-update (in days).
@@ -70,7 +111,7 @@ HIST_STAMPS="yyyy-mm-dd"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git z kubectl asdf uv taskwarrior)
+plugins=(git z kubectl asdf uv)
 
 source $ZSH/oh-my-zsh.sh
 
