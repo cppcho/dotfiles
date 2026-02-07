@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# Copy from https://github.com/ThePrimeagen/.dotfiles/blob/master/bin/.local/scripts/tmux-sessionizer
+# Ref from https://github.com/ThePrimeagen/.dotfiles/blob/master/bin/.local/scripts/tmux-sessionizer
 
 if [[ $# -eq 1 ]]; then
     selected=$1
 else
-    selected=$({ find ~/dev -mindepth 1 -maxdepth 1 -type d; echo ~/dotfiles; } | fzf)
+    selected=$({ find ~/dev -mindepth 1 -maxdepth 1 -type d; echo ~/dotfiles; } | fzf --tmux center,70%)
 fi
 
 if [[ -z $selected ]]; then
