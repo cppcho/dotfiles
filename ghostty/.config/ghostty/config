@@ -8,3 +8,4 @@ keybind = shift+enter=text:\x1b\r
 window-new-tab-position = end
 confirm-close-surface = false
 window-save-state = always
+bell-features = no-attention, title
