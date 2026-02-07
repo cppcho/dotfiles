@@ -12,6 +12,6 @@ done
 
 if [[ -f _private/stow.sh ]]; then
   pushd _private > /dev/null
-  bash stow.sh
+  ./stow.sh
   popd > /dev/null
 fi
