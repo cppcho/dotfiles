@@ -6,6 +6,12 @@ cd "$(dirname "$0")"
 for dir in */; do
   dir="${dir%/}"
   [[ "$dir" == _* || "$dir" == .* ]] && continue
-  echo "stow -R $dir"
+  echo "Stowing $dir ($(pwd)) -> ~"
   stow -R -t ~ "$dir"
 done
+
+if [[ -f _private/stow.sh ]]; then
+  pushd _private > /dev/null
+  bash stow.sh
+  popd > /dev/null
+fi
