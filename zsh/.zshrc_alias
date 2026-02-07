@@ -1,0 +1,6 @@
+alias vim='nvim'
+alias vi='nvim'
+
+alias ta='tmux new-session -A -s cppcho'
+alias update='brew update; brew upgrade; brew cleanup'
+alias k=kubectl
