@@ -4,3 +4,6 @@
 [submodule "_vendor/pure"]
 	path = _vendor/pure
 	url = https://github.com/sindresorhus/pure.git
+[submodule "_private"]
+	path = _private
+	url = https://github.com/cppcho/dotfiles-private.git
