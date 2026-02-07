@@ -1,3 +1,6 @@
 [submodule "vendor/pure"]
 	path = _vendor/pure
 	url = https://github.com/sindresorhus/pure.git
+[submodule "_vendor/pure"]
+	path = _vendor/pure
+	url = https://github.com/sindresorhus/pure.git
