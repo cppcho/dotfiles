@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+if [[ -n $TMUX ]]; then
+    tmux choose-session
+    exit 0
+fi
+
+sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+
+if [[ -z $sessions ]]; then
+    echo "No active tmux sessions."
+    exit 0
+fi
+
+selected=$(echo "$sessions" | fzf)
+
+if [[ -z $selected ]]; then
+    exit 0
+fi
+
+tmux attach-session -t "$selected"
