@@ -1,0 +1,10 @@
+# Ghostty Terminal Emulator Configuration
+# Location: ~/.config/ghostty/config
+#
+# https://ghostty.org/docs/config/reference
+
+font-family = "IosevkaTerm Nerd Font"
+keybind = shift+enter=text:\x1b\r
+window-new-tab-position = end
+confirm-close-surface = false
+window-save-state = always
