@@ -5,3 +5,5 @@ alias ta='~/bin/tmux-sessionizer'
 alias ts='~/bin/tmux-session-picker'
 alias update='brew update; brew upgrade; brew cleanup'
 alias k=kubectl
+alias ag='rg'
+
