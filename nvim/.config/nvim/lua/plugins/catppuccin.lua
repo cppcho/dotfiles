@@ -8,14 +8,10 @@ return {
   opts = {
     -- latte, frappe, macchiato, mocha
     flavour = "macchiato",
-    -- https://github.com/catppuccin/nvim?tab=readme-ov-file#why-do-my-treesitter-highlights-look-incorrect
-    highlight = {
-      enable = true,
-      additional_vim_regex_highlighting = false,
-    },
-    auto_integrations = true,
+    default_integrations = true,
   },
-  config = function()
+  config = function(_, opts)
+    require("catppuccin").setup(opts)
     vim.cmd.colorscheme("catppuccin-macchiato")
   end,
 }
