@@ -40,3 +40,4 @@ Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
 - Consistent Catppuccin Mocha theme across nvim, tmux, and terminal
 - `_vendor/` holds git submodules (currently: pure prompt)
 - `.gitignore` patterns: `.DS_Store`, `.vscode/`, `bin/`, `*.local.*`
+- Zsh aliases go in `zsh/.zshrc_alias` (`~/.zshrc_alias`), not in `.zshrc`

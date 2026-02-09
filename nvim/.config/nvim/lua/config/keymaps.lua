@@ -36,6 +36,12 @@ vim.keymap.set("n", "<C-q>", function()
   if qf_exists then vim.cmd("cclose") else vim.cmd("copen") end
 end, { desc = "Toggle quickfix" })
 
+-- Show file path and copy to clipboard
+vim.keymap.set("n", "<C-g>", function()
+  vim.cmd("file")
+  vim.fn.system("pbcopy", vim.fn.expand("%"))
+end, { desc = "Show file path and copy to clipboard" })
+
 -- Command typo fixes
 vim.api.nvim_create_user_command("W", "w", {})
 vim.api.nvim_create_user_command("Q", "q", {})
