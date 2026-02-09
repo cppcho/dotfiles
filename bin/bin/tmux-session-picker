@@ -12,10 +12,21 @@ if [[ -z $sessions ]]; then
     exit 0
 fi
 
-selected=$(echo "$sessions" | fzf)
+bell_sessions=$(tmux list-windows -a -F '#{session_name} #{window_bell_flag}' 2>/dev/null | awk '$2 == "1" {print $1}' | sort -u)
+bell_list="" list=""
+while IFS= read -r name; do
+    if echo "$bell_sessions" | grep -qx "$name"; then
+        bell_list+="$name 󰂞"$'\n'
+    else
+        list+="$name"$'\n'
+    fi
+done <<< "$sessions"
+
+selected=$(printf '%s%s' "$bell_list" "$list" | sed '/^$/d' | fzf)
 
 if [[ -z $selected ]]; then
     exit 0
 fi
 
+selected="${selected% 󰂞}"
 tmux attach-session -t "$selected"
