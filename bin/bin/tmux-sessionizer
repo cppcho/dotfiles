@@ -27,7 +27,7 @@ else
         echo "$active_bell" | sort -rn | cut -d' ' -f2-
         echo "$active" | sort -rn | cut -d' ' -f2-
         echo "$inactive"
-    } | sed '/^$/d' | fzf --tmux center,70%)
+    } | sed '/^$/d' | fzf --no-sort --tmux center,70%)
 fi
 
 if [[ -z $selected ]]; then

@@ -22,7 +22,7 @@ while IFS= read -r name; do
     fi
 done <<< "$sessions"
 
-selected=$(printf '%s%s' "$bell_list" "$list" | sed '/^$/d' | fzf)
+selected=$(printf '%s%s' "$bell_list" "$list" | sed '/^$/d' | fzf --no-sort)
 
 if [[ -z $selected ]]; then
     exit 0
