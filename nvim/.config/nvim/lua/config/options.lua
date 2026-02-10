@@ -78,3 +78,8 @@ vim.o.hidden = true
 
 -- Insert one space (not two) after punctuation when joining lines
 vim.o.joinspaces = false
+
+-- Auto-equalize splits when the window is resized
+vim.api.nvim_create_autocmd("VimResized", {
+  command = "wincmd =",
+})
