@@ -1,1 +1,2 @@
 - Setup file marker like harpoon etc
+- Setup https://codecompanion.olimorris.dev/
