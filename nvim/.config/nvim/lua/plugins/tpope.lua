@@ -13,8 +13,15 @@ return {
         pattern = { "FugitiveIndex", "FugitivePager" },
         callback = function()
           vim.keymap.set("n", "q", "gq", { buffer = true, remap = true })
+          vim.keymap.set("n", "<C-N>", ")", { buffer = true, remap = true })
+          vim.keymap.set("n", "<C-P>", "(", { buffer = true, remap = true })
           vim.keymap.set("n", "<leader>p", "<cmd>Git push<CR>", { buffer = true, desc = "Git push" })
-          vim.keymap.set("n", "<leader>P", "<cmd>Git push -u origin HEAD<CR>", { buffer = true, desc = "Git push -u origin" })
+          vim.keymap.set(
+            "n",
+            "<leader>P",
+            "<cmd>Git push -u origin HEAD<CR>",
+            { buffer = true, desc = "Git push -u origin" }
+          )
           vim.keymap.set("n", "<leader>f", "<cmd>Git pull --rebase<CR>", { buffer = true, desc = "Git pull --rebase" })
         end,
       })
