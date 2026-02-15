@@ -1,6 +1,8 @@
 -- Show line numbers
 vim.o.number = true
 
+vim.o.relativenumber = true
+
 -- Disable mouse mode
 vim.o.mouse = ""
 
@@ -15,6 +17,9 @@ end)
 
 -- Enable break indent
 vim.o.breakindent = true
+
+-- Auto-indent new lines based on syntax (e.g., after {, if, etc.)
+vim.o.smartindent = true
 
 -- Save undo history
 vim.o.undofile = true
@@ -53,19 +58,19 @@ vim.o.confirm = true
 vim.o.expandtab = true
 
 -- Number of spaces for each indentation level
-vim.o.shiftwidth = 2
+vim.o.shiftwidth = 4
 
 -- Number of spaces a tab character displays as
-vim.o.tabstop = 2
+vim.o.tabstop = 4
 
 -- Number of spaces inserted when pressing Tab
-vim.o.softtabstop = 2
+vim.o.softtabstop = 4
 
 -- Disable swap file creation
 vim.o.swapfile = false
 
 -- Disable backup file before overwriting
-vim.o.writebackup = false
+vim.o.backup = false
 
 -- Automatically save files when switching buffers or running commands
 vim.o.autowrite = true
@@ -78,6 +83,9 @@ vim.o.hidden = true
 
 -- Insert one space (not two) after punctuation when joining lines
 vim.o.joinspaces = false
+
+-- Reduce CursorHold delay (ms) for faster hover/diagnostics and swap writes
+vim.o.updatetime = 50
 
 -- Auto-equalize splits when the window is resized
 vim.api.nvim_create_autocmd("VimResized", {
