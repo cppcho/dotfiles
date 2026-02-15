@@ -19,9 +19,19 @@ vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 -- Config editing
 vim.keymap.set("n", "<leader>rc", "<cmd>edit $MYVIMRC<cr>", { desc = "Edit init.lua" })
 
--- Diff whitespace toggle
-vim.keymap.set("n", "<leader>ai", "<cmd>set diffopt+=iwhite<cr>", { desc = "Diff ignore whitespace" })
-vim.keymap.set("n", "<leader>aw", "<cmd>set diffopt-=iwhite<cr>", { desc = "Diff show whitespace" })
+-- Toggle diff ignore whitespace
+vim.keymap.set("n", "<leader>ai", function()
+  if vim.tbl_contains(vim.opt.diffopt:get(), "iwhite") then
+    vim.cmd("set diffopt-=iwhite")
+    vim.notify("Diff: showing whitespace")
+  else
+    vim.cmd("set diffopt+=iwhite")
+    vim.notify("Diff: ignoring whitespace")
+  end
+end, { desc = "Toggle diff ignore whitespace" })
+
+-- Toggle wrap
+vim.keymap.set("n", "<leader>aw", "<cmd>set wrap!<cr>", { desc = "Toggle wrap" })
 
 -- Re-bind Q/q
 vim.keymap.set("n", "Q", "q")
@@ -31,9 +41,15 @@ vim.keymap.set("n", "q", "<Nop>")
 vim.keymap.set("n", "<C-q>", function()
   local qf_exists = false
   for _, win in pairs(vim.fn.getwininfo()) do
-    if win.quickfix == 1 then qf_exists = true end
+    if win.quickfix == 1 then
+      qf_exists = true
+    end
   end
-  if qf_exists then vim.cmd("cclose") else vim.cmd("copen") end
+  if qf_exists then
+    vim.cmd("cclose")
+  else
+    vim.cmd("copen")
+  end
 end, { desc = "Toggle quickfix" })
 
 -- Show file path and copy to clipboard
