@@ -62,8 +62,8 @@ return {
     vim.keymap.set("n", "<leader>sr", builtin.resume, { desc = "[S]earch [R]esume" })
     vim.keymap.set("n", "<leader>s.", builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
     vim.keymap.set("n", "<leader>sc", builtin.commands, { desc = "[S]earch [C]ommands" })
-    vim.keymap.set("n", "<leader><leader>", builtin.buffers, { desc = "[ ] Find existing buffers" })
-    vim.keymap.set("n", "<C-p>", builtin.find_files, { desc = "Find files" })
+    vim.keymap.set("n", "<leader>;", builtin.buffers, { desc = "[ ] Find existing buffers" })
+    vim.keymap.set("n", "<C-p>", builtin.git_files, { desc = "Find files tracked by Git" })
     vim.keymap.set("n", "<leader>/", builtin.live_grep, { desc = "Live grep" })
 
     -- Search Neovim files
