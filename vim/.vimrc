@@ -148,6 +148,33 @@ if has("gui_macvim")
   set guifont=Iosevka:h12
   set wrap lbr
   set clipboard=unnamed
+
+  " Search pad: open a timestamped scratch file in ~/searchpad/ on launch
+  let g:searchpad_dir = expand('~/searchpad')
+
+  function! SearchPadNewFile()
+    if !isdirectory(g:searchpad_dir)
+      call mkdir(g:searchpad_dir, 'p')
+    endif
+    let l:timestamp = strftime('%Y-%m-%d_%H-%M-%S')
+    execute 'edit ' . fnameescape(g:searchpad_dir . '/' . l:timestamp . '.md')
+  endfunction
+
+  function! SearchPadAutoSave(timer)
+    if &modified && expand('%') != ''
+      silent write
+    endif
+  endfunction
+
+  augroup searchpad
+    autocmd!
+    " On startup with no files: open a search pad file and start auto-save timer
+    autocmd VimEnter * if argc() == 0 | call SearchPadNewFile() | endif
+    autocmd VimEnter * call timer_start(30000, 'SearchPadAutoSave', {'repeat': -1})
+  augroup END
+
+  " <D-n> opens a new tab with a fresh search pad file
+  nnoremap <D-n> :tabnew \| call SearchPadNewFile()<CR>
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
