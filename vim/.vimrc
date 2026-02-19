@@ -144,11 +144,6 @@ else
   let g:lightline = {'colorscheme': 'catppuccin_mocha'}
 end
 
-if has("gui_macvim")
-  set guifont=Iosevka:h12
-  set wrap lbr
-  set clipboard=unnamed
-endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Key Mappings {{{
