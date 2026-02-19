@@ -306,6 +306,85 @@ else
 endif
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
+" }}} MacVIM {{{
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if has("gui_macvim")
+  set guifont=Iosevka:h12
+  set wrap lbr
+  set clipboard=unnamed
+
+  let g:scratchpad_dir = expand('~/scratchpad')
+
+  if !isdirectory(g:scratchpad_dir)
+    call mkdir(g:scratchpad_dir, 'p')
+  endif
+
+  function! s:NewScratchPadFile()
+    let l:filename = g:scratchpad_dir . '/' . strftime('%Y-%m-%d_%H%M%S') . '.md'
+    execute 'edit ' . fnameescape(l:filename)
+  endfunction
+
+  function! s:IsScratchPadBuffer()
+    return expand('%:p') =~# '^' . escape(g:scratchpad_dir, '/')
+  endfunction
+
+  function! s:DeleteAllEmptyScratchPads()
+    for l:buf in getbufinfo({'buflisted': 1})
+      let l:path = l:buf.name
+      if l:path !~# '^' . escape(g:scratchpad_dir, '/')
+        continue
+      endif
+      if !filereadable(l:path)
+        continue
+      endif
+      let l:has_content = 0
+      for l:line in getbufline(l:buf.bufnr, 1, '$')
+        if l:line =~# '\S'
+          let l:has_content = 1
+          break
+        endif
+      endfor
+      if !l:has_content
+        call delete(l:path)
+      endif
+    endfor
+  endfunction
+
+  function! s:AutoSaveScratchPad()
+    if s:IsScratchPadBuffer() && &modified && expand('%') != ''
+      silent! write
+    endif
+  endfunction
+
+  function! s:TimerAutoSave(timer_id)
+    call s:AutoSaveScratchPad()
+  endfunction
+
+  augroup ScratchPad
+    autocmd!
+
+    " Open a search pad file on startup if no file was given
+    autocmd VimEnter * if argc() == 0 | call s:NewScratchPadFile() | endif
+
+    " Auto-save when cursor is idle (after 'updatetime' ms of no input)
+    autocmd CursorHold,CursorHoldI * call s:AutoSaveScratchPad()
+
+    " Auto-save when MacVim loses focus
+    autocmd FocusLost * call s:AutoSaveScratchPad()
+
+    " Delete empty scratchpad when quitting its buffer
+    autocmd QuitPre * call s:DeleteEmptyScratchPad()
+
+    " Delete all empty scratchpads when leaving Vim
+    autocmd VimLeavePre * call s:DeleteAllEmptyScratchPads()
+  augroup END
+
+  " Periodic auto-save every 30 seconds via timer
+  call timer_start(5000, function('s:TimerAutoSave'), {'repeat': -1})
+endif
+
+""""""""""""""""""""""""""""""""""""""""""""""""""
 " }}} Misc {{{
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
