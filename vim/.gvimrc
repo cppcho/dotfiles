@@ -7,6 +7,10 @@ if !has("gui_macvim")
   finish
 endif
 
+set guifont=Iosevka:h12
+set wrap lbr
+set clipboard=unnamed
+
 let g:searchpad_dir = expand('~/SearchPad')
 
 if !isdirectory(g:searchpad_dir)
