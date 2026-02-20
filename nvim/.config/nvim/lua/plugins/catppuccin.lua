@@ -7,11 +7,11 @@ return {
   lazy = false,
   opts = {
     -- latte, frappe, macchiato, mocha
-    flavour = "macchiato",
+    flavour = "mocha",
     default_integrations = true,
   },
   config = function(_, opts)
     require("catppuccin").setup(opts)
-    vim.cmd.colorscheme("catppuccin-macchiato")
+    vim.cmd.colorscheme("catppuccin-mocha")
   end,
 }
