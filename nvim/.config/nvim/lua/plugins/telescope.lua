@@ -64,7 +64,13 @@ return {
     vim.keymap.set("n", "<leader>sc", builtin.commands, { desc = "[S]earch [C]ommands" })
     vim.keymap.set("n", "<leader>;", builtin.buffers, { desc = "[ ] Find existing buffers" })
     vim.keymap.set("n", "<C-p>", builtin.git_files, { desc = "Find files tracked by Git" })
-    vim.keymap.set("n", "<leader>/", builtin.live_grep, { desc = "Live grep" })
+    vim.keymap.set("n", "<leader>/", function()
+      local ok, search = pcall(vim.fn.input, "Grep > ")
+      vim.cmd("echo ''")
+      if ok and search ~= "" then
+        builtin.grep_string({ search = search })
+      end
+    end, { desc = "Grep string" })
 
     -- Search Neovim files
     vim.keymap.set("n", "<leader>sn", function()

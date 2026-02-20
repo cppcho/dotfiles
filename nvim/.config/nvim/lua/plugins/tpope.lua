@@ -4,9 +4,18 @@ return {
     "tpope/vim-fugitive",
     lazy = false,
     keys = {
-      { "<leader>ga", "<cmd>Gwrite<CR>", desc = "Git add (stage file)" },
+      { "<leader>ga", "<cmd>Gwrite<CR>",      desc = "Git add (stage file)" },
       { "<leader>gs", "<cmd>topleft Git<CR>", desc = "Git status" },
-      { "<leader>gd", "<cmd>Gdiffsplit<CR>", desc = "Git diff" },
+      { "<leader>gd", "<cmd>Gdiffsplit<CR>",  desc = "Git diff" },
+      {
+        "<leader>gD",
+        function()
+          local main_exists = vim.fn.system("git rev-parse --verify main 2>/dev/null")
+          local branch = vim.v.shell_error == 0 and "main" or "master"
+          vim.cmd("Gdiffsplit " .. branch)
+        end,
+        desc = "Git diff vs master",
+      },
     },
     config = function()
       vim.api.nvim_create_autocmd("User", {
