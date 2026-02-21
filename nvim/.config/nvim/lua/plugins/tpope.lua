@@ -18,6 +18,12 @@ return {
       },
     },
     config = function()
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "fugitive",
+        callback = function()
+          vim.wo.winfixheight = true
+        end,
+      })
       vim.api.nvim_create_autocmd("User", {
         pattern = { "FugitiveIndex", "FugitivePager" },
         callback = function()
