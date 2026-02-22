@@ -7,3 +7,5 @@ alias update='brew update; brew upgrade; brew cleanup'
 alias k=kubectl
 alias ag='rg'
 
+# Ctrl-Z to toggle between vim and terminal
+bindkey -s '^Z' 'fg\n'
