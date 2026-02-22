@@ -8,26 +8,39 @@ else
     selected=$({
         sessions=$(tmux list-sessions -F '#{session_last_attached} #{session_name}' 2>/dev/null)
         bell_sessions=$(tmux list-windows -a -F '#{session_name} #{window_bell_flag}' 2>/dev/null | awk '$2 == "1" {print $1}' | sort -u)
+        # Directories are sorted into three tiers, displayed in this order:
+        #   1. active_bell  — sessions with bell (unseen activity), sorted by last-attached time (newest first)
+        #   2. active       — sessions without bell, sorted by last-attached time (newest first)
+        #   3. inactive     — dirs with no tmux session, sorted by z frecency score or atime (highest first)
         active_bell="" active="" inactive=""
         while IFS= read -r dir; do
             if [[ -d "$dir" ]]; then
                 name=$(basename "$dir" | tr . _)
                 ts=$(echo "$sessions" | awk -v n="$name" '$2 == n {print $1}')
                 if [[ -n "$ts" ]]; then
+                    # Active session: prefix with last-attached timestamp for sorting
                     if echo "$bell_sessions" | grep -qx "$name"; then
                         active_bell+="$ts $dir 󰂞"$'\n'
                     else
                         active+="$ts $dir ●"$'\n'
                     fi
                 else
-                    inactive+="$dir"$'\n'
+                    # No active session: prefix with z frecency score (if available) or atime for sorting
+                    if [[ -f ~/.z ]]; then
+                        zscore=$(awk -F'|' -v d="$dir" '$1 == d {print $2}' ~/.z)
+                        inactive+="${zscore:-0} $dir"$'\n'
+                    else
+                        ats=$(stat -f '%a' "$dir" 2>/dev/null || echo "0")
+                        inactive+="$ats $dir"$'\n'
+                    fi
                 fi
             fi
         done < <(find -L ~/dev -mindepth 1 -maxdepth 1 -type d; echo ~/dotfiles; echo ~/.claude)
+        # Output tiers in priority order; sort -rn within each tier, then strip the numeric prefix
         echo "$active_bell" | sort -rn | cut -d' ' -f2-
         echo "$active" | sort -rn | cut -d' ' -f2-
-        echo "$inactive"
-    } | sed '/^$/d' | fzf --no-sort --tmux center,70%)
+        echo "$inactive" | sort -rn | cut -d' ' -f2-
+    } | sed '/^$/d' | fzf --exact --no-sort --tmux center,70%)
 fi
 
 if [[ -z $selected ]]; then
