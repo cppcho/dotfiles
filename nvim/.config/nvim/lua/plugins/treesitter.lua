@@ -31,6 +31,21 @@ return {
       })
     end,
   },
+  -- https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+  {
+    "nvim-treesitter/nvim-treesitter-textobjects",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+    },
+    config = function()
+      require("nvim-treesitter-textobjects").setup({ set_jumps = true })
+      local move = require("nvim-treesitter-textobjects.move")
+      vim.keymap.set({ "n", "x", "o" }, "[m", function() move.goto_previous_start("@function.outer") end)
+      vim.keymap.set({ "n", "x", "o" }, "]m", function() move.goto_next_start("@function.outer") end)
+      vim.keymap.set({ "n", "x", "o" }, "[M", function() move.goto_previous_end("@function.outer") end)
+      vim.keymap.set({ "n", "x", "o" }, "]M", function() move.goto_next_end("@function.outer") end)
+    end,
+  },
   -- https://github.com/nvim-treesitter/nvim-treesitter-context
   {
     "nvim-treesitter/nvim-treesitter-context",
