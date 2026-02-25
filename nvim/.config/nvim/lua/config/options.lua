@@ -1,8 +1,6 @@
 -- Show line numbers
 vim.o.number = true
 
-vim.o.relativenumber = true
-
 -- Disable mouse mode
 vim.o.mouse = ""
 
