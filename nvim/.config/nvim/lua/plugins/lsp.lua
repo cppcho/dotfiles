@@ -58,6 +58,9 @@ return {
           -- Jump to the definition of the word under your cursor.
           map("grd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
 
+          -- Goto Declaration.
+          map("grD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
+
           -- Fuzzy find all the symbols in your current document.
           map("gO", require("telescope.builtin").lsp_document_symbols, "Open Document Symbols")
 
