@@ -46,7 +46,8 @@ return {
   {
     "tpope/vim-rhubarb",
     keys = {
-      { "<leader>gB", "<cmd>GBrowse<CR>", desc = "[B]rowse in GitHub" },
+      { "<leader>gB", ":.GBrowse<CR>", desc = "[B]rowse in GitHub" },
+      { "<leader>gB", ":GBrowse<CR>", mode = "v", desc = "[B]rowse in GitHub" },
     },
   },
 }
