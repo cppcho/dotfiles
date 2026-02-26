@@ -7,6 +7,7 @@ return {
       { "<leader>ga", "<cmd>Gwrite<CR>",                 desc = "Git add (stage file)" },
       { "<leader>gs", "<cmd>topleft 12split | 0Git<CR>", desc = "Git status" },
       { "<leader>gd", "<cmd>Gdiffsplit<CR>",             desc = "Git diff" },
+      { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
       {
         "<leader>gD",
         function()
@@ -47,7 +48,7 @@ return {
     "tpope/vim-rhubarb",
     keys = {
       { "<leader>gB", ":.GBrowse<CR>", desc = "[B]rowse in GitHub" },
-      { "<leader>gB", ":GBrowse<CR>", mode = "v", desc = "[B]rowse in GitHub" },
+      { "<leader>gB", ":GBrowse<CR>",  mode = "v",                 desc = "[B]rowse in GitHub" },
     },
   },
 }
