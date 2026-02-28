@@ -56,6 +56,7 @@ return {
           map("gri", require("telescope.builtin").lsp_implementations, "[G]oto [I]mplementation")
 
           -- Jump to the definition of the word under your cursor.
+          map("gd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
           map("grd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
 
           -- Goto Declaration.
