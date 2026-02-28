@@ -18,6 +18,7 @@ vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 
 -- Config editing
 vim.keymap.set("n", "<leader>rc", "<cmd>edit $MYVIMRC<cr>", { desc = "Edit init.lua" })
+vim.keymap.set("n", "<leader>ri", "<cmd>edit ~/.rgignore<cr>", { desc = "Edit rgignore" })
 
 -- Toggle diff ignore whitespace
 vim.keymap.set("n", "<leader>ai", function()
