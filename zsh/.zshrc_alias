@@ -1,11 +1,12 @@
 alias vim='nvim'
 alias vi='nvim'
 
-alias af='~/bin/tmux-sessionizer'
+alias ta='~/bin/tmux-sessionizer'
 alias ts='~/bin/tmux-session-picker'
 alias update='brew update; brew upgrade; brew cleanup'
 alias k=kubectl
 alias ag='rg'
+alias c='claude'
 
 # Ctrl-Z to toggle between vim and terminal
 bindkey -s '^Z' 'fg\n'
