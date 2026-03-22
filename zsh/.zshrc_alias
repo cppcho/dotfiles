@@ -8,6 +8,7 @@ alias update='brew update; brew upgrade; brew cleanup'
 alias k=kubectl
 alias ag='rg'
 alias c='claude'
+alias gclone='~/bin/git-clone-dev'
 
-# Ctrl-Z to toggle between vim and terminal
-bindkey -s '^Z' 'fg\n'
+# URL encode a string
+urlencode() { python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"; }

@@ -16,6 +16,9 @@ vim.keymap.set("n", "k", "gk")
 vim.keymap.set("n", "<leader>fs", "<cmd>wa<cr>", { desc = "Save all files" })
 vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 
+-- Splits
+vim.keymap.set("n", "\\vv", "<cmd>vsplit<cr>", { desc = "Vertical split" })
+
 -- Config editing
 vim.keymap.set("n", "<leader>rc", "<cmd>edit $MYVIMRC<cr>", { desc = "Edit init.lua" })
 vim.keymap.set("n", "<leader>ri", "<cmd>edit ~/.rgignore<cr>", { desc = "Edit rgignore" })

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Clone a git repo to ~/dev/ and switch tmux session to it
+
+url="$1"
+if [[ -z "$url" ]]; then
+    echo "Usage: git-clone-dev <clone-url>"
+    exit 1
+fi
+
+# Extract repo name from URL (handles both SSH and HTTPS)
+# git@github.com:user/repo.git -> repo
+# https://github.com/user/repo.git -> repo
+repo=$(basename "$url" .git)
+
+dest="$HOME/dev/$repo"
+
+if [[ -d "$dest" ]]; then
+    echo "Directory already exists: $dest"
+    echo "Switching to existing session..."
+else
+    git clone "$url" "$dest" || exit 1
+fi
+
+# Reuse tmux-sessionizer to create/switch session
+exec ~/bin/tmux-sessionizer "$dest"
