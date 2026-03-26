@@ -1,0 +1,13 @@
+{
+  "name": "cppcho",
+  "owner": {
+    "name": "cppcho"
+  },
+  "plugins": [
+    {
+      "name": "cppcho",
+      "description": "Personal Claude Code skills",
+      "source": "./plugins/cppcho"
+    }
+  ]
+}

@@ -12,6 +12,7 @@ The `_private` submodule (`dotfiles-private`) contains additional packages and i
 
 ```bash
 make stow          # Restow all packages (runs stow.sh)
+make claude        # Install/update Claude Code marketplace and plugin
 make help          # Show available make targets
 brew bundle install # Install Homebrew dependencies from Brewfile
 git submodule update --init  # Initialize submodules (pure prompt, _private)
@@ -24,6 +25,10 @@ git submodule update --init  # Initialize submodules (pure prompt, _private)
 Package structure: `<package>/.config/foo/bar` becomes `~/.config/foo/bar` via symlink.
 
 Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
+
+## Claude Code Plugin
+
+`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin (personal skills like `commit`, `commit-push-pr`, `clean-gone`). It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
 
 ## Key Architecture
 
