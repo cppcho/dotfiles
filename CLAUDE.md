@@ -24,7 +24,7 @@ git submodule update --init  # Initialize submodules (pure prompt, _private)
 
 Package structure: `<package>/.config/foo/bar` becomes `~/.config/foo/bar` via symlink.
 
-Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
+Current public packages: `claude`, `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
 
 ## Claude Code Plugin
 
@@ -37,6 +37,7 @@ Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
 - **Tmux** (`tmux/`): Prefix is `C-a`. Uses TPM with catppuccin theme. vim-tmux-navigator for seamless pane/split navigation with `C-h/j/k/l`.
 - **Ghostty** (`ghostty/.config/ghostty/`): IosevkaTerm Nerd Font, minimal config.
 - **Vim** (`vim/`): Legacy `.vimrc` fallback.
+- **Claude Code** (`claude/.claude/`): Synced Claude Code settings and the `cppcho` plugin with personal skills (invoked as `/cppcho:skill-name`).
 
 ## Conventions
 
