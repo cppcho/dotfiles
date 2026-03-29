@@ -21,6 +21,13 @@ return { -- Autocompletion
 
       ['<Tab>'] = {
         function(cmp)
+          -- If a copilot inline suggestion is visible, accept it
+          local ok, suggestion = pcall(require, "copilot.suggestion")
+          if ok and suggestion.is_visible() then
+            suggestion.accept()
+            return true
+          end
+          -- Otherwise fall back to blink.cmp behavior
           if cmp.snippet_active() then
             return cmp.accept()
           else
