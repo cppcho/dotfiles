@@ -21,10 +21,10 @@ return { -- Autocompletion
 
       ['<Tab>'] = {
         function(cmp)
-          -- If a copilot inline suggestion is visible, accept it
-          local ok, suggestion = pcall(require, "copilot.suggestion")
-          if ok and suggestion.is_visible() then
-            suggestion.accept()
+          -- If copilot.vim has a visible suggestion, accept it
+          local copilot_keys = vim.fn["copilot#Accept"]("")
+          if copilot_keys ~= "" then
+            vim.api.nvim_feedkeys(copilot_keys, "i", true)
             return true
           end
           -- Otherwise fall back to blink.cmp behavior
