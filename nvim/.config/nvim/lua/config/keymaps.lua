@@ -21,7 +21,7 @@ vim.keymap.set("n", "\\vv", "<cmd>vsplit<cr>", { desc = "Vertical split" })
 
 -- Config editing
 vim.keymap.set("n", "<leader>rc", "<cmd>edit $MYVIMRC<cr>", { desc = "Edit init.lua" })
-vim.keymap.set("n", "<leader>ri", "<cmd>edit ~/.rgignore<cr>", { desc = "Edit rgignore" })
+vim.keymap.set("n", "<leader>ri", "<cmd>edit .rgignore<cr>", { desc = "Edit rgignore" })
 
 -- Toggle diff ignore whitespace
 vim.keymap.set("n", "<leader>ai", function()
