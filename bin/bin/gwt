@@ -33,10 +33,6 @@ cmd_switch() {
     fi
 }
 
-cmd_list() {
-    git worktree list
-}
-
 cmd_delete() {
     local selected
     selected=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
@@ -54,7 +50,6 @@ cmd_delete() {
 
 case "${1:-}" in
     add)    shift; cmd_add "$@" ;;
-    list)   shift; cmd_list "$@" ;;
     switch) shift; cmd_switch "$@" ;;
     delete) shift; cmd_delete "$@" ;;
     *)
@@ -62,7 +57,6 @@ case "${1:-}" in
         echo ""
         echo "Commands:"
         echo "  add <branch>   Create a worktree for a new branch"
-        echo "  list           List worktrees for the current repo"
         echo "  switch         Select a worktree via fzf"
         echo "  delete         Select and remove a worktree via fzf"
         exit 1
