@@ -71,13 +71,30 @@
   unpushed=$(git -C "$dotfiles_dir" rev-list --count "$remote/$branch..$branch" 2>/dev/null)
   unpushed=${unpushed:-0}
 
-  # Display notifications
-  if (( unpulled > 0 || unpushed > 0 )); then
-    print ""
-  fi
-
+  # Auto-pull if there are unpulled commits and no conflicts
   if (( unpulled > 0 )); then
-    print -P "%F{yellow}[dotfiles]%f $unpulled unpulled commit(s) from $remote/$branch. Run: %F{cyan}git -C ~/dotfiles pull%f"
+    # Check if a fast-forward merge is possible (no local divergence)
+    local merge_base
+    merge_base=$(git -C "$dotfiles_dir" merge-base "$branch" "$remote/$branch" 2>/dev/null)
+    local local_head
+    local_head=$(git -C "$dotfiles_dir" rev-parse "$branch" 2>/dev/null)
+
+    if [[ "$merge_base" == "$local_head" ]]; then
+      # Fast-forward is possible, auto-pull
+      print -P "%F{green}[dotfiles]%f Auto-pulling $unpulled commit(s) from $remote/$branch..."
+      if git -C "$dotfiles_dir" merge --ff-only "$remote/$branch" --quiet 2>/dev/null; then
+        print -P "%F{green}[dotfiles]%f Pull successful. Running make stow and make claude..."
+        (cd "$dotfiles_dir" && make stow 2>&1 | sed 's/^/  /')
+        (cd "$dotfiles_dir" && make claude 2>&1 | sed 's/^/  /')
+        print -P "%F{green}[dotfiles]%f Update complete."
+        unpulled=0
+      else
+        print -P "%F{red}[dotfiles]%f Auto-pull failed. Run manually: %F{cyan}git -C ~/dotfiles pull%f"
+      fi
+    else
+      # Local and remote have diverged, cannot fast-forward
+      print -P "%F{yellow}[dotfiles]%f $unpulled unpulled commit(s) from $remote/$branch (cannot fast-forward, local has diverged). Run: %F{cyan}git -C ~/dotfiles pull%f"
+    fi
   fi
 
   if (( unpushed > 0 )); then
