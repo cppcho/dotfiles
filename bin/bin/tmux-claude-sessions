@@ -16,7 +16,7 @@ format_age() {
   fi
 }
 
-tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}" \
+lines=$(tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}" \
   | awk -F'\t' '$4 == "claude"' \
   | sort -rn -t$'\t' -k1,1 \
   | while IFS=$'\t' read -r activity bell target cmd title; do
@@ -35,7 +35,17 @@ tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_name}:#{
     esac
 
     printf "%s %-30s  %5s  %s\n" "$bell_icon" "$target" "$age" "$clean_title"
-  done \
+  done)
+
+if [ -z "$lines" ]; then
+  echo "No active Claude sessions found."
+  echo ""
+  echo "Press any key to close..."
+  read -rsn1
+  exit 0
+fi
+
+echo "$lines" \
   | fzf --no-sort --prompt="Claude sessions > " \
   | grep -oE '[^[:space:]]+:[0-9]+\.[0-9]+' \
   | xargs -I{} tmux switch-client -t {}
