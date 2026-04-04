@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# List all tmux panes running claude, pick one with fzf, jump to it
+
+now=$(date +%s)
+
+format_age() {
+  local diff=$1
+  if [ "$diff" -lt 60 ]; then
+    echo "${diff}s"
+  elif [ "$diff" -lt 3600 ]; then
+    echo "$((diff / 60))m"
+  elif [ "$diff" -lt 86400 ]; then
+    echo "$((diff / 3600))h"
+  else
+    echo "$((diff / 86400))d"
+  fi
+}
+
+tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}" \
+  | awk -F'\t' '$4 == "claude"' \
+  | sort -rn -t$'\t' -k1,1 \
+  | while IFS=$'\t' read -r activity bell target cmd title; do
+    age=$(format_age $((now - activity)))
+
+    if [ "$bell" = "1" ]; then
+      bell_icon="󰂞 "
+    else
+      bell_icon="  "
+    fi
+
+    # Strip spinner/status chars, remove generic titles
+    clean_title=$(echo "$title" | sed 's/^[^[:alnum:]]* *//')
+    case "$clean_title" in
+      "Claude Code"|"zsh"|"bash"|"fish"|"sh") clean_title="" ;;
+    esac
+
+    printf "%s %-30s  %5s  %s\n" "$bell_icon" "$target" "$age" "$clean_title"
+  done \
+  | fzf --no-sort --prompt="Claude sessions > " \
+  | grep -oE '[^[:space:]]+:[0-9]+\.[0-9]+' \
+  | xargs -I{} tmux switch-client -t {}
