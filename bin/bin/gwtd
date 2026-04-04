@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Select a git worktree via fzf and remove it
+
+selected=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
+
+if [[ -z "$selected" ]]; then
+    exit 0
+fi
+
+# Don't allow removing the main worktree
+main_worktree=$(git worktree list | head -1 | awk '{print $1}')
+if [[ "$selected" == "$main_worktree" ]]; then
+    echo "Error: cannot remove the main worktree"
+    exit 1
+fi
+
+git worktree remove "$selected"

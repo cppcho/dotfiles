@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Select a git worktree via fzf and print its path (use with shell wrapper to cd)
+
+selected=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
+
+if [[ -n "$selected" ]]; then
+    echo "$selected"
+fi
