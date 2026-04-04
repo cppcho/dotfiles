@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Git worktree helper
+
+set -e
+
+cmd_add() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        echo "Usage: gwt add <branch-name>"
+        exit 1
+    fi
+
+    # Detect default branch
+    if git show-ref --verify --quiet refs/heads/main 2>/dev/null; then
+        default_branch="main"
+    elif git show-ref --verify --quiet refs/heads/master 2>/dev/null; then
+        default_branch="master"
+    else
+        echo "Error: could not find main or master branch"
+        exit 1
+    fi
+
+    local repo
+    repo=$(basename "$(git rev-parse --show-toplevel)")
+    git worktree add -b "$branch" "../${repo}-${branch}" "$default_branch"
+}
+
+cmd_switch() {
+    local selected
+    selected=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
+    if [[ -n "$selected" ]]; then
+        echo "$selected"
+    fi
+}
+
+cmd_delete() {
+    local selected
+    selected=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
+    [[ -z "$selected" ]] && exit 0
+
+    local main_worktree
+    main_worktree=$(git worktree list | head -1 | awk '{print $1}')
+    if [[ "$selected" == "$main_worktree" ]]; then
+        echo "Error: cannot remove the main worktree"
+        exit 1
+    fi
+
+    git worktree remove "$selected"
+}
+
+case "${1:-}" in
+    add)    shift; cmd_add "$@" ;;
+    switch) shift; cmd_switch "$@" ;;
+    delete) shift; cmd_delete "$@" ;;
+    *)
+        echo "Usage: gwt <command>"
+        echo ""
+        echo "Commands:"
+        echo "  add <branch>   Create a worktree for a new branch"
+        echo "  switch         Select a worktree via fzf"
+        echo "  delete         Select and remove a worktree via fzf"
+        exit 1
+        ;;
+esac
