@@ -10,5 +10,8 @@ alias ag='rg'
 alias c='claude'
 alias gclone='~/bin/git-clone-dev'
 
+# Git worktree switch (needs shell function to cd)
+gwts() { local dir; dir=$(~/bin/gwts) && [[ -n "$dir" ]] && cd "$dir"; }
+
 # URL encode a string
 urlencode() { python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"; }
