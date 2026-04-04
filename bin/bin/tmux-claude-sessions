@@ -37,7 +37,15 @@ lines=$(tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_
     printf "%s %-30s  %5s  %s\n" "$bell_icon" "$target" "$age" "$clean_title"
   done)
 
-printf "%s" "$lines" \
+if [ -z "$lines" ]; then
+  echo "No active Claude sessions found."
+  echo ""
+  echo "Press any key to close..."
+  read -rsn1
+  exit 0
+fi
+
+echo "$lines" \
   | fzf --no-sort --prompt="Claude sessions > " \
   | grep -oE '[^[:space:]]+:[0-9]+\.[0-9]+' \
   | xargs -I{} tmux switch-client -t {}
