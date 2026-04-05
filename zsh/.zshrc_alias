@@ -8,6 +8,8 @@ alias update='brew update; brew upgrade; brew cleanup'
 alias k=kubectl
 alias ag='rg'
 alias c='claude'
+alias ccr='claude --resume'
+alias ccc='claude --continue'
 alias gclone='~/bin/git-clone-dev'
 
 # URL encode a string
