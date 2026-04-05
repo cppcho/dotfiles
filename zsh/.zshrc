@@ -112,8 +112,6 @@ export EDITOR='nvim'
 [ -f ~/.zshrc_private ] && source ~/.zshrc_private
 [ -f ~/.zshrc_local ] && source ~/.zshrc_local
 
-[ -f ~/.dotfiles_update_check.zsh ] && source ~/.dotfiles_update_check.zsh
-
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 [ -f ~/.z.sh ] && source ~/.z.sh
 
