@@ -2,6 +2,8 @@
 # List all tmux panes running claude, pick one with fzf, jump to it
 
 now=$(date +%s)
+# Resolve claude symlink to match the actual binary name (e.g., 2.1.92)
+claude_bin=$(basename "$(readlink "$(command -v claude)" 2>/dev/null)" 2>/dev/null)
 
 format_age() {
   local diff=$1
@@ -17,7 +19,7 @@ format_age() {
 }
 
 lines=$(tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}" \
-  | awk -F'\t' '$4 == "claude"' \
+  | awk -F'\t' -v cb="$claude_bin" '$4 == "claude" || (cb != "" && $4 == cb)' \
   | sort -rn -t$'\t' -k1,1 \
   | while IFS=$'\t' read -r activity bell target cmd title; do
     age=$(format_age $((now - activity)))
@@ -34,7 +36,8 @@ lines=$(tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_
       "Claude Code"|"zsh"|"bash"|"fish"|"sh") clean_title="" ;;
     esac
 
-    printf "%s %-30s  %5s  %s\n" "$bell_icon" "$target" "$age" "$clean_title"
+    session="${target%%:*}"
+    printf "%s\t%s %-20s  %5s  %s\n" "$target" "$bell_icon" "$session" "$age" "$clean_title"
   done)
 
 if [ -z "$lines" ]; then
@@ -46,6 +49,6 @@ if [ -z "$lines" ]; then
 fi
 
 echo "$lines" \
-  | fzf --no-sort --prompt="Claude sessions > " \
-  | grep -oE '[^[:space:]]+:[0-9]+\.[0-9]+' \
+  | fzf --no-sort --delimiter '\t' --with-nth 2 --prompt="Claude sessions > " \
+  | cut -f1 \
   | xargs -I{} tmux switch-client -t {}
