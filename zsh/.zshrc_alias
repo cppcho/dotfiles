@@ -11,6 +11,7 @@ alias c='claude'
 alias ccr='claude --resume'
 alias ccc='claude --continue'
 alias gclone='~/bin/git-clone-dev'
+alias _='[[ -n "$TMUX" ]] && cd "$(tmux display-message -p "#{session_path}")"'
 
 # URL encode a string
 urlencode() { python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"; }
