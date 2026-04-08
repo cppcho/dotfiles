@@ -2,6 +2,16 @@
 
 # Ref from https://github.com/ThePrimeagen/.dotfiles/blob/master/bin/.local/scripts/tmux-sessionizer
 
+cmd=""
+fzf_prompt=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --cmd) cmd="$2"; shift 2 ;;
+        --prompt) fzf_prompt="$2"; shift 2 ;;
+        *) break ;;
+    esac
+done
+
 if [[ $# -eq 1 ]]; then
     selected=$1
 else
@@ -40,7 +50,7 @@ else
         echo "$active_bell" | sort -rn | cut -d' ' -f2-
         echo "$active" | sort -rn | cut -d' ' -f2-
         echo "$inactive" | sort -rn | cut -d' ' -f2-
-    } | sed '/^$/d' | fzf --exact --no-sort --tmux center,70%)
+    } | sed '/^$/d' | fzf --exact --no-sort --tmux center,70% --prompt="${fzf_prompt:-Session > }")
 fi
 
 if [[ -z $selected ]]; then
@@ -61,7 +71,14 @@ if ! tmux has-session -t=$selected_name 2> /dev/null; then
     tmux new-session -ds $selected_name -c $selected
 fi
 
-if [[ -z $TMUX ]]; then
+if [[ -n "$cmd" ]]; then
+    tmux new-window -t "$selected_name" -c "$selected" "$cmd"
+    if [[ -n $TMUX ]]; then
+        tmux switch-client -t "$selected_name"
+    else
+        tmux attach-session -t "$selected_name"
+    fi
+elif [[ -z $TMUX ]]; then
     tmux attach-session -t $selected_name
 else
     tmux switch-client -t $selected_name
