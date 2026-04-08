@@ -5,40 +5,74 @@ now=$(date +%s)
 # Resolve claude symlink to match the actual binary name (e.g., 2.1.92)
 claude_bin=$(basename "$(readlink "$(command -v claude)" 2>/dev/null)" 2>/dev/null)
 
-format_age() {
-  local diff=$1
-  if [ "$diff" -lt 60 ]; then
-    echo "${diff}s"
-  elif [ "$diff" -lt 3600 ]; then
-    echo "$((diff / 60))m"
-  elif [ "$diff" -lt 86400 ]; then
-    echo "$((diff / 3600))h"
-  else
-    echo "$((diff / 86400))d"
-  fi
-}
+# Build pane_pid->mtime lookup (single ps call + single pass over session files)
+mtime_map=$(
+  declare -A pid_to_ppid
+  while read -r pid ppid; do
+    pid_to_ppid[$pid]=$ppid
+  done < <(ps -o pid=,ppid=,comm= 2>/dev/null | awk '$3 == "claude" {print $1, $2}')
 
-lines=$(tmux list-panes -a -F "#{window_activity}	#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}" \
-  | awk -F'\t' -v cb="$claude_bin" '$4 == "claude" || (cb != "" && $4 == cb)' \
-  | sort -rn -t$'\t' -k1,1 \
-  | while IFS=$'\t' read -r activity bell target cmd title; do
-    age=$(format_age $((now - activity)))
-
-    if [ "$bell" = "1" ]; then
-      bell_icon="󰂞 "
+  for session_file in "$HOME"/.claude/sessions/*.json; do
+    [ -f "$session_file" ] || continue
+    pid="${session_file##*/}"; pid="${pid%.json}"
+    [ -n "${pid_to_ppid[$pid]}" ] || continue
+    read -r line < "$session_file"
+    session_id="${line#*\"sessionId\":\"}" ; session_id="${session_id%%\"*}"
+    cwd="${line#*\"cwd\":\"}" ; cwd="${cwd%%\"*}"
+    [ -z "$session_id" ] || [ -z "$cwd" ] && continue
+    projdir="$HOME/.claude/projects/${cwd//\//-}"
+    jsonl_file="${projdir}/${session_id}.jsonl"
+    session_mtime=$(stat -f "%m" "$session_file")
+    # Session file's sessionId can be stale after /clear or resume.
+    # If the JSONL is older than the session file, find the latest JSONL in the project.
+    jsonl_mtime=$(stat -f "%m" "$jsonl_file" 2>/dev/null)
+    if [ -n "$jsonl_mtime" ] && [ "$jsonl_mtime" -ge "$session_mtime" ]; then
+      mtime=$jsonl_mtime
     else
-      bell_icon="  "
+      latest=$(ls -t "$projdir"/*.jsonl 2>/dev/null | head -1)
+      [ -f "$latest" ] || continue
+      mtime=$(stat -f "%m" "$latest")
     fi
+    printf "%s %s;" "${pid_to_ppid[$pid]}" "$mtime"
+  done
+)
 
-    # Strip spinner/status chars, remove generic titles
-    clean_title=$(echo "$title" | sed 's/^[^[:alnum:]]* *//')
-    case "$clean_title" in
-      "Claude Code"|"zsh"|"bash"|"fish"|"sh") clean_title="" ;;
-    esac
+lines=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}	#{pane_pid}" \
+  | awk -F'\t' -v cb="$claude_bin" -v mtimes="$mtime_map" -v now="$now" '
+    BEGIN {
+      n = split(mtimes, entries, ";")
+      for (i = 1; i <= n; i++) {
+        split(entries[i], kv, " ")
+        if (kv[1] != "") mtime[kv[1]] = kv[2]
+      }
+    }
+    $3 == "claude" || (cb != "" && $3 == cb) {
+      bell = $1; target = $2; title = $4; pane_pid = $5
 
-    session="${target%%:*}"
-    printf "%s\t%s %-20s  %5s  %s\n" "$target" "$bell_icon" "$session" "$age" "$clean_title"
-  done)
+      if (pane_pid in mtime) {
+        mt = mtime[pane_pid]
+        diff = now - mt
+        if (diff < 60) age = diff "s"
+        else if (diff < 3600) age = int(diff / 60) "m"
+        else if (diff < 86400) age = int(diff / 3600) "h"
+        else age = int(diff / 86400) "d"
+      } else {
+        mt = 0; age = "-"
+      }
+
+      bell_icon = (bell == "1") ? "󰂞 " : "  "
+
+      # Strip spinner/status chars, remove generic titles
+      clean = title; gsub(/^[^[:alnum:]]* */, "", clean)
+      if (clean == "Claude Code" || clean == "zsh" || clean == "bash" || clean == "fish" || clean == "sh") clean = ""
+
+      split(target, tparts, ":")
+      session = tparts[1]
+
+      printf "%s\t%s\t%s %-20s  %5s  %s\n", mt, target, bell_icon, session, age, clean
+    }' \
+  | sort -rn -t$'\t' -k1,1 \
+  | cut -f2-)
 
 if [ -z "$lines" ]; then
   echo "No active Claude sessions found."
