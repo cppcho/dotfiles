@@ -17,6 +17,7 @@ return {
 
     require("telescope").setup({
       defaults = {
+        wrap_results = true,
         vimgrep_arguments = vimgrep_arguments,
         mappings = {
           i = {
