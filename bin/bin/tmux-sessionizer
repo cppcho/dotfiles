@@ -16,33 +16,41 @@ if [[ $# -eq 1 ]]; then
     selected=$1
 else
     selected=$({
-        sessions=$(tmux list-sessions -F '#{session_last_attached} #{session_name}' 2>/dev/null)
-        bell_sessions=$(tmux list-windows -a -F '#{session_name} #{window_bell_flag}' 2>/dev/null | awk '$2 == "1" {print $1}' | sort -u)
+        # Build associative arrays for O(1) lookups instead of per-dir subprocess spawning
+        declare -A session_ts bell_set zscores
+        while read -r ts name; do
+            session_ts[$name]=$ts
+        done < <(tmux list-sessions -F '#{session_last_attached} #{session_name}' 2>/dev/null)
+        while read -r name flag; do
+            [[ $flag == "1" ]] && bell_set[$name]=1
+        done < <(tmux list-windows -a -F '#{session_name} #{window_bell_flag}' 2>/dev/null)
+        if [[ -f ~/.z ]]; then
+            while IFS='|' read -r zdir zscore _; do
+                zscores[$zdir]=$zscore
+            done < ~/.z
+        fi
         # Directories are sorted into three tiers, displayed in this order:
         #   1. active_bell  — sessions with bell (unseen activity), sorted by last-attached time (newest first)
         #   2. active       — sessions without bell, sorted by last-attached time (newest first)
         #   3. inactive     — dirs with no tmux session, sorted by z frecency score or atime (highest first)
         active_bell="" active="" inactive=""
         while IFS= read -r dir; do
-            if [[ -d "$dir" ]]; then
-                name=$(basename "$dir" | tr . _)
-                ts=$(echo "$sessions" | awk -v n="$name" '$2 == n {print $1}')
-                if [[ -n "$ts" ]]; then
-                    # Active session: prefix with last-attached timestamp for sorting
-                    if echo "$bell_sessions" | grep -qx "$name"; then
-                        active_bell+="$ts $dir 󰂞"$'\n'
-                    else
-                        active+="$ts $dir ●"$'\n'
-                    fi
+            [[ -d "$dir" ]] || continue
+            name=${dir##*/}
+            name=${name//./_}
+            ts=${session_ts[$name]:-}
+            if [[ -n "$ts" ]]; then
+                if [[ -n "${bell_set[$name]:-}" ]]; then
+                    active_bell+="$ts $dir 󰂞"$'\n'
                 else
-                    # No active session: prefix with z frecency score (if available) or atime for sorting
-                    if [[ -f ~/.z ]]; then
-                        zscore=$(awk -F'|' -v d="$dir" '$1 == d {print $2}' ~/.z)
-                        inactive+="${zscore:-0} $dir"$'\n'
-                    else
-                        ats=$(stat -f '%a' "$dir" 2>/dev/null || echo "0")
-                        inactive+="$ats $dir"$'\n'
-                    fi
+                    active+="$ts $dir ●"$'\n'
+                fi
+            else
+                if [[ -f ~/.z ]]; then
+                    inactive+="${zscores[$dir]:-0} $dir"$'\n'
+                else
+                    ats=$(stat -f '%a' "$dir" 2>/dev/null || echo "0")
+                    inactive+="$ats $dir"$'\n'
                 fi
             fi
         done < <(find -L ~/dev -mindepth 1 -maxdepth 1 -type d; echo ~/dotfiles; echo ~/.claude)
