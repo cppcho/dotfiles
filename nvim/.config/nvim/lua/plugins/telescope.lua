@@ -17,7 +17,7 @@ return {
 
     require("telescope").setup({
       defaults = {
-        wrap_results = true,
+        wrap_results = false,
         vimgrep_arguments = vimgrep_arguments,
         mappings = {
           i = {
@@ -32,6 +32,12 @@ return {
               vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<End>", true, false, true), "n", false)
             end,
             ["<C-f>"] = actions.to_fuzzy_refine,
+            ["<C-w>"] = function(prompt_bufnr)
+              local action_state = require("telescope.actions.state")
+              local picker = action_state.get_current_picker(prompt_bufnr)
+              local current = vim.wo[picker.results_win].wrap
+              vim.wo[picker.results_win].wrap = not current
+            end,
             ["<C-u>"] = actions.results_scrolling_up,
             ["<C-d>"] = actions.results_scrolling_down,
           },
