@@ -2,9 +2,10 @@
 # Git worktree + tmux workflow helper
 #
 # Usage:
-#   gwt <branch>    Create/switch to worktree, open in new tmux window
-#   gwt list        List all worktrees
-#   gwt delete      Delete current worktree, cd back to main worktree
+#   gwt add <branch>   Create/switch to worktree, open in new tmux window
+#   gwt switch         Pick a worktree with fzf and switch to it
+#   gwt delete         Pick a worktree with fzf and remove it
+#   gwt setup          Open .gwt-setup in the repo root with $EDITOR
 #
 # Setup script:
 #   Place a `.gwt-setup` file in your repo root (git-ignored).
@@ -62,7 +63,7 @@ run_setup_script() {
 cmd_add() {
     local branch="$1"
     if [[ -z "$branch" ]]; then
-        echo "Usage: gwt <branch-name>"
+        echo "Usage: gwt add <branch-name>"
         exit 1
     fi
 
@@ -109,53 +110,92 @@ cmd_add() {
     open_in_tmux "$branch" "$wt_path"
 }
 
-cmd_list() {
-    git worktree list
-}
-
-cmd_delete() {
-    local current_dir
-    current_dir=$(pwd)
-
+cmd_switch() {
     local main_worktree
     main_worktree=$(get_main_worktree)
 
-    # Check if we're inside a worktree (not the main one)
-    local current_wt=""
+    # Build list of worktrees with branch names for fzf
+    local selected
+    selected=$(git worktree list --porcelain | awk '
+        /^worktree / { wt = substr($0, 10) }
+        /^branch /   { b = substr($0, 8); sub(/^refs\/heads\//, "", b); print b "\t" wt }
+    ' | fzf --delimiter='\t' --with-nth=1 --preview 'echo {}' --prompt="Switch to worktree> ")
+
+    if [[ -z "$selected" ]]; then
+        return
+    fi
+
+    local branch wt_path
+    branch=$(echo "$selected" | cut -f1)
+    wt_path=$(echo "$selected" | cut -f2)
+
+    open_in_tmux "$branch" "$wt_path"
+}
+
+cmd_delete() {
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+    local current_dir
+    current_dir=$(pwd)
+
+    # Build list of secondary worktrees for fzf
+    local worktrees
+    worktrees=$(git worktree list --porcelain | awk -v main="$main_worktree" '
+        /^worktree / { wt = substr($0, 10) }
+        /^branch /   { b = substr($0, 8); sub(/^refs\/heads\//, "", b); if (wt != main) print b "\t" wt }
+    ')
+
+    if [[ -z "$worktrees" ]]; then
+        echo "No secondary worktrees to delete"
+        exit 0
+    fi
+
+    # Find current worktree's branch to use as fzf default
     local current_branch=""
-    while IFS= read -r line; do
-        case "$line" in
-            "worktree "*)  wt="${line#worktree }" ;;
-            "branch "*)
-                b="${line#branch refs/heads/}"
-                # Check if current dir is under this worktree
-                if [[ "$current_dir" == "$wt"* && "$wt" != "$main_worktree" ]]; then
-                    current_wt="$wt"
-                    current_branch="$b"
-                fi
-                ;;
-        esac
-    done < <(git worktree list --porcelain)
+    while IFS=$'\t' read -r b wt; do
+        if [[ "$current_dir" == "$wt"* ]]; then
+            current_branch="$b"
+            break
+        fi
+    done <<< "$worktrees"
 
-    if [[ -z "$current_wt" ]]; then
-        echo "Error: not inside a secondary worktree"
-        echo "Current directory: $current_dir"
-        echo "Main worktree: $main_worktree"
-        exit 1
+    local fzf_opts=(--delimiter='\t' --with-nth=1 --prompt="Delete worktree> ")
+    if [[ -n "$current_branch" ]]; then
+        fzf_opts+=(--query="$current_branch" --select-1)
     fi
 
-    echo "Removing worktree: $current_wt (branch: $current_branch)"
+    local selected
+    selected=$(echo "$worktrees" | fzf "${fzf_opts[@]}")
 
-    # cd back to main worktree first, then remove
-    cd "$main_worktree"
-    git worktree remove "$current_wt"
-
-    echo "Switched to: $main_worktree"
-
-    # If inside tmux, rename window back and update pane directory
-    if [[ -n "${TMUX:-}" ]]; then
-        tmux send-keys "cd '$main_worktree'" Enter
+    if [[ -z "$selected" ]]; then
+        return
     fi
+
+    local branch wt_path
+    branch=$(echo "$selected" | cut -f1)
+    wt_path=$(echo "$selected" | cut -f2)
+
+    echo "Removing worktree: $wt_path (branch: $branch)"
+
+    # If we're inside the worktree being deleted, cd to main first
+    if [[ "$current_dir" == "$wt_path"* ]]; then
+        cd "$main_worktree"
+        git worktree remove "$wt_path"
+        echo "Switched to: $main_worktree"
+        if [[ -n "${TMUX:-}" ]]; then
+            tmux send-keys "cd '$main_worktree'" Enter
+        fi
+    else
+        git worktree remove "$wt_path"
+    fi
+}
+
+cmd_setup() {
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+    local setup_script="${main_worktree}/.gwt-setup"
+
+    "${EDITOR:-vim}" "$setup_script"
 }
 
 # ---------------------------------------------------------------------------
@@ -198,20 +238,27 @@ if ! git rev-parse --git-dir &>/dev/null; then
 fi
 
 case "${1:-}" in
-    list)   shift; cmd_list "$@" ;;
+    add)    shift; cmd_add "$@" ;;
+    setup)  shift; cmd_setup "$@" ;;
+    switch) shift; cmd_switch "$@" ;;
     delete) shift; cmd_delete "$@" ;;
     -h|--help|"")
         echo "Usage: gwt <command>"
         echo ""
         echo "Commands:"
-        echo "  <branch>   Create/switch to worktree in a new tmux window"
-        echo "  list       List all worktrees"
-        echo "  delete     Remove current worktree, cd back to main"
+        echo "  add <branch>   Create/switch to worktree in a new tmux window"
+        echo "  switch         Pick a worktree with fzf and switch to it"
+        echo "  delete         Pick a worktree with fzf and remove it"
+        echo "  setup          Open .gwt-setup in \$EDITOR"
         echo ""
         echo "Setup:"
         echo "  Place a .gwt-setup script in your repo root."
         echo "  It runs automatically when a new worktree is created."
         exit 0
         ;;
-    *)      cmd_add "$1" ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'gwt --help' for usage"
+        exit 1
+        ;;
 esac
