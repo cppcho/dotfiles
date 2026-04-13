@@ -90,7 +90,8 @@ cmd_add() {
     if git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
         # Local branch exists — create worktree from it
         git worktree add "$wt_path" "$branch"
-    elif git show-ref --verify --quiet "refs/remotes/origin/${branch}" 2>/dev/null; then
+    elif git fetch origin "$branch" 2>/dev/null && \
+         git show-ref --verify --quiet "refs/remotes/origin/${branch}" 2>/dev/null; then
         # Remote branch exists — create worktree tracking it
         git worktree add "$wt_path" "$branch"
     else
