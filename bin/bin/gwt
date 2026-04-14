@@ -2,7 +2,7 @@
 # Git worktree + tmux workflow helper
 #
 # Usage:
-#   gwt add <branch>   Create/switch to worktree, open in new tmux window
+#   gwt add <branch>   Create/switch to worktree, open in tmux session
 #   gwt switch         Pick a worktree with fzf and switch to it
 #   gwt delete         Pick a worktree with fzf and remove it
 #   gwt setup          Open .gwt-setup in the repo root with $EDITOR
@@ -77,7 +77,7 @@ cmd_add() {
     existing_wt=$(find_worktree_for_branch "$branch")
 
     if [[ -n "$existing_wt" ]]; then
-        # Worktree exists — open it in a new tmux window
+        # Worktree exists — open it in a tmux session
         echo "Worktree already exists: $existing_wt"
         open_in_tmux "$branch" "$existing_wt"
         return
@@ -200,31 +200,34 @@ cmd_setup() {
 }
 
 # ---------------------------------------------------------------------------
-# Tmux integration
+# Tmux session integration
 # ---------------------------------------------------------------------------
 
 open_in_tmux() {
     local branch="$1"
     local wt_path="$2"
 
+    # Use directory name as session name (replace dots/colons with dashes)
+    local session_name
+    session_name="$(basename "$wt_path")"
+    session_name="${session_name//[.:]/-}"
+
     if [[ -z "${TMUX:-}" ]]; then
-        # Not in tmux — just cd
-        echo "cd $wt_path"
-        cd "$wt_path"
+        # Not in tmux — create or attach to session
+        if tmux has-session -t "=$session_name" 2>/dev/null; then
+            tmux attach-session -t "=$session_name"
+        else
+            tmux new-session -s "$session_name" -c "$wt_path"
+        fi
         return
     fi
 
-    # Check if any existing tmux window is already at this worktree path
-    local existing_window
-    existing_window=$(tmux list-windows -F '#{window_index} #{pane_current_path}' | \
-        awk -v path="$wt_path" '$2 == path {print $1; exit}')
-
-    if [[ -n "$existing_window" ]]; then
-        # Switch to the existing window
-        tmux select-window -t "$existing_window"
+    # Already in tmux — create or switch to session
+    if tmux has-session -t "=$session_name" 2>/dev/null; then
+        tmux switch-client -t "=$session_name"
     else
-        # Create a new tmux window
-        tmux new-window -n "$branch" -c "$wt_path"
+        tmux new-session -d -s "$session_name" -c "$wt_path"
+        tmux switch-client -t "=$session_name"
     fi
 }
 
@@ -247,7 +250,7 @@ case "${1:-}" in
         echo "Usage: gwt <command>"
         echo ""
         echo "Commands:"
-        echo "  add <branch>   Create/switch to worktree in a new tmux window"
+        echo "  add <branch>   Create/switch to worktree in a tmux session"
         echo "  switch         Pick a worktree with fzf and switch to it"
         echo "  delete         Pick a worktree with fzf and remove it"
         echo "  setup          Open .gwt-setup in \$EDITOR"
