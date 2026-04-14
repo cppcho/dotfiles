@@ -2,10 +2,11 @@
 # Git worktree + tmux workflow helper
 #
 # Usage:
-#   gwt add <branch>   Create/switch to worktree, open in tmux session
-#   gwt switch         Pick a worktree with fzf and switch to it
-#   gwt delete         Pick a worktree with fzf and remove it
-#   gwt setup          Open .gwt-setup in the repo root with $EDITOR
+#   gwt add <branch|#N|pr-url>  Create/switch to worktree, open in tmux session
+#   gwt switch                  Pick a worktree with fzf and switch to it
+#   gwt delete                  Pick a worktree with fzf and remove it
+#   gwt purge                   Remove worktrees whose branches are merged
+#   gwt setup                   Open .gwt-setup in the repo root with $EDITOR
 #
 # Setup script:
 #   Place a `.gwt-setup` file in your repo root (git-ignored).
@@ -41,6 +42,82 @@ find_worktree_for_branch() {
     '
 }
 
+# Resolve a user-supplied ref to a branch name.
+# Accepts a branch name, a PR number (#123 or 123), or a GitHub PR URL.
+resolve_branch() {
+    local input="$1"
+    local pr_num=""
+
+    # GitHub PR URL: https://github.com/owner/repo/pull/123
+    if [[ "$input" =~ github\.com/[^/]+/[^/]+/pull/([0-9]+) ]]; then
+        pr_num="${BASH_REMATCH[1]}"
+    # Explicit PR form: #123
+    elif [[ "$input" =~ ^#([0-9]+)$ ]]; then
+        pr_num="${BASH_REMATCH[1]}"
+    # Bare number: try as PR first, fall back to literal branch name
+    elif [[ "$input" =~ ^[0-9]+$ ]]; then
+        pr_num="$input"
+    fi
+
+    if [[ -n "$pr_num" ]]; then
+        if ! command -v gh &>/dev/null; then
+            if [[ "$input" != "$pr_num" ]]; then
+                echo "Error: gh CLI is required to resolve PR $input" >&2
+                return 1
+            fi
+        else
+            local branch
+            if branch=$(gh pr view "$pr_num" --json headRefName --jq .headRefName 2>/dev/null) \
+                && [[ -n "$branch" ]]; then
+                echo "$branch"
+                return 0
+            fi
+            # Explicit PR syntax must resolve; bare number can fall through as branch
+            if [[ "$input" != "$pr_num" ]]; then
+                echo "Error: could not resolve PR $input via gh" >&2
+                return 1
+            fi
+        fi
+    fi
+
+    echo "$input"
+    return 0
+}
+
+# Check if a branch has been merged into the default branch.
+# Handles fast-forward/merge commits (ancestor check) and squash/rebase
+# merges (patch-equivalence via git cherry).
+is_branch_merged() {
+    local branch="$1"
+    local default_branch="$2"
+
+    # Prefer origin/<default> for freshness, fall back to local.
+    local target=""
+    if git rev-parse --verify "refs/remotes/origin/$default_branch" &>/dev/null; then
+        target="refs/remotes/origin/$default_branch"
+    elif git rev-parse --verify "refs/heads/$default_branch" &>/dev/null; then
+        target="refs/heads/$default_branch"
+    else
+        return 1
+    fi
+
+    # Ancestor: normal or fast-forward merge.
+    if git merge-base --is-ancestor "refs/heads/$branch" "$target" 2>/dev/null; then
+        return 0
+    fi
+
+    # Patch-equivalent: squash or rebase merge. git cherry marks each commit
+    # on $branch with '+' if absent from $target or '-' if already applied.
+    local output
+    output=$(git cherry "$target" "refs/heads/$branch" 2>/dev/null) || return 1
+    [[ -z "$output" ]] && return 1
+    if ! grep -q '^+' <<< "$output"; then
+        return 0
+    fi
+
+    return 1
+}
+
 run_setup_script() {
     local worktree_path="$1"
     local main_worktree
@@ -61,10 +138,16 @@ run_setup_script() {
 # ---------------------------------------------------------------------------
 
 cmd_add() {
-    local branch="$1"
-    if [[ -z "$branch" ]]; then
-        echo "Usage: gwt add <branch-name>"
+    local input="$1"
+    if [[ -z "$input" ]]; then
+        echo "Usage: gwt add <branch-name|#pr|pr-url>"
         exit 1
+    fi
+
+    local branch
+    branch=$(resolve_branch "$input") || exit 1
+    if [[ "$branch" != "$input" ]]; then
+        echo "Resolved $input → $branch"
     fi
 
     local main_worktree
@@ -199,6 +282,83 @@ cmd_setup() {
     "${EDITOR:-vim}" "$setup_script"
 }
 
+cmd_purge() {
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+    local default_branch
+    default_branch=$(get_default_branch)
+
+    # Refresh origin/<default> so squash-merged branches are detected.
+    echo "Fetching origin/$default_branch..."
+    git fetch origin "$default_branch" 2>/dev/null || true
+
+    local entries=()
+    while IFS=$'\t' read -r branch wt; do
+        [[ -z "$branch" ]] && continue
+        [[ "$wt" == "$main_worktree" ]] && continue
+        [[ "$branch" == "$default_branch" ]] && continue
+
+        if is_branch_merged "$branch" "$default_branch"; then
+            entries+=("$branch"$'\t'"$wt")
+        fi
+    done < <(git worktree list --porcelain | awk '
+        /^worktree / { wt = substr($0, 10) }
+        /^branch /   { b = substr($0, 8); sub(/^refs\/heads\//, "", b); print b "\t" wt }
+    ')
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        echo "No merged worktrees to purge"
+        return
+    fi
+
+    echo
+    echo "Worktrees whose branch is merged into $default_branch:"
+    for entry in "${entries[@]}"; do
+        local b="${entry%%$'\t'*}"
+        local w="${entry##*$'\t'}"
+        printf "  %s  →  %s\n" "$b" "$w"
+    done
+    echo
+
+    local reply
+    read -rp "Remove these worktrees and delete their branches? (y/N) " reply
+    if [[ "$reply" != "y" && "$reply" != "Y" ]]; then
+        echo "Aborted"
+        return
+    fi
+
+    # If we're inside one of the worktrees being removed, jump out first.
+    local current_dir
+    current_dir=$(pwd)
+    local moved=0
+    for entry in "${entries[@]}"; do
+        local w="${entry##*$'\t'}"
+        if [[ "$current_dir" == "$w"* ]]; then
+            cd "$main_worktree"
+            moved=1
+            break
+        fi
+    done
+
+    for entry in "${entries[@]}"; do
+        local b="${entry%%$'\t'*}"
+        local w="${entry##*$'\t'}"
+        echo "Removing worktree: $w"
+        if git worktree remove "$w" 2>/dev/null; then
+            :
+        else
+            echo "  (worktree is dirty; retrying with --force)"
+            git worktree remove --force "$w" || continue
+        fi
+        # Branch was verified as merged above, so force-delete is safe.
+        git branch -D "$b" 2>/dev/null || true
+    done
+
+    if [[ "$moved" == "1" && -n "${TMUX:-}" ]]; then
+        tmux send-keys "cd '$main_worktree'" Enter
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Tmux session integration
 # ---------------------------------------------------------------------------
@@ -242,17 +402,20 @@ if ! git rev-parse --git-dir &>/dev/null; then
 fi
 
 case "${1:-}" in
-    add)    shift; cmd_add "$@" ;;
-    setup)  shift; cmd_setup "$@" ;;
-    switch) shift; cmd_switch "$@" ;;
-    delete) shift; cmd_delete "$@" ;;
+    add)           shift; cmd_add "$@" ;;
+    setup)         shift; cmd_setup "$@" ;;
+    switch)        shift; cmd_switch "$@" ;;
+    delete)        shift; cmd_delete "$@" ;;
+    purge|cleanup) shift; cmd_purge "$@" ;;
     -h|--help|"")
         echo "Usage: gwt <command>"
         echo ""
         echo "Commands:"
-        echo "  add <branch>   Create/switch to worktree in a tmux session"
+        echo "  add <ref>      Create/switch to worktree in a tmux session."
+        echo "                 <ref> may be a branch name, #PR, or PR URL."
         echo "  switch         Pick a worktree with fzf and switch to it"
         echo "  delete         Pick a worktree with fzf and remove it"
+        echo "  purge          Remove worktrees whose branches are merged"
         echo "  setup          Open .gwt-setup in \$EDITOR"
         echo ""
         echo "Setup:"
