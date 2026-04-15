@@ -117,6 +117,45 @@ is_branch_merged() {
     return 1
 }
 
+# Derive tmux session name from a worktree path
+session_name_for_path() {
+    local name
+    name="$(basename "$1")"
+    echo "${name//[.:]/-}"
+}
+
+# Kill the tmux session associated with a worktree path.
+# If we're currently in that session, switch to the main repo session first.
+kill_worktree_tmux_session() {
+    local wt_path="$1"
+    local main_worktree="$2"
+
+    [[ -z "${TMUX:-}" ]] && return
+
+    local session_name
+    session_name=$(session_name_for_path "$wt_path")
+
+    if ! tmux has-session -t "=$session_name" 2>/dev/null; then
+        return
+    fi
+
+    # If we're in the session being killed, switch to main repo session first
+    local current_session
+    current_session=$(tmux display-message -p '#S')
+    if [[ "$current_session" == "$session_name" ]]; then
+        local main_session
+        main_session=$(session_name_for_path "$main_worktree")
+        # Create main session if it doesn't exist
+        if ! tmux has-session -t "=$main_session" 2>/dev/null; then
+            tmux new-session -d -s "$main_session" -c "$main_worktree"
+        fi
+        tmux switch-client -t "=$main_session"
+    fi
+
+    tmux kill-session -t "=$session_name"
+    echo "Killed tmux session: $session_name"
+}
+
 run_setup_script() {
     local worktree_path="$1"
     local main_worktree
@@ -266,6 +305,9 @@ cmd_delete() {
     else
         git worktree remove "$wt_path"
     fi
+
+    # Kill associated tmux session (must be last — may kill our own process)
+    kill_worktree_tmux_session "$wt_path" "$main_worktree"
 }
 
 cmd_setup() {
@@ -351,6 +393,12 @@ cmd_purge() {
     if [[ "$moved" == "1" && -n "${TMUX:-}" ]]; then
         tmux send-keys "cd '$main_worktree'" Enter
     fi
+
+    # Kill associated tmux sessions (must be last — may kill our own process)
+    for entry in "${entries[@]}"; do
+        local w="${entry##*$'\t'}"
+        kill_worktree_tmux_session "$w" "$main_worktree"
+    done
 }
 
 # ---------------------------------------------------------------------------
@@ -361,10 +409,8 @@ open_in_tmux() {
     local branch="$1"
     local wt_path="$2"
 
-    # Use directory name as session name (replace dots/colons with dashes)
     local session_name
-    session_name="$(basename "$wt_path")"
-    session_name="${session_name//[.:]/-}"
+    session_name=$(session_name_for_path "$wt_path")
 
     if [[ -z "${TMUX:-}" ]]; then
         # Not in tmux — create or attach to session
@@ -399,7 +445,7 @@ case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
-    purge|cleanup) shift; cmd_purge "$@" ;;
+    purge) shift; cmd_purge "$@" ;;
     -h|--help)
         echo "Usage: gwt [ref]"
         echo ""
