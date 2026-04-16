@@ -69,7 +69,7 @@ lines=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_inde
       split(target, tparts, ":")
       session = tparts[1]
 
-      printf "%s\t%s\t%s %-20s  %5s  %s\n", mt, target, bell_icon, session, age, clean
+      printf "%s\t%s\t%s %5s  %-20.20s  %s\n", mt, target, bell_icon, age, session, clean
     }' \
   | sort -rn -t$'\t' -k1,1 \
   | cut -f2-)
