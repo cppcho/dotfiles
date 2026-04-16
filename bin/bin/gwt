@@ -3,7 +3,7 @@
 #
 # Usage:
 #   gwt switch [branch|#N|pr-url]  Switch to a worktree (fzf picker if no arg, create if needed)
-#   gwt delete                     Pick a worktree with fzf and remove it
+#   gwt delete [--force]            Pick a worktree with fzf and remove it
 #   gwt purge                      Remove worktrees whose branches are merged
 #   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
 #
@@ -260,6 +260,14 @@ cmd_switch() {
 }
 
 cmd_delete() {
+    local force=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -f|--force) force=1; shift ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+
     local main_worktree
     main_worktree=$(get_main_worktree)
     local current_dir
@@ -304,16 +312,21 @@ cmd_delete() {
 
     echo "Removing worktree: $wt_path (branch: $branch)"
 
+    local remove_args=("$wt_path")
+    if [[ "$force" == "1" ]]; then
+        remove_args=(--force "$wt_path")
+    fi
+
     # If we're inside the worktree being deleted, cd to main first
     if [[ "$current_dir" == "$wt_path"* ]]; then
         cd "$main_worktree"
-        git worktree remove "$wt_path"
+        git worktree remove "${remove_args[@]}"
         echo "Switched to: $main_worktree"
         if [[ -n "${TMUX:-}" ]]; then
             tmux send-keys "cd '$main_worktree'" Enter
         fi
     else
-        git worktree remove "$wt_path"
+        git worktree remove "${remove_args[@]}"
     fi
 
     # Kill associated tmux session (must be last — may kill our own process)
@@ -458,7 +471,8 @@ show_help() {
     echo "  gwt switch [ref]  Switch to a worktree (fzf picker if no ref given)."
     echo "                    Creates the worktree if it doesn't exist."
     echo "                    <ref> may be a branch name, #PR, or PR URL."
-    echo "  gwt delete        Pick a worktree with fzf and remove it"
+    echo "  gwt delete [-f]   Pick a worktree with fzf and remove it"
+    echo "                    -f/--force removes even with uncommitted changes"
     echo "  gwt purge         Remove worktrees whose branches are merged"
     echo "  gwt setup         Open .gwt-setup in \$EDITOR"
     echo ""
