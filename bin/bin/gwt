@@ -224,6 +224,14 @@ cmd_switch() {
     # Determine worktree path
     local wt_path="${main_worktree}/../${repo}-${branch}"
 
+    # Path already exists on disk (e.g. stale/deregistered worktree) — just open it
+    if [[ -d "$wt_path" ]]; then
+        wt_path=$(cd "$wt_path" && pwd)
+        echo "Directory already exists: $wt_path"
+        open_in_tmux "$branch" "$wt_path"
+        return
+    fi
+
     # Check if branch exists (locally or in origin)
     if git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
         # Local branch exists — create worktree from it
