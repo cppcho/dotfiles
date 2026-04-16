@@ -2,10 +2,10 @@
 # Git worktree + tmux workflow helper
 #
 # Usage:
-#   gwt [branch|#N|pr-url]  Switch to a worktree (fzf picker if no arg, create if needed)
-#   gwt delete              Pick a worktree with fzf and remove it
-#   gwt purge               Remove worktrees whose branches are merged
-#   gwt setup               Open .gwt-setup in the repo root with $EDITOR
+#   gwt switch [branch|#N|pr-url]  Switch to a worktree (fzf picker if no arg, create if needed)
+#   gwt delete                     Pick a worktree with fzf and remove it
+#   gwt purge                      Remove worktrees whose branches are merged
+#   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
 #
 # Setup script:
 #   Place a `.gwt-setup` file in your repo root (git-ignored).
@@ -176,7 +176,9 @@ run_setup_script() {
 # ---------------------------------------------------------------------------
 
 cmd_switch() {
-    local input="${1:-}"
+    # Join all arguments with hyphens: "gwt switch a b c" → "a-b-c"
+    local input="${*}"
+    input="${input// /-}"
 
     # No argument — fzf picker over existing worktrees
     if [[ -z "$input" ]]; then
@@ -449,27 +451,32 @@ if ! git rev-parse --git-dir &>/dev/null; then
     exit 1
 fi
 
+show_help() {
+    echo "Usage: gwt <command> [args]"
+    echo ""
+    echo "Commands:"
+    echo "  gwt switch [ref]  Switch to a worktree (fzf picker if no ref given)."
+    echo "                    Creates the worktree if it doesn't exist."
+    echo "                    <ref> may be a branch name, #PR, or PR URL."
+    echo "  gwt delete        Pick a worktree with fzf and remove it"
+    echo "  gwt purge         Remove worktrees whose branches are merged"
+    echo "  gwt setup         Open .gwt-setup in \$EDITOR"
+    echo ""
+    echo "Setup:"
+    echo "  Place a .gwt-setup script in your repo root."
+    echo "  It runs automatically when a new worktree is created."
+}
+
 case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
-    purge) shift; cmd_purge "$@" ;;
-    -h|--help)
-        echo "Usage: gwt [ref]"
-        echo ""
-        echo "Commands:"
-        echo "  gwt [ref]      Switch to a worktree (fzf picker if no ref given)."
-        echo "                 Creates the worktree if it doesn't exist."
-        echo "                 <ref> may be a branch name, #PR, or PR URL."
-        echo "  gwt delete     Pick a worktree with fzf and remove it"
-        echo "  gwt purge      Remove worktrees whose branches are merged"
-        echo "  gwt setup      Open .gwt-setup in \$EDITOR"
-        echo ""
-        echo "Setup:"
-        echo "  Place a .gwt-setup script in your repo root."
-        echo "  It runs automatically when a new worktree is created."
-        exit 0
-        ;;
+    purge)         shift; cmd_purge "$@" ;;
+    -h|--help|"")  show_help ;;
     *)
-        cmd_switch "$@" ;;
+        echo "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
 esac
