@@ -53,12 +53,16 @@ else
                     inactive+="$ats $dir"$'\n'
                 fi
             fi
-        done < <(find -L ~/dev -mindepth 1 -maxdepth 1 -type d; echo ~/dotfiles; echo ~/.claude)
+        done < <(find -L ~/dev -mindepth 1 -maxdepth 1 -type d)
         # Output tiers in priority order; sort -rn within each tier, then strip the numeric prefix
         echo "$active_bell" | sort -rn | cut -d' ' -f2-
         echo "$active" | sort -rn | cut -d' ' -f2-
         echo "$inactive" | sort -rn | cut -d' ' -f2-
-    } | sed '/^$/d' | fzf --exact --no-sort --tmux center,70% --prompt="${fzf_prompt:-Session > }")
+    } | sed '/^$/d' | awk -v cwd="$PWD" '
+        !found && $1 == cwd { first = $0; found = 1; next }
+        { rest[++n] = $0 }
+        END { if (first) print first; for (i = 1; i <= n; i++) print rest[i] }
+    ' | fzf --exact --no-sort --tmux center,70% --prompt="${fzf_prompt:-Session > }")
 fi
 
 if [[ -z $selected ]]; then
