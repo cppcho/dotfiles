@@ -223,8 +223,9 @@ cmd_switch() {
         return
     fi
 
-    # Determine worktree path
-    local wt_path="${main_worktree}/../${repo}-${branch}"
+    # Determine worktree path (flatten '/' so "feat/foo" → "repo-feat-foo", not nested)
+    local branch_slug="${branch//\//-}"
+    local wt_path="${main_worktree}/../${repo}-${branch_slug}"
 
     # Path already exists on disk (e.g. stale/deregistered worktree) — just open it
     if [[ -d "$wt_path" ]]; then
