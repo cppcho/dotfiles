@@ -53,7 +53,17 @@ else
                     inactive+="$ats $dir"$'\n'
                 fi
             fi
-        done < <(find -L ~/dev -mindepth 1 -maxdepth 1 -type d)
+        done < <(
+            IFS=':' read -ra _tsz_paths <<< "${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
+            for p in "${_tsz_paths[@]}"; do
+                p="${p/#\~/$HOME}"
+                if [[ "$p" == */ ]]; then
+                    find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d
+                else
+                    [[ -d "$p" ]] && echo "$p"
+                fi
+            done
+        )
         # Output tiers in priority order; sort -rn within each tier, then strip the numeric prefix
         echo "$active_bell" | sort -rn | cut -d' ' -f2-
         echo "$active" | sort -rn | cut -d' ' -f2-
