@@ -45,32 +45,10 @@ return {
           end
 
           -- Rename the variable under your cursor.
-          map("grn", vim.lsp.buf.rename, "[R]e[n]ame")
+          map("gR", vim.lsp.buf.rename, "[R]e[n]ame")
 
           -- Execute a code action, usually your cursor needs to be on top of an error
-          map("gra", vim.lsp.buf.code_action, "[G]oto Code [A]ction", { "n", "x" })
-
-          -- Find references for the word under your cursor.
-          map("grr", require("telescope.builtin").lsp_references, "[G]oto [R]eferences")
-
-          -- Jump to the implementation of the word under your cursor.
-          map("gri", require("telescope.builtin").lsp_implementations, "[G]oto [I]mplementation")
-
-          -- Jump to the definition of the word under your cursor.
-          map("gd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
-          map("grd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
-
-          -- Goto Declaration.
-          map("grD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
-
-          -- Fuzzy find all the symbols in your current document.
-          map("gO", require("telescope.builtin").lsp_document_symbols, "Open Document Symbols")
-
-          -- Fuzzy find all the symbols in your current workspace.
-          map("gW", require("telescope.builtin").lsp_dynamic_workspace_symbols, "Open Workspace Symbols")
-
-          -- Jump to the type of the word under your cursor.
-          map("grt", require("telescope.builtin").lsp_type_definitions, "[G]oto [T]ype Definition")
+          map("gA", vim.lsp.buf.code_action, "[G]oto Code [A]ction", { "n", "x" })
         end,
       })
     end,

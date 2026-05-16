@@ -49,7 +49,7 @@ return {
     keys = {
       { "<leader>gB", ":.GBrowse<CR>",              desc = "[B]rowse in GitHub" },
       { "<leader>gB", ":GBrowse<CR>",               mode = "v",                    desc = "[B]rowse in GitHub" },
-      { "<leader>gP", "<cmd>!gh pr view --web<CR>", desc = "Browse [P]R in GitHub" },
+      { "<leader>gO", "<cmd>!gh pr view --web<CR>", desc = "Browse [P]R in GitHub" },
     },
   },
 }
