@@ -14,7 +14,7 @@ vim.keymap.set("n", "k", "gk")
 
 -- File operations
 vim.keymap.set("n", "<leader>fs", "<cmd>wa<cr>", { desc = "Save all files" })
-vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
+--vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 
 -- Splits
 vim.keymap.set("n", "\\vv", "<cmd>vsplit<cr>", { desc = "Vertical split" })

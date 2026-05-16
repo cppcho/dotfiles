@@ -17,19 +17,37 @@ return {
   ---@type snacks.Config
   opts = {
     picker = {
+      sources = {
+        explorer = {
+          hidden = true,
+          ignored = true,
+          win = {
+            input = {
+              keys = {
+                ["<Esc>"] = false,
+              },
+            },
+            list = {
+              keys = {
+                ["<Esc>"] = false,
+              },
+            },
+          },
+        },
+      },
     },
     explorer = {},
   },
   keys = {
     -- Top Pickers & Explorer
-    --{ "<C-p>",           function() Snacks.picker.files(find_files_opts) end,                    desc = "Search Files" },
-    { "<C-p>",      function() Snacks.picker.smart() end,                                   desc = "Smart Find Files" },
+    { "<C-p>",      function() Snacks.picker.files(find_files_opts) end,                    desc = "Search Files" },
     { "<leader>sf", function() Snacks.picker.files(find_files_opts) end,                    desc = "Search Files" },
     { "<leader>;",  function() Snacks.picker.buffers() end,                                 desc = "Buffers" },
     { "<leader>/",  function() Snacks.picker.grep() end,                                    desc = "Grep" },
     { "<leader>:",  function() Snacks.picker.command_history() end,                         desc = "Command History" },
     { "<leader>n",  function() Snacks.picker.notifications() end,                           desc = "Notification History" },
     { "<leader>e",  function() Snacks.explorer() end,                                       desc = "File Explorer" },
+    { "<C-e>",      function() Snacks.explorer() end,                                       desc = "File Explorer" },
     -- find
     { "<leader>fb", function() Snacks.picker.buffers() end,                                 desc = "Buffers" },
     { "<leader>fc", function() Snacks.picker.files({ cwd = vim.fn.stdpath("config") }) end, desc = "Find Config File" },
