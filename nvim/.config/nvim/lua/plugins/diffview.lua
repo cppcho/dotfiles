@@ -7,11 +7,11 @@ return {
     {
       "<leader>gV",
       function()
-        vim.fn.system("git rev-parse --verify main 2>/dev/null")
-        local default_branch = vim.v.shell_error == 0 and "main" or "master"
+        vim.fn.system("git rev-parse --verify origin/main 2>/dev/null")
+        local default_branch = vim.v.shell_error == 0 and "origin/main" or "origin/master"
         vim.ui.input({ prompt = "Diff against branch/rev: ", default = default_branch }, function(input)
           if input and input ~= "" then
-            vim.cmd("DiffviewOpen " .. input)
+            vim.cmd("DiffviewOpen " .. input .. "...HEAD")
           end
         end)
       end,
