@@ -5,9 +5,7 @@ return {
   opts = {
     preset = "helix",
     delay = 200,
-    spec = {
-      { "gr", group = "LSP actions" },
-    },
+    sort = { "alphanum" },
   },
   keys = {
     {

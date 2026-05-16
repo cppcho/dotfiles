@@ -24,7 +24,7 @@ return {
     -- Top Pickers & Explorer
     --{ "<C-p>",           function() Snacks.picker.files(find_files_opts) end,                    desc = "Search Files" },
     { "<C-p>",      function() Snacks.picker.smart() end,                                   desc = "Smart Find Files" },
-    { "<leader>sf", function() Snacks.picker.files(find_files_opts) end,                    desc = "[S]earch [F]iles" },
+    { "<leader>sf", function() Snacks.picker.files(find_files_opts) end,                    desc = "Search Files" },
     { "<leader>;",  function() Snacks.picker.buffers() end,                                 desc = "Buffers" },
     { "<leader>/",  function() Snacks.picker.grep() end,                                    desc = "Grep" },
     { "<leader>:",  function() Snacks.picker.command_history() end,                         desc = "Command History" },
