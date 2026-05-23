@@ -17,6 +17,14 @@ return {
   ---@type snacks.Config
   opts = {
     picker = {
+      win = {
+        input = {
+          keys = {
+            ["<c-a>"] = { "<Home>", mode = { "i", "n" }, expr = true, desc = "Start of line" },
+            ["<c-e>"] = { "<End>", mode = { "i", "n" }, expr = true, desc = "End of line" },
+          },
+        },
+      },
       sources = {
         explorer = {
           hidden = true,
@@ -96,6 +104,7 @@ return {
     { "<leader>su", function() Snacks.picker.undo() end,                                    desc = "Undo History" },
     { "<leader>sL", function() Snacks.picker.colorschemes() end,                            desc = "Colorschemes" },
     -- LSP
+    { "gd",         function() Snacks.picker.lsp_definitions() end,                         desc = "Goto Definition" },
     { "grd",        function() Snacks.picker.lsp_definitions() end,                         desc = "Goto Definition" },
     { "grD",        function() Snacks.picker.lsp_declarations() end,                        desc = "Goto Declaration" },
     { "grr",        function() Snacks.picker.lsp_references() end,                          nowait = true,                       desc = "Goto References" },
