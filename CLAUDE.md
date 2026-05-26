@@ -24,7 +24,7 @@ git submodule update --init  # Initialize submodules (pure prompt, _private)
 
 Package structure: `<package>/.config/foo/bar` becomes `~/.config/foo/bar` via symlink.
 
-Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
+Current public packages: `ghostty`, `nvim`, `slack-things`, `tmux`, `vim`, `zsh`
 
 ## Claude Code Plugin
 
@@ -37,6 +37,7 @@ Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
 - **Tmux** (`tmux/`): Prefix is `C-a`. Uses TPM with catppuccin theme. vim-tmux-navigator for seamless pane/split navigation with `C-h/j/k/l`.
 - **Ghostty** (`ghostty/.config/ghostty/`): IosevkaTerm Nerd Font, minimal config.
 - **Vim** (`vim/`): Legacy `.vimrc` fallback.
+- **slack-things** (`slack-things/.config/slack-things/`): Local Python (`uv`/PEP 723) Slack Bolt app running over Socket Mode. React to a Slack message with `:bookmark:` to create a Things to-do via the `things:///add` URL scheme. Tokens live in gitignored `secrets.env`; runs on login via the launchd agent stowed to `~/Library/LaunchAgents/`. See its README for setup.
 
 ## Conventions
 

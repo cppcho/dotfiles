@@ -1,3 +1,5 @@
 .DS_Store
 .vscode/
 *.local.*
+slack-things/.config/slack-things/secrets.env
+__pycache__/
