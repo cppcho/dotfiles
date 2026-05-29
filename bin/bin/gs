@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+# Numbered sibling-clone workflow helper
+#
+# Usage:
+#   gs            Pick a sibling clone (fzf) and open/switch its tmux session
+#   gs new        Clone the next numbered sibling from origin (repo-2, repo-3, ...)
+#
+# Layout (siblings live next to the repo, sharing nothing):
+#   repo/      repo-2/      repo-3/   ...
+# Each sibling is a full independent clone fetched fresh from origin.
+
+set -e
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Resolve repo root, its parent dir, and the canonical base name
+# (strip a trailing "-<number>" so repo-3 and repo both map to base "repo").
+resolve_base() {
+    local root parent name base
+    root=$(git rev-parse --show-toplevel) || exit 1
+    parent=$(cd "$root/.." && pwd)
+    name=$(basename "$root")
+    base="${name%-+([0-9])}"
+    # The pattern above needs extglob; fall back to a regex if it didn't match.
+    if [[ "$base" == "$name" && "$name" =~ ^(.+)-[0-9]+$ ]]; then
+        base="${BASH_REMATCH[1]}"
+    fi
+    REPO_ROOT="$root"
+    REPO_PARENT="$parent"
+    REPO_BASE="$base"
+}
+
+# Derive tmux session name from a directory path.
+session_name_for_path() {
+    local name
+    name="$(basename "$1")"
+    echo "${name//[.:]/-}"
+}
+
+# Create or switch to the tmux session for a directory.
+open_in_tmux() {
+    local dir="$1"
+    local session_name
+    session_name=$(session_name_for_path "$dir")
+
+    if [[ -z "${TMUX:-}" ]]; then
+        if tmux has-session -t "=$session_name" 2>/dev/null; then
+            tmux attach-session -t "=$session_name"
+        else
+            tmux new-session -s "$session_name" -c "$dir"
+        fi
+        return
+    fi
+
+    if tmux has-session -t "=$session_name" 2>/dev/null; then
+        tmux switch-client -t "=$session_name"
+    else
+        tmux new-session -d -s "$session_name" -c "$dir"
+        tmux switch-client -t "=$session_name"
+    fi
+}
+
+# List sibling clone directories (base + base-<n>) that are git repos.
+list_siblings() {
+    local dir
+    for dir in "$REPO_PARENT/$REPO_BASE" "$REPO_PARENT/$REPO_BASE"-*; do
+        [[ -e "$dir/.git" ]] && echo "$dir"
+    done
+}
+
+# One status column for a clone: "branch  *↑2↓1"
+sibling_status() {
+    local dir="$1"
+    local branch dirty ahead_behind upstream counts
+
+    branch=$(git -C "$dir" branch --show-current 2>/dev/null || true)
+    [[ -z "$branch" ]] && branch=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo "?")
+
+    dirty=""
+    [[ -n "$(git -C "$dir" status --porcelain 2>/dev/null || true)" ]] && dirty="*"
+
+    ahead_behind=""
+    if upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null); then
+        if counts=$(git -C "$dir" rev-list --left-right --count '@{upstream}...HEAD' 2>/dev/null); then
+            local behind ahead
+            behind=$(echo "$counts" | cut -f1)
+            ahead=$(echo "$counts" | cut -f2)
+            [[ "$ahead" != "0" ]] && ahead_behind+="↑$ahead"
+            [[ "$behind" != "0" ]] && ahead_behind+="↓$behind"
+        fi
+    fi
+
+    printf '%s\t%s' "$branch" "${dirty}${ahead_behind}"
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+cmd_pick() {
+    resolve_base
+    export REPO_PARENT
+
+    local rows="" dir
+    while IFS= read -r dir; do
+        [[ -z "$dir" ]] && continue
+        rows+="$(basename "$dir")"$'\t'"$(sibling_status "$dir")"$'\n'
+    done < <(list_siblings)
+
+    if [[ -z "$rows" ]]; then
+        echo "No sibling clones found for base '$REPO_BASE'"
+        exit 0
+    fi
+
+    local selected
+    selected=$(printf '%s' "$rows" | column -t -s $'\t' \
+        | fzf --prompt="Switch to repo> " \
+              --preview 'git -C "$REPO_PARENT/$(echo {} | awk "{print \$1}")" status -sb')
+
+    [[ -z "$selected" ]] && return
+
+    local name
+    name=$(echo "$selected" | awk '{print $1}')
+    open_in_tmux "$REPO_PARENT/$name"
+}
+
+cmd_new() {
+    resolve_base
+
+    local url
+    if ! url=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null) || [[ -z "$url" ]]; then
+        echo "Error: no 'origin' remote to clone from" >&2
+        exit 1
+    fi
+
+    # Lowest free integer >= 2 (fills gaps left by manual deletes).
+    local n=2
+    while [[ -e "$REPO_PARENT/$REPO_BASE-$n" ]]; do
+        n=$((n + 1))
+    done
+
+    local target="$REPO_PARENT/$REPO_BASE-$n"
+    echo "Cloning $url -> $target ..."
+    git clone "$url" "$target"
+    echo "Created $target"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+shopt -s extglob
+
+if ! git rev-parse --git-dir &>/dev/null; then
+    echo "Error: not inside a git repository" >&2
+    exit 1
+fi
+
+case "${1:-}" in
+    new)        shift; cmd_new "$@" ;;
+    -h|--help)
+        echo "Usage: gs [new]"
+        echo "  gs        Pick a sibling clone and open/switch its tmux session"
+        echo "  gs new    Clone the next numbered sibling from origin"
+        ;;
+    "")         cmd_pick ;;
+    *)
+        echo "Unknown command: $1" >&2
+        echo "Usage: gs [new]" >&2
+        exit 1
+        ;;
+esac
