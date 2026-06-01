@@ -1,0 +1,7 @@
+{:shortcuts {:go/search ["mod+k" "meta+shift+f"]
+ :ui/toggle-right-sidebar ["t r" "meta+shift+r"]
+ :ui/toggle-left-sidebar ["t l" "meta+shift+e"]
+ :go/next-journal ["g n" "ctrl+shift+close-square-bracket"]
+ :go/journals ["g j" "meta+d"]
+ :go/prev-journal ["g p" "ctrl+shift+open-square-bracket"]
+ :page/toggle-favorite ["meta+shift+d"]}}
