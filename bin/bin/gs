@@ -145,6 +145,14 @@ cmd_new() {
     echo "Cloning $url -> $target ..."
     git clone "$url" "$target"
     echo "Created $target"
+
+    # Symlink the (gitignored) local Claude memory from the main clone so every
+    # sibling shares the same CLAUDE.local.md.
+    local src="$REPO_PARENT/$REPO_BASE/CLAUDE.local.md"
+    if [[ -e "$src" && ! -e "$target/CLAUDE.local.md" ]]; then
+        ln -s "$src" "$target/CLAUDE.local.md"
+        echo "Linked CLAUDE.local.md -> $src"
+    fi
 }
 
 # ---------------------------------------------------------------------------
