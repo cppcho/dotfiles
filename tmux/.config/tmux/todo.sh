@@ -4,6 +4,7 @@
 set -euo pipefail
 
 dir="${1:-$PWD}"
+session="${2:-}"
 
 # Resolve target TODO file (project-local takes precedence over global), absolute path.
 if [ -f "$dir/TODO.md" ]; then
@@ -13,13 +14,14 @@ else
 fi
 file="$(cd "$(dirname "$file")" 2>/dev/null && pwd)/$(basename "$file")"
 
-# If a window already has this exact file open, focus it.
-existing="$(tmux list-windows -a \
+# If a window in the current session already has this exact file open, focus it.
+# Scoped to the current session so we never switch sessions.
+existing="$(tmux list-windows ${session:+-t "$session"} \
   -f "#{==:#{@todo_file},$file}" \
-  -F '#{session_name}:#{window_index}' | head -n1)"
+  -F '#{window_index}' | head -n1)"
 
 if [ -n "$existing" ]; then
-  tmux switch-client -t "$existing"
+  tmux select-window -t "${session:+$session:}$existing"
   exit 0
 fi
 
