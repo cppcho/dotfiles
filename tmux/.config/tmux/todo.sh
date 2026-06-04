@@ -30,3 +30,5 @@ editor="${EDITOR:-nvim}"
 win="$(tmux new-window -P -F '#{window_id}' -c "$dir" \
   "$editor '+autocmd InsertLeave,TextChanged <buffer> silent write' '$file'")"
 tmux set-option -w -t "$win" @todo_file "$file"
+tmux set-option -w -t "$win" automatic-rename off
+tmux rename-window -t "$win" TODO
