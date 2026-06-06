@@ -117,6 +117,18 @@ is_branch_merged() {
     return 1
 }
 
+# Check if the PR for a branch has been merged on GitHub.
+# Requires the gh CLI; returns non-zero (treated as "not merged") if gh is
+# unavailable, no PR exists for the branch, or the PR is still open/closed.
+is_branch_pr_merged() {
+    local branch="$1"
+    command -v gh &>/dev/null || return 1
+
+    local state
+    state=$(gh pr view "$branch" --json state --jq .state 2>/dev/null) || return 1
+    [[ "$state" == "MERGED" ]]
+}
+
 # Derive tmux session name from a worktree path
 session_name_for_path() {
     local name
@@ -358,7 +370,10 @@ cmd_purge() {
         [[ "$wt" == "$main_worktree" ]] && continue
         [[ "$branch" == "$default_branch" ]] && continue
 
-        if is_branch_merged "$branch" "$default_branch"; then
+        # Merged locally (fast/ancestor or squash/rebase patch-equivalence),
+        # or its PR has been merged on GitHub. The local check runs first so
+        # the gh network call is only made when needed.
+        if is_branch_merged "$branch" "$default_branch" || is_branch_pr_merged "$branch"; then
             entries+=("$branch"$'\t'"$wt")
         fi
     done < <(git worktree list --porcelain | awk '
@@ -372,7 +387,7 @@ cmd_purge() {
     fi
 
     echo
-    echo "Worktrees whose branch is merged into $default_branch:"
+    echo "Worktrees whose branch (or its PR) is merged into $default_branch:"
     for entry in "${entries[@]}"; do
         local b="${entry%%$'\t'*}"
         local w="${entry##*$'\t'}"
