@@ -14,7 +14,7 @@ vim.keymap.set("n", "k", "gk")
 
 -- File operations
 vim.keymap.set("n", "<leader>fs", "<cmd>wa<cr>", { desc = "Save all files" })
---vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
+vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 
 -- Splits
 vim.keymap.set("n", "\\vv", "<cmd>vsplit<cr>", { desc = "Vertical split" })
@@ -45,9 +45,7 @@ vim.keymap.set("n", "q", "<Nop>")
 vim.keymap.set("n", "<C-q>", function()
   local qf_exists = false
   for _, win in pairs(vim.fn.getwininfo()) do
-    if win.quickfix == 1 then
-      qf_exists = true
-    end
+    if win.quickfix == 1 then qf_exists = true end
   end
   if qf_exists then
     vim.cmd("cclose")
