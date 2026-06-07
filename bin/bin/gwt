@@ -194,19 +194,28 @@ cmd_switch() {
 
     # No argument — fzf picker over existing worktrees
     if [[ -z "$input" ]]; then
+        local main_worktree
+        main_worktree=$(get_main_worktree)
+
+        # Display column (field 1) carries a "(main)" marker for the primary
+        # worktree; fields 2/3 hold the raw branch/path for the cut calls below.
         local selected
-        selected=$(git worktree list --porcelain | awk '
+        selected=$(git worktree list --porcelain | awk -v main="$main_worktree" '
             /^worktree / { wt = substr($0, 10) }
-            /^branch /   { b = substr($0, 8); sub(/^refs\/heads\//, "", b); print b "\t" wt }
-        ' | fzf --delimiter='\t' --with-nth=1 --preview 'echo {}' --prompt="Switch to worktree> ")
+            /^branch /   {
+                b = substr($0, 8); sub(/^refs\/heads\//, "", b);
+                disp = (wt == main) ? b " (main)" : b;
+                print disp "\t" b "\t" wt
+            }
+        ' | fzf --delimiter='\t' --with-nth=1 --preview 'echo {3}' --prompt="Switch to worktree> ")
 
         if [[ -z "$selected" ]]; then
             return
         fi
 
         local branch wt_path
-        branch=$(echo "$selected" | cut -f1)
-        wt_path=$(echo "$selected" | cut -f2)
+        branch=$(echo "$selected" | cut -f2)
+        wt_path=$(echo "$selected" | cut -f3)
 
         open_in_tmux "$branch" "$wt_path"
         return
