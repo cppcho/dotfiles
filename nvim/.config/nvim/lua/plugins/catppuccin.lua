@@ -7,7 +7,7 @@ return {
   lazy = false,
   opts = {
     -- latte, frappe, macchiato, mocha
-    flavour = "mocha",
+    flavour = "macchiato",
     default_integrations = true,
   },
   config = function(_, opts)
