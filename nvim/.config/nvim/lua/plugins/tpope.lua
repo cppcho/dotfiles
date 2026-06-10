@@ -44,12 +44,14 @@ local function pr_diff()
   pr_open_diff()
 end
 
--- Jump within the quickfix list, closing all other windows first
+-- Jump within the quickfix list, closing all other windows first.
+-- Wraps around at the list edges.
+local wrap_cmd = { cnext = "cfirst", cprev = "clast" }
 local function pr_nav(cmd)
   pr_diff_close()
-  local ok, err = pcall(vim.cmd, cmd)
+  local ok = pcall(vim.cmd, cmd)
   if not ok then
-    vim.notify(err:gsub("^Vim%S*:", ""), vim.log.levels.WARN)
+    ok = pcall(vim.cmd, wrap_cmd[cmd])
   end
   pr_qf_clamp()
   return ok
