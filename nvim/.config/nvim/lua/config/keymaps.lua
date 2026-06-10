@@ -42,7 +42,7 @@ vim.keymap.set("n", "Q", "q")
 vim.keymap.set("n", "q", "<Nop>")
 
 -- Toggle quickfix window
-vim.keymap.set("n", "<C-q>", function()
+local function toggle_quickfix()
   local qf_exists = false
   for _, win in pairs(vim.fn.getwininfo()) do
     if win.quickfix == 1 then qf_exists = true end
@@ -50,9 +50,11 @@ vim.keymap.set("n", "<C-q>", function()
   if qf_exists then
     vim.cmd("cclose")
   else
-    vim.cmd("copen")
+    vim.cmd("botright copen")
   end
-end, { desc = "Toggle quickfix" })
+end
+vim.keymap.set("n", "<C-q>", toggle_quickfix, { desc = "Toggle quickfix" })
+vim.keymap.set("n", "<C-c>", toggle_quickfix, { desc = "Toggle quickfix" })
 
 -- Show file path and copy to clipboard
 vim.keymap.set("n", "<C-g>", function()
