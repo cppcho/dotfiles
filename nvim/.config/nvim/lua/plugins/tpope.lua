@@ -87,6 +87,7 @@ return {
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "qf",
         callback = function(ev)
+          vim.wo.scrolloff = 1
           vim.keymap.set("n", "dv", function()
             vim.cmd("cc " .. vim.fn.line("."))
             pr_diff()
@@ -121,15 +122,17 @@ return {
         if vim.v.shell_error == 0 and mb ~= "" then
           require("gitsigns").change_base(mb, true)
         end
-        vim.cmd("Git difftool --name-only " .. vim.g.pr_review_base .. "...")
-        -- render entries as plain file paths instead of fugitive's "@:path||"
+        vim.cmd("Git difftool --name-status " .. vim.g.pr_review_base .. "...")
+        -- render entries as "<status> <path>" instead of vim's default format
         vim.fn.setqflist({}, "r", {
           quickfixtextfunc = function(info)
             local items = vim.fn.getqflist({ id = info.id, items = true }).items
             local out = {}
             for i = info.start_idx, info.end_idx do
-              local name = items[i].module ~= "" and items[i].module or vim.fn.bufname(items[i].bufnr)
-              out[#out + 1] = (name:gsub("^@:", ""))
+              local name = vim.fn.bufname(items[i].bufnr)
+              -- deleted files point at the base blob; show the plain path
+              name = name:match("%.git//%x+/(.*)$") or name
+              out[#out + 1] = items[i].text .. " " .. name
             end
             return out
           end,
