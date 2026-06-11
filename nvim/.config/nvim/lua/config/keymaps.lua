@@ -38,6 +38,15 @@ end, { desc = "Toggle diff ignore whitespace" })
 -- Toggle wrap
 vim.keymap.set("n", "<leader>aw", "<cmd>set wrap!<cr>", { desc = "Toggle wrap" })
 
+-- Cap the LSP hover (K) float width; the default spans the whole screen
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    vim.keymap.set("n", "K", function()
+      vim.lsp.buf.hover({ max_width = 80 })
+    end, { buffer = ev.buf, desc = "LSP hover" })
+  end,
+})
+
 -- Re-bind Q/q
 vim.keymap.set("n", "Q", "q")
 vim.keymap.set("n", "q", "<Nop>")
