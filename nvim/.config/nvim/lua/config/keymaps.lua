@@ -14,6 +14,7 @@ vim.keymap.set("n", "k", "gk")
 
 -- File operations
 vim.keymap.set("n", "<leader>fs", "<cmd>wa<cr>", { desc = "Save all files" })
+-- Overridden by a diff-aware version in plugins/tpope.lua (plugins load later)
 vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 
 -- Splits

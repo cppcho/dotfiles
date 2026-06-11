@@ -34,7 +34,8 @@ end
 -- version (added in the PR), fugitive diffs vs an empty buffer but echoes a
 -- noisy git "fatal: path exists on disk" message.
 local function pr_open_diff()
-  vim.cmd("silent Gvdiffsplit " .. pr_base() .. "...")
+  -- leftabove: put the base on the left, the PR version on the right
+  vim.cmd("silent leftabove Gvdiffsplit " .. pr_base() .. "...")
   pr_qf_clamp()
 end
 
@@ -45,14 +46,10 @@ local function pr_diff()
 end
 
 -- Jump within the quickfix list, closing all other windows first.
--- Wraps around at the list edges.
-local wrap_cmd = { cnext = "cfirst", cprev = "clast" }
+-- Errors (e.g. E553 no more items at the list edges) are silently ignored.
 local function pr_nav(cmd)
   pr_diff_close()
   local ok = pcall(vim.cmd, cmd)
-  if not ok then
-    ok = pcall(vim.cmd, wrap_cmd[cmd])
-  end
   pr_qf_clamp()
   return ok
 end
@@ -72,7 +69,18 @@ return {
     keys = {
       { "<leader>ga", "<cmd>Gwrite<CR>",                 desc = "Git add (stage file)" },
       { "<leader>gs", "<cmd>topleft 12split | 0Git<CR>", desc = "Git status" },
-      { "<leader>gd", "<cmd>Gdiffsplit<CR>",             desc = "Git diff" },
+      -- During a PR review, diff vs the PR base instead of the index
+      {
+        "<leader>gd",
+        function()
+          if vim.g.pr_review_base then
+            pr_diff()
+          else
+            vim.cmd("Gdiffsplit")
+          end
+        end,
+        desc = "Git diff (vs PR base during review)",
+      },
       { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
       { "<leader>gv", "<cmd>PRReview<CR>",      desc = "PR review: pick an open PR" },
       { "<leader>gi", ":PRReview ",             desc = "PR review: enter PR/branch/URL" },
@@ -82,6 +90,27 @@ return {
       { "[r",         function() pr_step("cprev") end, desc = "PR review: prev file (diff)" },
       { "]q",         function() pr_nav("cnext") end,  desc = "Next quickfix (clear windows)" },
       { "[q",         function() pr_nav("cprev") end,  desc = "Prev quickfix (clear windows)" },
+      -- Shadows the global <leader>q (close buffer): in a diff, land on the
+      -- working-tree file and close the diff instead
+      {
+        "<leader>q",
+        function()
+          if not vim.wo.diff then
+            vim.cmd("bd")
+            return
+          end
+          for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+            local buf = vim.api.nvim_win_get_buf(win)
+            if vim.wo[win].diff and not vim.api.nvim_buf_get_name(buf):match("^fugitive://") then
+              vim.api.nvim_set_current_win(win)
+              break
+            end
+          end
+          pr_diff_close()
+          pr_qf_clamp()
+        end,
+        desc = "Close diff (keep working file) / close buffer",
+      },
     },
     config = function()
       -- Quickfix maps mirroring the fugitive status window: dv opens a
@@ -89,7 +118,22 @@ return {
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "qf",
         callback = function(ev)
-          vim.wo.scrolloff = 1
+          vim.wo.scrolloff = 0
+          -- Shadow the global "-" (Oil): opening a directory here replaces
+          -- the quickfix window
+          vim.keymap.set("n", "-", "<Nop>", { buffer = ev.buf })
+          vim.keymap.set("n", "dd", function()
+            local line = vim.fn.line(".")
+            local items = vim.fn.getqflist()
+            if not items[line] then
+              return
+            end
+            table.remove(items, line)
+            vim.fn.setqflist({}, "r", { items = items })
+            if #items > 0 then
+              vim.fn.cursor(math.min(line, #items), 1)
+            end
+          end, { buffer = ev.buf, desc = "Delete quickfix entry" })
           vim.keymap.set("n", "dv", function()
             vim.cmd("cc " .. vim.fn.line("."))
             pr_diff()
@@ -99,11 +143,67 @@ return {
             vim.cmd("cc " .. vim.fn.line("."))
             pr_qf_clamp()
           end, { buffer = ev.buf, desc = "Open entry" })
+          -- Toggle a ✓ reviewed marker (rendered by the PRReview quickfixtextfunc)
+          vim.keymap.set("n", "m", function()
+            local line = vim.fn.line(".")
+            local items = vim.fn.getqflist()
+            local item = items[line]
+            if not item then
+              return
+            end
+            local ud = type(item.user_data) == "table" and item.user_data or {}
+            ud.reviewed = not ud.reviewed or nil
+            item.user_data = ud
+            vim.fn.setqflist({}, "r", { items = items })
+            vim.fn.cursor(line, 1)
+          end, { buffer = ev.buf, desc = "Toggle reviewed marker" })
         end,
       })
 
-      -- Checkout the PR, load its changed files into the quickfix list,
-      -- then step through with ]r / [r.
+      -- Load the files changed vs base_ref (merge-base) into the quickfix
+      -- list and set up review state (diff base, gitsigns base), then step
+      -- through with ]r / [r.
+      local function setup_review(base_ref)
+        vim.g.pr_review_base = base_ref
+        -- Make gitsigns (signs, ]c outside diff windows) show changes
+        -- vs the merge-base instead of the index. Undo: :Gitsigns reset_base true
+        local mb = vim.trim(vim.fn.system({ "git", "merge-base", base_ref, "HEAD" }))
+        if vim.v.shell_error == 0 and mb ~= "" then
+          require("gitsigns").change_base(mb, true)
+        end
+        vim.cmd("Git difftool --name-status " .. base_ref .. "...")
+        -- difftool with a range creates entries pointing at read-only fugitive
+        -- blobs; repoint them at the working-tree files (no LSP/gitsigns
+        -- otherwise). Deleted files keep the base blob.
+        local worktree = vim.fn.FugitiveWorkTree()
+        local items = vim.fn.getqflist()
+        for _, item in ipairs(items) do
+          local rel = vim.fn.bufname(item.bufnr):match("//%x+/(.*)$")
+          if rel and vim.fn.filereadable(worktree .. "/" .. rel) == 1 then
+            item.bufnr = vim.fn.bufadd(worktree .. "/" .. rel)
+          end
+        end
+        -- render entries as "<mark> <status> <path>" instead of vim's default
+        vim.fn.setqflist({}, "r", {
+          items = items,
+          quickfixtextfunc = function(info)
+            local qf = vim.fn.getqflist({ id = info.id, items = true }).items
+            local out = {}
+            for i = info.start_idx, info.end_idx do
+              local name = vim.fn.bufname(qf[i].bufnr)
+              -- deleted files point at the base blob; show the plain path
+              name = name:match("//%x+/(.*)$") or vim.fn.fnamemodify(name, ":~:.")
+              local ud = qf[i].user_data
+              local mark = type(ud) == "table" and ud.reviewed and "✓" or " "
+              out[#out + 1] = mark .. " " .. qf[i].text .. " " .. name
+            end
+            return out
+          end,
+        })
+        vim.cmd("botright copen")
+      end
+
+      -- Checkout the PR, resolve its base branch, then run the review flow.
       local function pr_review(target)
         vim.fn.system({ "gh", "pr", "checkout", target })
         if vim.v.shell_error ~= 0 then
@@ -117,30 +217,33 @@ return {
           return
         end
         vim.fn.system({ "git", "fetch", "origin", base })
-        vim.g.pr_review_base = "origin/" .. base
-        -- Make gitsigns (signs, ]c outside diff windows) show PR changes
-        -- vs the merge-base instead of the index. Undo: :Gitsigns reset_base true
-        local mb = vim.trim(vim.fn.system({ "git", "merge-base", vim.g.pr_review_base, "HEAD" }))
-        if vim.v.shell_error == 0 and mb ~= "" then
-          require("gitsigns").change_base(mb, true)
-        end
-        vim.cmd("Git difftool --name-status " .. vim.g.pr_review_base .. "...")
-        -- render entries as "<status> <path>" instead of vim's default format
-        vim.fn.setqflist({}, "r", {
-          quickfixtextfunc = function(info)
-            local items = vim.fn.getqflist({ id = info.id, items = true }).items
-            local out = {}
-            for i = info.start_idx, info.end_idx do
-              local name = vim.fn.bufname(items[i].bufnr)
-              -- deleted files point at the base blob; show the plain path
-              name = name:match("%.git//%x+/(.*)$") or name
-              out[#out + 1] = items[i].text .. " " .. name
-            end
-            return out
-          end,
-        })
-        vim.cmd("botright copen")
+        setup_review("origin/" .. base)
       end
+
+      -- :DiffReview [ref] — same review flow against any commit/ref
+      -- (e.g. HEAD^, origin/main, a SHA), without touching the checkout.
+      vim.api.nvim_create_user_command("DiffReview", function(opts)
+        local ref = opts.args ~= "" and opts.args or "HEAD^"
+        vim.fn.system({ "git", "rev-parse", "--verify", ref .. "^{commit}" })
+        if vim.v.shell_error ~= 0 then
+          vim.notify("Not a commit: " .. ref, vim.log.levels.ERROR)
+          return
+        end
+        setup_review(ref)
+      end, {
+        nargs = "?",
+        complete = function(arg)
+          local refs = vim.fn.systemlist({
+            "git", "for-each-ref", "--format=%(refname:short)",
+            "refs/heads", "refs/remotes", "refs/tags",
+          })
+          table.insert(refs, 1, "HEAD^")
+          return vim.tbl_filter(function(r)
+            return r:find(arg, 1, true) == 1
+          end, refs)
+        end,
+        desc = "Review working tree vs a commit/ref (PRReview flow without checkout)",
+      })
 
       -- :PRReview [number|url|branch] — with no args, pick from open PRs.
       vim.api.nvim_create_user_command("PRReview", function(opts)
@@ -204,7 +307,13 @@ return {
       })
       vim.api.nvim_create_autocmd("User", {
         pattern = { "FugitiveIndex", "FugitivePager" },
-        callback = function()
+        callback = function(ev)
+          -- Pager buffers don't map "-" themselves, so the global Oil map
+          -- would fire there; the index buffer keeps fugitive's own
+          -- stage/unstage "-".
+          if ev.match == "FugitivePager" then
+            vim.keymap.set("n", "-", "<Nop>", { buffer = true })
+          end
           vim.keymap.set("n", "q", "gq", { buffer = true, remap = true })
           vim.keymap.set("n", "<C-N>", ")", { buffer = true, remap = true })
           vim.keymap.set("n", "<C-P>", "(", { buffer = true, remap = true })
