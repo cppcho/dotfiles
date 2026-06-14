@@ -22,35 +22,20 @@ ghr() {
   fi
 }
 
-# Restore git state after a :PRReview/:DiffReview: force back to the branch you
-# were on before the review and pop the exact saved stash. Mirrors :ReviewRestore
-# in nvim, including the stale-marker guard that never destroys real work.
+# Tear down the worktree a :PRReview/:DiffReview created and cd back to where it
+# started. Mirrors :ReviewRestore in nvim; the user's checkout is never touched.
 ghrr() {
-  local gitdir f ref stash_sha gd
-  gitdir=$(git rev-parse --absolute-git-dir 2>/dev/null) || { echo "not a git repo"; return 1; }
-  f="$gitdir/REVIEW_RESTORE"
-  [[ -f "$f" ]] || { echo "No review to restore"; return 1; }
-  ref=$(sed -n 1p "$f"); stash_sha=$(sed -n 2p "$f")
-  _ghrr_pop() {
-    [[ -n "$stash_sha" ]] || return 0
-    gd=$(git stash list --format='%H %gd' | awk -v s="$stash_sha" '$1==s{print $2; exit}')
-    [[ -n "$gd" ]] && git stash pop "$gd"
-  }
-  if git symbolic-ref --quiet HEAD >/dev/null 2>&1; then
-    # On a branch: marker is stale. Never touch the working tree.
-    if [[ -n "$(git status --porcelain)" ]]; then
-      echo "Stale review marker; tree dirty — left untouched."
-      [[ -n "$stash_sha" ]] && echo "Recover work: git stash pop $stash_sha"
-      unset -f _ghrr_pop; return 1
-    fi
-    _ghrr_pop; rm -f "$f"; echo "Cleared stale review marker"
-    unset -f _ghrr_pop; return 0
+  local common marker scratch return_dir
+  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || { echo "not a git repo"; return 1; }
+  marker="$common/REVIEW_WT"
+  [[ -f "$marker" ]] || { echo "No review to restore"; return 1; }
+  scratch=$(sed -n 1p "$marker"); return_dir=$(sed -n 2p "$marker")
+  [[ -n "$return_dir" && -d "$return_dir" ]] && cd "$return_dir"
+  if [[ -n "$scratch" ]]; then
+    git worktree remove --force "$scratch" 2>/dev/null || { git worktree prune; rm -rf "$scratch"; }
   fi
-  [[ -n "$ref" ]] || { echo "Review marker corrupt"; unset -f _ghrr_pop; return 1; }
-  git checkout --force "$ref" || { echo "git checkout failed: $ref (marker kept)"; unset -f _ghrr_pop; return 1; }
-  git clean -fd
-  _ghrr_pop; rm -f "$f"; echo "Restored to $ref"
-  unset -f _ghrr_pop
+  rm -f "$marker"
+  echo "Review worktree removed"
 }
 
 # URL encode a string
