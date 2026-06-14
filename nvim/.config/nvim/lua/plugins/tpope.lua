@@ -10,19 +10,124 @@ local function close_diff()
   vim.cmd("diffoff!")
 end
 
--- Stash a dirty tree (including untracked) so the only changes left are the
--- ones a review sets up. Returns false on failure.
-local function stash_if_dirty()
-  if vim.trim(vim.fn.system({ "git", "status", "--porcelain" })) == "" then
-    return true
+-- Path to a file inside the per-worktree git dir (absolute, cwd-independent).
+-- nil when not in a git repo.
+local function git_path(name)
+  local dir = vim.trim(vim.fn.system({ "git", "rev-parse", "--absolute-git-dir" }))
+  if vim.v.shell_error ~= 0 or dir == "" then
+    return nil
   end
-  vim.fn.system({ "git", "stash", "push", "-u", "-m", "PRReview autostash" })
-  if vim.v.shell_error ~= 0 then
-    vim.notify("git stash failed; aborting", vim.log.levels.ERROR)
+  return dir .. "/" .. name
+end
+
+local function is_dirty()
+  return vim.trim(vim.fn.system({ "git", "status", "--porcelain" })) ~= ""
+end
+
+-- True only during an active review. A review always leaves a detached HEAD
+-- plus the restore marker; a marker found while on a branch is stale (an
+-- abandoned review), so the next review is a fresh start and restore treats the
+-- working tree as the user's — never destroying it.
+local function review_in_progress()
+  local path = git_path("REVIEW_RESTORE")
+  if not path or vim.fn.filereadable(path) ~= 1 then
     return false
   end
-  vim.notify("Stashed local changes (git stash pop to restore)")
+  return vim.trim(vim.fn.system({ "git", "symbolic-ref", "--quiet", "HEAD" })) == ""
+end
+
+-- Pop the exact stash recorded at review start (matched by commit SHA), so a
+-- stash from another worktree or an unrelated autostash is never popped by
+-- mistake. No-op if the SHA is empty or the stash is already gone.
+local function pop_review_stash(sha)
+  if not sha or sha == "" then
+    return
+  end
+  local gd = vim.trim(vim.fn.system(
+    "git stash list --format='%H %gd' | awk -v s='" .. sha .. "' '$1==s{print $2; exit}'"))
+  if gd ~= "" then
+    vim.fn.system({ "git", "stash", "pop", gd })
+  end
+end
+
+-- Start a review; return false if it cannot reach a clean tree. Fresh start (on
+-- a branch): record the branch to return to and the SHA of a stash holding the
+-- user's real work, overwriting any stale marker. Follow-up (already mid-review):
+-- discard the previous review's working-tree diff — that content lives in the
+-- PR/branch — so there is only ever one autostash and a single restore returns
+-- to the true branch.
+local function begin_review()
+  if review_in_progress() then
+    vim.fn.system({ "git", "reset", "--hard" })
+    vim.fn.system({ "git", "clean", "-fd" })
+    return true
+  end
+  local path = git_path("REVIEW_RESTORE")
+  if not path then
+    vim.notify("Not in a git repo", vim.log.levels.ERROR)
+    return false
+  end
+  local ref = vim.trim(vim.fn.system({ "git", "symbolic-ref", "--quiet", "--short", "HEAD" }))
+  if ref == "" then
+    ref = vim.trim(vim.fn.system({ "git", "rev-parse", "HEAD" }))
+  end
+  local stash_sha = ""
+  if is_dirty() then
+    vim.fn.system({ "git", "stash", "push", "-u", "-m", "PRReview autostash" })
+    if vim.v.shell_error ~= 0 then
+      vim.notify("git stash failed; aborting", vim.log.levels.ERROR)
+      return false
+    end
+    stash_sha = vim.trim(vim.fn.system({ "git", "rev-parse", "stash@{0}" }))
+    vim.notify("Stashed local changes (restored by :ReviewRestore)")
+  end
+  vim.fn.writefile({ ref, stash_sha }, path)
   return true
+end
+
+-- Undo a :PRReview/:DiffReview. During an active review (detached HEAD) the
+-- working tree is the review's content: force back to the saved branch, sweep
+-- PR-added untracked files, and pop the saved stash. If the marker is stale
+-- (already on a branch) never touch the working tree — only pop the saved stash
+-- when the tree is clean, and keep the marker if dirty so a retry can finish.
+local function review_restore()
+  local path = git_path("REVIEW_RESTORE")
+  if not path or vim.fn.filereadable(path) ~= 1 then
+    vim.notify("No review to restore", vim.log.levels.WARN)
+    return
+  end
+  local lines = vim.fn.readfile(path)
+  local ref, stash_sha = lines[1], lines[2] or ""
+
+  if not review_in_progress() then
+    if is_dirty() then
+      local hint = stash_sha ~= "" and (" Recover work: git stash pop " .. stash_sha) or ""
+      vim.notify("Stale review marker; tree dirty — left untouched." .. hint, vim.log.levels.WARN)
+      return -- keep marker so a clean retry can still pop the stash
+    end
+    pop_review_stash(stash_sha)
+    vim.fn.delete(path)
+    vim.cmd("checktime")
+    vim.notify("Cleared stale review marker")
+    return
+  end
+
+  if not ref or ref == "" then
+    vim.notify("Review marker corrupt; aborting", vim.log.levels.ERROR)
+    return
+  end
+  vim.fn.system({ "git", "checkout", "--force", ref })
+  if vim.v.shell_error ~= 0 then
+    vim.notify("git checkout failed: " .. ref .. " (marker kept)", vim.log.levels.ERROR)
+    return
+  end
+  -- PR-added (untracked) files survive --force; the user's own untracked work
+  -- is safe in the stash, popped next.
+  vim.fn.system({ "git", "clean", "-fd" })
+  pop_review_stash(stash_sha)
+  vim.fn.delete(path)
+  vim.cmd("checktime")
+  vim.notify("Restored to " .. ref)
 end
 
 -- Set up the worktree to review against base_ref as *unstaged* changes: detach
@@ -43,7 +148,7 @@ local function review_against(base_ref, label)
     return
   end
   vim.cmd("checktime")
-  vim.notify(label .. " ready for review (base: " .. base_ref .. ")")
+  vim.notify(label .. " ready (base: " .. base_ref .. ") — :ReviewRestore to return")
   vim.cmd("topleft 12split | 0Git")
 end
 
@@ -59,6 +164,7 @@ return {
       { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
       { "<leader>gv", "<cmd>PRReview<CR>",               desc = "PR review: pick an open PR" },
       { "<leader>gi", ":PRReview ",                      desc = "PR review: enter PR/branch/URL" },
+      { "<leader>gr", "<cmd>ReviewRestore<CR>",          desc = "Review restore: return to branch" },
       -- Shadows the global <leader>q (close buffer): in a diff, land on the
       -- working-tree file and close the diff instead
       {
@@ -82,24 +188,38 @@ return {
       },
     },
     config = function()
-      -- Set up the current worktree to review a PR as *unstaged* changes:
-      -- stash anything dirty, check out the PR (fetches its head), then hand off
-      -- to review_against with the PR's base branch.
+      -- Set up the current worktree to review a PR as *unstaged* changes
+      -- without creating a local branch: stash anything dirty, fetch the PR's
+      -- head, check it out *detached* (no new branch), then hand off to
+      -- review_against, which resets the index to the merge-base so the PR diff
+      -- shows as unstaged. Assumes the PR's head lives in origin (same-repo PRs).
       local function pr_review(target)
-        if not stash_if_dirty() then
-          return
-        end
-        vim.fn.system({ "gh", "pr", "checkout", target })
-        if vim.v.shell_error ~= 0 then
-          vim.notify("gh pr checkout failed: " .. target, vim.log.levels.ERROR)
-          return
-        end
-        local base = vim.trim(vim.fn.system({ "gh", "pr", "view", "--json", "baseRefName", "-q", ".baseRefName" }))
-        if vim.v.shell_error ~= 0 or base == "" then
+        -- Everything that can fail (gh, fetch) runs first and read-only, so a bad
+        -- target / fork PR / offline aborts before begin_review touches state.
+        local refs = vim.fn.systemlist({
+          "gh", "pr", "view", target, "--json", "headRefName,baseRefName",
+          "-q", ".headRefName, .baseRefName",
+        })
+        if vim.v.shell_error ~= 0 or #refs < 2 then
           vim.notify("gh pr view failed for: " .. target, vim.log.levels.ERROR)
           return
         end
+        local head, base = refs[1], refs[2]
+        vim.fn.system({ "git", "fetch", "origin", head })
+        if vim.v.shell_error ~= 0 then
+          vim.notify("git fetch failed for PR head: " .. head .. " (fork PRs unsupported)", vim.log.levels.ERROR)
+          return
+        end
+        local head_sha = vim.trim(vim.fn.system({ "git", "rev-parse", "FETCH_HEAD" }))
         vim.fn.system({ "git", "fetch", "origin", base })
+        if not begin_review() then
+          return
+        end
+        vim.fn.system({ "git", "checkout", "--detach", head_sha })
+        if vim.v.shell_error ~= 0 then
+          vim.notify("git checkout failed for PR head: " .. head, vim.log.levels.ERROR)
+          return
+        end
         review_against("origin/" .. base, "PR " .. target)
       end
 
@@ -113,7 +233,13 @@ return {
           vim.notify("Not a commit: " .. ref, vim.log.levels.ERROR)
           return
         end
-        if not stash_if_dirty() then
+        -- Validate the merge-base before begin_review, so an unrelated ref can't
+        -- stash the user's work and then abort.
+        if vim.trim(vim.fn.system({ "git", "merge-base", ref, "HEAD" })) == "" then
+          vim.notify("No merge-base with " .. ref, vim.log.levels.ERROR)
+          return
+        end
+        if not begin_review() then
           return
         end
         review_against(ref, "Diff vs " .. ref)
@@ -185,6 +311,12 @@ return {
           end,
         })
       end, { nargs = "?", desc = "Review a PR: base checked out, PR changes unstaged" })
+
+      -- :ReviewRestore — return to the branch you were on before a review,
+      -- popping the autostash. No-op (warns) if no review is in progress.
+      vim.api.nvim_create_user_command("ReviewRestore", review_restore, {
+        desc = "Return to the pre-review branch and pop the autostash",
+      })
 
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "fugitive",

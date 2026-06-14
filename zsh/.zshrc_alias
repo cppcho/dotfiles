@@ -22,5 +22,36 @@ ghr() {
   fi
 }
 
+# Restore git state after a :PRReview/:DiffReview: force back to the branch you
+# were on before the review and pop the exact saved stash. Mirrors :ReviewRestore
+# in nvim, including the stale-marker guard that never destroys real work.
+ghrr() {
+  local gitdir f ref stash_sha gd
+  gitdir=$(git rev-parse --absolute-git-dir 2>/dev/null) || { echo "not a git repo"; return 1; }
+  f="$gitdir/REVIEW_RESTORE"
+  [[ -f "$f" ]] || { echo "No review to restore"; return 1; }
+  ref=$(sed -n 1p "$f"); stash_sha=$(sed -n 2p "$f")
+  _ghrr_pop() {
+    [[ -n "$stash_sha" ]] || return 0
+    gd=$(git stash list --format='%H %gd' | awk -v s="$stash_sha" '$1==s{print $2; exit}')
+    [[ -n "$gd" ]] && git stash pop "$gd"
+  }
+  if git symbolic-ref --quiet HEAD >/dev/null 2>&1; then
+    # On a branch: marker is stale. Never touch the working tree.
+    if [[ -n "$(git status --porcelain)" ]]; then
+      echo "Stale review marker; tree dirty — left untouched."
+      [[ -n "$stash_sha" ]] && echo "Recover work: git stash pop $stash_sha"
+      unset -f _ghrr_pop; return 1
+    fi
+    _ghrr_pop; rm -f "$f"; echo "Cleared stale review marker"
+    unset -f _ghrr_pop; return 0
+  fi
+  [[ -n "$ref" ]] || { echo "Review marker corrupt"; unset -f _ghrr_pop; return 1; }
+  git checkout --force "$ref" || { echo "git checkout failed: $ref (marker kept)"; unset -f _ghrr_pop; return 1; }
+  git clean -fd
+  _ghrr_pop; rm -f "$f"; echo "Restored to $ref"
+  unset -f _ghrr_pop
+}
+
 # URL encode a string
 urlencode() { python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"; }
