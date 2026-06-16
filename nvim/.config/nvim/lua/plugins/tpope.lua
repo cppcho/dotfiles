@@ -10,6 +10,31 @@ local function close_diff()
   vim.cmd("diffoff!")
 end
 
+-- Collapse the tab to just the diff pair: close every non-diff window (the
+-- fugitive status window and any files left over from earlier opens) so a
+-- review shows only the left/right diff. No-op until a diff window exists.
+local function only_diff()
+  local wins = vim.api.nvim_tabpage_list_wins(0)
+  if not vim.tbl_contains(vim.tbl_map(function(w) return vim.wo[w].diff end, wins), true) then
+    return
+  end
+  for _, win in ipairs(wins) do
+    if not vim.wo[win].diff then
+      pcall(vim.api.nvim_win_close, win, false)
+    end
+  end
+end
+
+-- Trigger a fugitive status map by its <Plug> name, then run cleanup once the
+-- file/diff windows have opened (scheduled so they exist by the time it runs).
+local function fugitive_then(plug, cleanup)
+  return function()
+    local keys = vim.api.nvim_replace_termcodes("<Plug>fugitive:" .. plug, true, false, true)
+    vim.api.nvim_feedkeys(keys, "mx", false)
+    vim.schedule(cleanup)
+  end
+end
+
 -- A review happens in a throwaway *linked git worktree*, so the user's real
 -- worktree, branch, index and stash are never touched. State lives in one marker
 -- file (REVIEW_WT) in the shared git dir: line 1 = scratch worktree path, line 2
@@ -292,6 +317,18 @@ return {
           -- stage/unstage "-".
           if ev.match == "FugitivePager" then
             vim.keymap.set("n", "-", "<Nop>", { buffer = true })
+          end
+          -- In the status buffer, opening a file or diff collapses the layout
+          -- so only the relevant windows remain: <CR> leaves just the file,
+          -- the diff maps leave just the left/right diff pair. o/gO/O keep
+          -- fugitive's explicit split/vsplit/tab behaviour untouched.
+          if ev.match == "FugitiveIndex" then
+            vim.keymap.set("n", "<CR>", fugitive_then("<CR>", function() vim.cmd("only") end),
+              { buffer = true, desc = "Open file (close other windows)" })
+            for _, key in ipairs({ "dv", "dh", "ds", "dd" }) do
+              vim.keymap.set("n", key, fugitive_then(key, only_diff),
+                { buffer = true, desc = "Diff (close non-diff windows)" })
+            end
           end
           vim.keymap.set("n", "q", "gq", { buffer = true, remap = true })
           vim.keymap.set("n", "<C-N>", ")", { buffer = true, remap = true })
