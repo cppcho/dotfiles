@@ -35,116 +35,6 @@ local function fugitive_then(plug, cleanup)
   end
 end
 
--- A review happens in a throwaway *linked git worktree*, so the user's real
--- worktree, branch, index and stash are never touched. State lives in one marker
--- file (REVIEW_WT) in the shared git dir: line 1 = scratch worktree path, line 2
--- = the dir to return to. :ReviewRestore tears the worktree down.
-
--- Absolute shared git dir (same across all linked worktrees of a repo), or nil
--- when not in a git repo. dir overrides where git runs (defaults to cwd).
-local function common_dir(dir)
-  local cmd = { "git" }
-  if dir then
-    vim.list_extend(cmd, { "-C", dir })
-  end
-  vim.list_extend(cmd, { "rev-parse", "--path-format=absolute", "--git-common-dir" })
-  local d = vim.trim(vim.fn.system(cmd))
-  if vim.v.shell_error ~= 0 or d == "" then
-    return nil
-  end
-  return d
-end
-
-local function marker_path(common)
-  return common .. "/REVIEW_WT"
-end
-
--- Deterministic scratch worktree path for this repo, kept under nvim's cache
--- (outside the repo tree) so file search / LSP treat it as its own root.
-local function scratch_path(common)
-  return vim.fn.stdpath("cache") .. "/review-wt/" .. vim.fn.sha256(common):sub(1, 16)
-end
-
--- The dir to run git from / return to: the active review's saved return dir if a
--- review is in progress, otherwise the cwd. Keeps git acting on the user's real
--- worktree even when nvim has cd'd into a previous review's scratch.
-local function review_main()
-  local common = common_dir()
-  if common and vim.fn.filereadable(marker_path(common)) == 1 then
-    local rd = vim.fn.readfile(marker_path(common))[2]
-    if rd and rd ~= "" then
-      return rd
-    end
-  end
-  return vim.fn.getcwd()
-end
-
--- Remove the review worktree, tolerant of a hand-deleted dir. Must run from a
--- cwd outside it (git refuses to remove the worktree you are standing in).
-local function remove_worktree(main, scratch)
-  vim.fn.system({ "git", "-C", main, "worktree", "remove", "--force", scratch })
-  if vim.v.shell_error ~= 0 then
-    vim.fn.system({ "git", "-C", main, "worktree", "prune" })
-    vim.fn.delete(scratch, "rf")
-  end
-end
-
--- Wipe buffers (files and fugitive buffers) living in the scratch worktree so
--- removing it leaves nothing dangling.
-local function wipe_scratch_buffers(scratch)
-  local id = vim.fn.fnamemodify(scratch, ":t")
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    local name = vim.api.nvim_buf_get_name(buf)
-    if name:find(scratch, 1, true) or name:find("worktrees/" .. id, 1, true) then
-      pcall(vim.api.nvim_buf_delete, buf, { force = true })
-    end
-  end
-end
-
--- Open a review of content_sha against merge-base mb in a fresh linked worktree
--- and cd the tab into it. main is the user's real worktree (git runs there, and
--- we return to it). content_sha lands in the working tree while index+HEAD reset
--- to mb, so the diff shows as unstaged, reviewable with fugitive's dv / =.
-local function open_review(main, content_sha, mb, label)
-  local common = common_dir(main)
-  if not common then
-    vim.notify("Not in a git repo", vim.log.levels.ERROR)
-    return
-  end
-  local scratch = scratch_path(common)
-  remove_worktree(main, scratch) -- drop any previous review's worktree
-  vim.fn.system({ "git", "-C", main, "worktree", "add", "--force", "--detach", scratch, content_sha })
-  if vim.v.shell_error ~= 0 then
-    vim.notify("git worktree add failed", vim.log.levels.ERROR)
-    return
-  end
-  vim.fn.system({ "git", "-C", scratch, "reset", "--mixed", mb })
-  vim.fn.writefile({ scratch, main }, marker_path(common))
-  vim.cmd("tcd " .. vim.fn.fnameescape(scratch))
-  vim.notify(label .. " ready in review worktree — :ReviewRestore to return")
-  vim.cmd("topleft 12split | 0Git")
-end
-
--- Tear down the review worktree and cd the tab back to where it started.
-local function review_restore()
-  local common = common_dir()
-  if not common or vim.fn.filereadable(marker_path(common)) ~= 1 then
-    vim.notify("No review to restore", vim.log.levels.WARN)
-    return
-  end
-  local lines = vim.fn.readfile(marker_path(common))
-  local scratch, return_dir = lines[1], lines[2]
-  if return_dir and return_dir ~= "" then
-    vim.cmd("tcd " .. vim.fn.fnameescape(return_dir))
-  end
-  if scratch and scratch ~= "" then
-    wipe_scratch_buffers(scratch)
-    remove_worktree(return_dir or vim.fn.getcwd(), scratch)
-  end
-  vim.fn.delete(marker_path(common))
-  vim.notify("Review worktree removed")
-end
-
 return {
   -- https://github.com/tpope/vim-fugitive
   {
@@ -157,7 +47,6 @@ return {
       { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
       { "<leader>gv", "<cmd>PRReview<CR>",               desc = "PR review: pick an open PR" },
       { "<leader>gi", ":PRReview ",                      desc = "PR review: enter PR/branch/URL" },
-      { "<leader>gr", "<cmd>ReviewRestore<CR>",          desc = "Review restore: remove worktree, return" },
       -- Shadows the global <leader>q (close buffer): in a diff, land on the
       -- working-tree file and close the diff instead
       {
@@ -181,67 +70,26 @@ return {
       },
     },
     config = function()
-      -- Review a PR in a throwaway worktree without touching the user's checkout
-      -- or creating a local branch: fetch the PR's head, then open it against its
-      -- base's merge-base. Everything that can fail (gh, fetch) runs first and
-      -- read-only. Assumes the PR's head lives in origin (same-repo PRs).
+      -- Review a PR in its own gwt-managed worktree + tmux session (rather than
+      -- re-rooting this nvim): hand off to `gwt review`, which creates the
+      -- worktree, surfaces the PR as one unstaged diff, and switches the tmux
+      -- client into a fresh nvim there. Errors from gwt are surfaced on failure.
       local function pr_review(target)
-        local main = review_main()
-        local refs = vim.fn.systemlist({
-          "gh", "pr", "view", target, "--json", "headRefName,baseRefName",
-          "-q", ".headRefName, .baseRefName",
+        local err = {}
+        vim.fn.jobstart({ "gwt", "review", target }, {
+          cwd = vim.fn.getcwd(),
+          on_stderr = function(_, data)
+            vim.list_extend(err, data)
+          end,
+          on_exit = function(_, code)
+            if code ~= 0 then
+              vim.schedule(function()
+                vim.notify("gwt review failed: " .. vim.trim(table.concat(err, "\n")), vim.log.levels.ERROR)
+              end)
+            end
+          end,
         })
-        if vim.v.shell_error ~= 0 or #refs < 2 then
-          vim.notify("gh pr view failed for: " .. target, vim.log.levels.ERROR)
-          return
-        end
-        local head, base = refs[1], refs[2]
-        vim.fn.system({ "git", "-C", main, "fetch", "origin", head })
-        if vim.v.shell_error ~= 0 then
-          vim.notify("git fetch failed for PR head: " .. head .. " (fork PRs unsupported)", vim.log.levels.ERROR)
-          return
-        end
-        local head_sha = vim.trim(vim.fn.system({ "git", "-C", main, "rev-parse", "FETCH_HEAD" }))
-        vim.fn.system({ "git", "-C", main, "fetch", "origin", base })
-        local mb = vim.trim(vim.fn.system({ "git", "-C", main, "merge-base", "origin/" .. base, head_sha }))
-        if mb == "" then
-          vim.notify("No merge-base with origin/" .. base, vim.log.levels.ERROR)
-          return
-        end
-        open_review(main, head_sha, mb, "PR " .. target)
       end
-
-      -- :DiffReview [ref] — review the current branch's commits since a ref
-      -- (e.g. HEAD^, origin/main, a SHA) in a throwaway worktree.
-      vim.api.nvim_create_user_command("DiffReview", function(opts)
-        local main = review_main()
-        local ref = opts.args ~= "" and opts.args or "HEAD^"
-        vim.fn.system({ "git", "-C", main, "rev-parse", "--verify", ref .. "^{commit}" })
-        if vim.v.shell_error ~= 0 then
-          vim.notify("Not a commit: " .. ref, vim.log.levels.ERROR)
-          return
-        end
-        local head_sha = vim.trim(vim.fn.system({ "git", "-C", main, "rev-parse", "HEAD" }))
-        local mb = vim.trim(vim.fn.system({ "git", "-C", main, "merge-base", ref, "HEAD" }))
-        if mb == "" then
-          vim.notify("No merge-base with " .. ref, vim.log.levels.ERROR)
-          return
-        end
-        open_review(main, head_sha, mb, "Diff vs " .. ref)
-      end, {
-        nargs = "?",
-        complete = function(arg)
-          local refs = vim.fn.systemlist({
-            "git", "for-each-ref", "--format=%(refname:short)",
-            "refs/heads", "refs/remotes", "refs/tags",
-          })
-          table.insert(refs, 1, "HEAD^")
-          return vim.tbl_filter(function(r)
-            return r:find(arg, 1, true) == 1
-          end, refs)
-        end,
-        desc = "Review commits since a ref in a throwaway worktree",
-      })
 
       -- :PRReview [number|url|branch] — with no args, pick from open PRs.
       vim.api.nvim_create_user_command("PRReview", function(opts)
@@ -296,12 +144,6 @@ return {
           end,
         })
       end, { nargs = "?", desc = "Review a PR: base checked out, PR changes unstaged" })
-
-      -- :ReviewRestore — tear down the review worktree and cd back. No-op
-      -- (warns) if no review is in progress.
-      vim.api.nvim_create_user_command("ReviewRestore", review_restore, {
-        desc = "Remove the review worktree and return",
-      })
 
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "fugitive",

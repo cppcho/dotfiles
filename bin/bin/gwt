@@ -83,6 +83,24 @@ resolve_branch() {
     return 0
 }
 
+# Echo the PR number if the input is a PR reference (a github pull URL, #N, or a
+# bare number that gh confirms is a PR), else return non-zero. The gh call only
+# fires for a bare number, so branch names never pay for it.
+pr_number_from_input() {
+    local input="$1"
+    if [[ "$input" =~ github\.com/[^/]+/[^/]+/pull/([0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    elif [[ "$input" =~ ^#([0-9]+)$ ]]; then
+        echo "${BASH_REMATCH[1]}"
+    elif [[ "$input" =~ ^([0-9]+)$ ]] \
+        && command -v gh &>/dev/null \
+        && gh pr view "${BASH_REMATCH[1]}" --json number &>/dev/null; then
+        echo "${BASH_REMATCH[1]}"
+    else
+        return 1
+    fi
+}
+
 # Check if a branch has been merged into the default branch.
 # Handles fast-forward/merge commits (ancestor check) and squash/rebase
 # merges (patch-equivalence via git cherry).
@@ -221,6 +239,23 @@ cmd_switch() {
         return
     fi
 
+    # PR reference (pull URL, #N, or a bare number that resolves to a PR): open
+    # it in review mode unless a review worktree already exists, in which case
+    # just switch to it. Non-PR refs fall through to a normal branch worktree.
+    local pr_num
+    if pr_num=$(pr_number_from_input "$input"); then
+        local review_branch="review/pr-${pr_num}"
+        local existing_review
+        existing_review=$(find_worktree_for_branch "$review_branch")
+        if [[ -n "$existing_review" ]]; then
+            echo "Review worktree exists: $existing_review"
+            open_in_tmux "$review_branch" "$existing_review"
+        else
+            cmd_review "#${pr_num}"
+        fi
+        return
+    fi
+
     # Argument given — create worktree if needed, then switch
     local branch
     branch=$(resolve_branch "$input") || exit 1
@@ -283,6 +318,61 @@ cmd_switch() {
 
     # Open in tmux
     open_in_tmux "$branch" "$wt_path"
+}
+
+# Review a PR in a throwaway worktree + tmux session. Unlike `switch` (which
+# checks out a branch to work on), this surfaces the whole PR as one unstaged
+# diff: the worktree starts at the PR head, then HEAD/index reset to the
+# merge-base, so fugitive's status shows every PR change reviewable with dv/=.
+# Fetches the head via refs/pull/<n>/head so fork PRs work too.
+cmd_review() {
+    local input="${*// /}"
+    if [[ -z "$input" ]]; then
+        echo "Usage: gwt review <#PR|url|number>" >&2
+        exit 1
+    fi
+    command -v gh &>/dev/null || { echo "Error: gh CLI required for review" >&2; exit 1; }
+
+    local pr_num
+    pr_num=$(pr_number_from_input "$input") \
+        || { echo "Error: not a PR number/url: $input" >&2; exit 1; }
+
+    local base
+    base=$(gh pr view "$pr_num" --json baseRefName --jq .baseRefName 2>/dev/null) \
+        || { echo "Error: gh pr view failed for #$pr_num" >&2; exit 1; }
+    [[ -n "$base" ]] || { echo "Error: could not resolve base branch for #$pr_num" >&2; exit 1; }
+
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+
+    # Head via the GitHub pull ref (fork-safe); base from origin for the merge-base.
+    git fetch origin "pull/${pr_num}/head" 2>/dev/null \
+        || { echo "Error: failed to fetch head of PR #$pr_num" >&2; exit 1; }
+    local head_sha
+    head_sha=$(git rev-parse FETCH_HEAD)
+    git fetch origin "$base" 2>/dev/null || true
+    local mb
+    mb=$(git merge-base "origin/${base}" "$head_sha" 2>/dev/null) || true
+    [[ -n "$mb" ]] || { echo "Error: no merge-base with origin/$base" >&2; exit 1; }
+
+    local branch="review/pr-${pr_num}"
+    local wt_path="${main_worktree}/../review-pr-${pr_num}"
+
+    # Recreate fresh each time so the review reflects the latest PR head.
+    kill_worktree_tmux_session "$wt_path" "$main_worktree"
+    local existing
+    existing=$(find_worktree_for_branch "$branch")
+    [[ -n "$existing" ]] && git worktree remove --force "$existing" 2>/dev/null || true
+    git worktree prune
+    git branch -D "$branch" 2>/dev/null || true
+    [[ -d "$wt_path" ]] && rm -rf "$wt_path"
+
+    git worktree add -b "$branch" "$wt_path" "$head_sha" \
+        || { echo "Error: git worktree add failed" >&2; exit 1; }
+    wt_path=$(cd "$wt_path" && pwd)
+    git -C "$wt_path" reset --mixed "$mb"
+
+    open_in_tmux "$branch" "$wt_path" "nvim -c 'topleft 12split | 0Git'"
 }
 
 cmd_delete() {
@@ -353,6 +443,12 @@ cmd_delete() {
         fi
     else
         git worktree remove "${remove_args[@]}"
+    fi
+
+    # Review worktrees ride a synthetic review/* branch (see cmd_review) that has
+    # no upstream — drop it too so they don't accumulate.
+    if [[ "$branch" == review/* ]]; then
+        git branch -D "$branch" 2>/dev/null || true
     fi
 
     # Kill associated tmux session (must be last — may kill our own process)
@@ -460,6 +556,7 @@ cmd_purge() {
 open_in_tmux() {
     local branch="$1"
     local wt_path="$2"
+    local start_cmd="${3:-}"  # optional command to run in a freshly created session
 
     local session_name
     session_name=$(session_name_for_path "$wt_path")
@@ -469,7 +566,9 @@ open_in_tmux() {
         if tmux has-session -t "=$session_name" 2>/dev/null; then
             tmux attach-session -t "=$session_name"
         else
-            tmux new-session -s "$session_name" -c "$wt_path"
+            tmux new-session -d -s "$session_name" -c "$wt_path"
+            [[ -n "$start_cmd" ]] && tmux send-keys -t "=$session_name" "$start_cmd" Enter
+            tmux attach-session -t "=$session_name"
         fi
         return
     fi
@@ -479,6 +578,7 @@ open_in_tmux() {
         tmux switch-client -t "=$session_name"
     else
         tmux new-session -d -s "$session_name" -c "$wt_path"
+        [[ -n "$start_cmd" ]] && tmux send-keys -t "=$session_name" "$start_cmd" Enter
         tmux switch-client -t "=$session_name"
     fi
 }
@@ -500,6 +600,8 @@ show_help() {
     echo "  gwt switch [ref]  Switch to a worktree (fzf picker if no ref given)."
     echo "                    Creates the worktree if it doesn't exist."
     echo "                    <ref> may be a branch name, #PR, or PR URL."
+    echo "  gwt review <pr>   Review a PR (#N or URL) in a throwaway worktree +"
+    echo "                    tmux session: PR shown as one unstaged diff."
     echo "  gwt delete [-f]   Pick a worktree with fzf and remove it"
     echo "                    -f/--force removes even with uncommitted changes"
     echo "  gwt purge         Remove worktrees whose branches are merged"
@@ -512,6 +614,7 @@ show_help() {
 
 case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
+    review)        shift; cmd_review "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
     purge)         shift; cmd_purge "$@" ;;
