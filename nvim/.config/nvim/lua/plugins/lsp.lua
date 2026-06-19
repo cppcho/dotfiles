@@ -20,7 +20,6 @@ return {
         "pyright",
         "ts_ls",
         "lua_ls",
-        "copilot",
       },
       automatic_enable = true,
     },
