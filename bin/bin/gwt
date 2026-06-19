@@ -3,6 +3,8 @@
 #
 # Usage:
 #   gwt switch [branch|#N|pr-url]  Switch to a worktree (fzf picker if no arg, create if needed)
+#   gwt review <#N|pr-url>          Review a PR in a throwaway worktree + tmux session
+#   gwt review-done                 Tear down the PR review worktree you're in
 #   gwt delete [--force]            Pick a worktree with fzf and remove it
 #   gwt purge                      Remove worktrees whose branches are merged
 #   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
@@ -375,6 +377,44 @@ cmd_review() {
     open_in_tmux "$branch" "$wt_path" "nvim -c 'topleft 12split | 0Git'"
 }
 
+# Tear down the PR review worktree you're currently in: remove the worktree,
+# delete its review/* branch, and kill its tmux session (switching the client
+# back to the main repo session first). The inverse of `gwt review`. Refuses to
+# run unless the current worktree is a review/pr-* one created by cmd_review.
+cmd_review_done() {
+    local wt_path
+    wt_path=$(git rev-parse --show-toplevel 2>/dev/null) \
+        || { echo "Error: not inside a git worktree" >&2; exit 1; }
+
+    local branch
+    branch=$(git -C "$wt_path" rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+    if [[ "$branch" != review/pr-* ]]; then
+        echo "Error: not in a PR review worktree (branch: ${branch:-detached})." >&2
+        echo "Use 'gwt delete' to remove other worktrees." >&2
+        exit 1
+    fi
+
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+    if [[ "$wt_path" == "$main_worktree" ]]; then
+        echo "Error: refusing to remove the main worktree" >&2
+        exit 1
+    fi
+
+    echo "Finishing review: $branch ($wt_path)"
+
+    # Operate from the main worktree so removing this one is safe.
+    cd "$main_worktree"
+    git worktree remove --force "$wt_path"
+    git worktree prune
+    git branch -D "$branch" 2>/dev/null || true
+
+    # Kill the review tmux session (switches the client back to main first).
+    # Must be last — it may kill the session this process runs in.
+    kill_worktree_tmux_session "$wt_path" "$main_worktree"
+}
+
 cmd_delete() {
     local force=0
     while [[ $# -gt 0 ]]; do
@@ -567,7 +607,9 @@ open_in_tmux() {
             tmux attach-session -t "=$session_name"
         else
             tmux new-session -d -s "$session_name" -c "$wt_path"
-            [[ -n "$start_cmd" ]] && tmux send-keys -t "=$session_name" "$start_cmd" Enter
+            # send-keys resolves -t as a pane target; the "=name" exact-session
+            # form isn't valid there, so append ":" to hit its active pane.
+            [[ -n "$start_cmd" ]] && tmux send-keys -t "=$session_name:" "$start_cmd" Enter
             tmux attach-session -t "=$session_name"
         fi
         return
@@ -578,7 +620,7 @@ open_in_tmux() {
         tmux switch-client -t "=$session_name"
     else
         tmux new-session -d -s "$session_name" -c "$wt_path"
-        [[ -n "$start_cmd" ]] && tmux send-keys -t "=$session_name" "$start_cmd" Enter
+        [[ -n "$start_cmd" ]] && tmux send-keys -t "=$session_name:" "$start_cmd" Enter
         tmux switch-client -t "=$session_name"
     fi
 }
@@ -602,6 +644,8 @@ show_help() {
     echo "                    <ref> may be a branch name, #PR, or PR URL."
     echo "  gwt review <pr>   Review a PR (#N or URL) in a throwaway worktree +"
     echo "                    tmux session: PR shown as one unstaged diff."
+    echo "  gwt review-done   Tear down the PR review worktree you're in:"
+    echo "                    remove it, delete the branch, kill its tmux session."
     echo "  gwt delete [-f]   Pick a worktree with fzf and remove it"
     echo "                    -f/--force removes even with uncommitted changes"
     echo "  gwt purge         Remove worktrees whose branches are merged"
@@ -615,6 +659,7 @@ show_help() {
 case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
     review)        shift; cmd_review "$@" ;;
+    review-done)   shift; cmd_review_done "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
     purge)         shift; cmd_purge "$@" ;;

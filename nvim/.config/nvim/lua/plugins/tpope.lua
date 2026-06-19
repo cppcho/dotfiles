@@ -10,16 +10,21 @@ local function close_diff()
   vim.cmd("diffoff!")
 end
 
--- Collapse the tab to just the diff pair: close every non-diff window (the
--- fugitive status window and any files left over from earlier opens) so a
--- review shows only the left/right diff. No-op until a diff window exists.
+local function is_status_win(win)
+  return vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "fugitive"
+end
+
+-- Collapse the tab to just the status + diff pair: close every window that is
+-- neither a diff window nor the fugitive status (files left over from earlier
+-- opens) so a review shows only the status and the left/right diff. No-op
+-- until a diff window exists.
 local function only_diff()
   local wins = vim.api.nvim_tabpage_list_wins(0)
   if not vim.tbl_contains(vim.tbl_map(function(w) return vim.wo[w].diff end, wins), true) then
     return
   end
   for _, win in ipairs(wins) do
-    if not vim.wo[win].diff then
+    if not vim.wo[win].diff and not is_status_win(win) then
       pcall(vim.api.nvim_win_close, win, false)
     end
   end
@@ -35,6 +40,23 @@ local function fugitive_then(plug, cleanup)
   end
 end
 
+-- <CR> in the status buffer: open the file, then rebuild the layout as the
+-- status (top split) + file (main area below), dropping any stray windows.
+-- Keeps the status cursor line. No-op on header lines that open nothing.
+local function open_keep_status()
+  local line = vim.fn.line(".")
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Plug>fugitive:<CR>", true, false, true), "mx", false)
+  vim.schedule(function()
+    if vim.bo.filetype == "fugitive" then
+      return
+    end
+    vim.cmd("only")
+    vim.cmd("topleft 12split | 0Git")
+    pcall(vim.api.nvim_win_set_cursor, 0, { line, 0 })
+    vim.cmd("wincmd j")
+  end)
+end
+
 return {
   -- https://github.com/tpope/vim-fugitive
   {
@@ -47,6 +69,7 @@ return {
       { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
       { "<leader>gv", "<cmd>PRReview<CR>",               desc = "PR review: pick an open PR" },
       { "<leader>gi", ":PRReview ",                      desc = "PR review: enter PR/branch/URL" },
+      { "<leader>gV", "<cmd>PRReviewDone<CR>",           desc = "PR review: finish & tear down worktree" },
       -- Shadows the global <leader>q (close buffer): in a diff, land on the
       -- working-tree file and close the diff instead
       {
@@ -70,13 +93,11 @@ return {
       },
     },
     config = function()
-      -- Review a PR in its own gwt-managed worktree + tmux session (rather than
-      -- re-rooting this nvim): hand off to `gwt review`, which creates the
-      -- worktree, surfaces the PR as one unstaged diff, and switches the tmux
-      -- client into a fresh nvim there. Errors from gwt are surfaced on failure.
-      local function pr_review(target)
+      -- Run a gwt subcommand from this nvim's cwd, surfacing stderr on failure.
+      -- gwt drives tmux (switching/killing sessions) itself, so we just fire it.
+      local function run_gwt(args, label)
         local err = {}
-        vim.fn.jobstart({ "gwt", "review", target }, {
+        vim.fn.jobstart(vim.list_extend({ "gwt" }, args), {
           cwd = vim.fn.getcwd(),
           on_stderr = function(_, data)
             vim.list_extend(err, data)
@@ -84,11 +105,19 @@ return {
           on_exit = function(_, code)
             if code ~= 0 then
               vim.schedule(function()
-                vim.notify("gwt review failed: " .. vim.trim(table.concat(err, "\n")), vim.log.levels.ERROR)
+                vim.notify(label .. " failed: " .. vim.trim(table.concat(err, "\n")), vim.log.levels.ERROR)
               end)
             end
           end,
         })
+      end
+
+      -- Review a PR in its own gwt-managed worktree + tmux session (rather than
+      -- re-rooting this nvim): hand off to `gwt review`, which creates the
+      -- worktree, surfaces the PR as one unstaged diff, and switches the tmux
+      -- client into a fresh nvim there.
+      local function pr_review(target)
+        run_gwt({ "review", target }, "gwt review")
       end
 
       -- :PRReview [number|url|branch] — with no args, pick from open PRs.
@@ -145,6 +174,13 @@ return {
         })
       end, { nargs = "?", desc = "Review a PR: base checked out, PR changes unstaged" })
 
+      -- :PRReviewDone — tear down the review worktree this nvim sits in (remove
+      -- worktree + branch, kill the tmux session, switch back to the main repo
+      -- session). gwt refuses unless we're in a review/pr-* worktree.
+      vim.api.nvim_create_user_command("PRReviewDone", function()
+        run_gwt({ "review-done" }, "gwt review-done")
+      end, { desc = "Finish a PR review: tear down its worktree + tmux session" })
+
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "fugitive",
         callback = function()
@@ -161,12 +197,12 @@ return {
             vim.keymap.set("n", "-", "<Nop>", { buffer = true })
           end
           -- In the status buffer, opening a file or diff collapses the layout
-          -- so only the relevant windows remain: <CR> leaves just the file,
-          -- the diff maps leave just the left/right diff pair. o/gO/O keep
-          -- fugitive's explicit split/vsplit/tab behaviour untouched.
+          -- while keeping the status window: <CR> leaves status + the file in
+          -- the main area, the diff maps leave status + the left/right diff
+          -- pair. o/gO/O keep fugitive's explicit split/vsplit/tab behaviour.
           if ev.match == "FugitiveIndex" then
-            vim.keymap.set("n", "<CR>", fugitive_then("<CR>", function() vim.cmd("only") end),
-              { buffer = true, desc = "Open file (close other windows)" })
+            vim.keymap.set("n", "<CR>", open_keep_status,
+              { buffer = true, desc = "Open file (keep status, close stray windows)" })
             for _, key in ipairs({ "dv", "dh", "ds", "dd" }) do
               vim.keymap.set("n", key, fugitive_then(key, only_diff),
                 { buffer = true, desc = "Diff (close non-diff windows)" })
