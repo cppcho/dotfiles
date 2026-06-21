@@ -13,6 +13,11 @@
 # aren't already exported. Slack stays a no-op if they can't be found.
 #   SLACK_BOT_TOKEN        Slack bot token (xoxb-...)
 #   CLAUDE_SLACK_DM_TARGET Slack member ID (U...) of the DM recipient (you).
+#
+# To wire this into a fresh machine, paste this prompt into Claude Code:
+#   "In ~/.claude/settings.json, add hooks that run ~/bin/claude-slack-notify:
+#    on PermissionRequest, on PreToolUse matching AskUserQuestion, and on Stop
+#    as `~/bin/claude-slack-notify stop`."
 set -uo pipefail
 
 event="${1:-}"
