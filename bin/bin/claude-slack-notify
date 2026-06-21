@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Unified "Claude needs you" notifier: macOS banner + tmux bell + Slack DM.
+# Wired into the PermissionRequest hook and the AskUserQuestion PreToolUse hook
+# (see ~/.claude/settings.json). Reads the hook JSON payload on stdin and builds
+# a detail line describing exactly what Claude wants, so the notification shows
+# the full command / question instead of just the tool name.
+#
+# The Slack DM fires only when both env vars are set, so this is safe to ship
+# before anything is configured:
+#   SLACK_BOT_TOKEN        Slack bot token (xoxb-...), exported in ~/.zshrc_private
+#   CLAUDE_SLACK_DM_TARGET Slack member ID (U...) of the DM recipient (you).
+set -uo pipefail
+
+input=$(cat)
+tool=$(printf '%s' "$input" | jq -r '.tool_name // "tool"')
+cwd=$(printf '%s' "$input" | jq -r '.cwd // ""')
+proj=$(basename "${cwd:-$PWD}")
+
+# Human-readable detail describing what Claude is waiting on:
+#   Bash            -> the full command, plus its description
+#   AskUserQuestion -> the question(s) being asked
+#   file tools      -> the file path
+#   fallback        -> the notification message, else the tool name
+detail=$(printf '%s' "$input" | jq -r '
+  if .tool_name == "Bash" then
+    (.tool_input.command // "")
+    + (if (.tool_input.description // "") != "" then "\n— " + .tool_input.description else "" end)
+  elif .tool_name == "AskUserQuestion" then
+    (.tool_input.questions // [] | map(.question) | join("\n\n"))
+  elif (.tool_input.file_path // "") != "" then
+    .tool_input.file_path
+  elif (.message // "") != "" then
+    .message
+  else
+    (.tool_name // "needs your attention")
+  end
+')
+
+if [ "$tool" = "AskUserQuestion" ]; then
+  title="Claude is asking"
+else
+  title="Claude needs permission: ${tool}"
+fi
+
+# tmux pane bell
+~/bin/tmux-bell 2>/dev/null || true
+
+# macOS banner (collapse newlines so it stays on one tidy line)
+if command -v terminal-notifier >/dev/null 2>&1; then
+  banner=$(printf '%s' "$detail" | tr '\n' ' ')
+  terminal-notifier -title "Claude Code" -subtitle "${title} · ${proj}" \
+    -message "$banner" -sound Glass -activate com.mitchellh.ghostty 2>/dev/null || true
+fi
+
+# Slack DM (fire-and-forget so a slow/offline network never blocks Claude's turn)
+if [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${CLAUDE_SLACK_DM_TARGET:-}" ]; then
+  text=$(printf ':bell: *%s* in *%s*\n```%s```' "$title" "$proj" "$detail")
+  payload=$(jq -n --arg c "$CLAUDE_SLACK_DM_TARGET" --arg t "$text" \
+    '{channel: $c, text: $t}')
+  ( curl -sS -X POST https://slack.com/api/chat.postMessage \
+      -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+      -H 'Content-Type: application/json; charset=utf-8' \
+      --data "$payload" >/dev/null 2>&1 & )
+fi
+
+exit 0
