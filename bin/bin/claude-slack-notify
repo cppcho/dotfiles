@@ -71,10 +71,10 @@ detail=$(printf '%s' "$input" | jq -r '
   end
 ')
 
-# context = what Claude last said (shown for every event);
+# context = what Claude last said (only for Stop, to recap the finished turn);
 # action  = the command / question Claude wants to run (permission & question);
 # body    = the one-liner for the macOS banner.
-context="$last_msg"
+context=""
 action=""
 if [ "$event" = "stop" ]; then
   title="Claude finished"
