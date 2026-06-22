@@ -77,14 +77,17 @@ detail=$(printf '%s' "$input" | jq -r '
 context=""
 action=""
 if [ "$event" = "stop" ]; then
+  icon=":white_check_mark:"
   title="Claude finished"
   context="${last_msg:-Turn complete — back to you}"
   body="$context"
 elif [ "$tool" = "AskUserQuestion" ]; then
+  icon=":question:"
   title="Claude is asking"
   action="${detail:-$tool}"
   body="$action"
 else
+  icon=":warning:"
   title="Claude needs permission: ${tool}"
   action="${detail:-$tool}"
   body="$action"
@@ -105,7 +108,7 @@ fi
 
 # Slack DM (fire-and-forget so a slow/offline network never blocks Claude's turn)
 if [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${CLAUDE_SLACK_DM_TARGET:-}" ]; then
-  header=$(printf ':bell: [%s] *%s*' "$(date '+%H:%M')" "$title")
+  header=$(printf '%s [%s] *%s*' "$icon" "$(date '+%H:%M')" "$title")
   if [ -n "$session" ]; then
     header=$(printf '%s in "_%s_" (`%s`)' "$header" "$session" "$proj")
   else
