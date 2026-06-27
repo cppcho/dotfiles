@@ -37,7 +37,7 @@ mtime_map=$(
   done
 )
 
-lines=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}	#{pane_pid}" \
+rows=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_index}.#{pane_index}	#{pane_current_command}	#{pane_title}	#{pane_pid}	#{pane_current_path}" \
   | awk -F'\t' -v cb="$claude_bin" -v mtimes="$mtime_map" -v now="$now" '
     BEGIN {
       n = split(mtimes, entries, ";")
@@ -47,7 +47,8 @@ lines=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_inde
       }
     }
     $3 == "claude" || (cb != "" && $3 == cb) || $3 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ {
-      bell = $1; target = $2; title = $4; pane_pid = $5
+      bell = $1; target = $2; title = $4; pane_pid = $5; path = $6
+      if (path == "") path = "-"
 
       if (pane_pid in mtime) {
         mt = mtime[pane_pid]
@@ -69,18 +70,42 @@ lines=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_inde
       split(target, tparts, ":")
       session = tparts[1]
 
-      printf "%s\t%s\t%s %5s  %-20.20s  %s\n", mt, target, bell_icon, age, session, clean
-    }' \
-  | sort -rn -t$'\t' -k1,1 \
-  | cut -f2-)
+      printf "%s\t%s\t%s\t%s %5s  %-20.20s\t%s\n", mt, target, path, bell_icon, age, session, clean
+    }')
 
-if [ -z "$lines" ]; then
+if [ -z "$rows" ]; then
   echo "No active Claude sessions found."
   echo ""
   echo "Press any key to close..."
   read -rsn1
   exit 0
 fi
+
+# Group panes by their git repo (shared across worktrees), newest-active group first.
+declare -A repo_of repo_max branch_of
+while IFS=$'\t' read -r mt target path rest; do
+  repo="${repo_of[$path]}"
+  if [ -z "$repo" ]; then
+    common=$(git -C "$path" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+    if [ -n "$common" ]; then repo=$(basename "$(dirname "$common")"); else repo="$path"; fi
+    repo_of[$path]=$repo
+    branch_of[$path]=$(git -C "$path" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  fi
+  if [ -z "${repo_max[$repo]}" ] || [ "$mt" -gt "${repo_max[$repo]}" ]; then
+    repo_max[$repo]=$mt
+  fi
+done <<< "$rows"
+
+# Sort key: repo's newest mtime (desc), repo name (keeps a group together), then mtime (desc).
+lines=$(
+  while IFS=$'\t' read -r mt target path predisplay clean; do
+    repo="${repo_of[$path]}"
+    branch=$(printf '%-20.20s' "${branch_of[$path]}")
+    printf '%s\t%s\t%s\t%s\t%s  %s  %s\n' "${repo_max[$repo]}" "$repo" "$mt" "$target" "$predisplay" "$branch" "$clean"
+  done <<< "$rows" \
+    | sort -t$'\t' -k1,1nr -k2,2 -k3,3nr \
+    | cut -f4-
+)
 
 echo "$lines" \
   | fzf --no-sort --delimiter '\t' --with-nth 2 --prompt="Claude sessions > " \
