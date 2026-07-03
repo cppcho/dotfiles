@@ -217,14 +217,18 @@ cmd_switch() {
         local main_worktree
         main_worktree=$(get_main_worktree)
 
-        # Display column (field 1) carries a "(main)" marker for the primary
-        # worktree; fields 2/3 hold the raw branch/path for the cut calls below.
+        # Display column (field 1) shows the worktree dir name and its branch,
+        # with a "(main)" marker for the primary worktree; fields 2/3 hold the
+        # raw branch/path for the cut calls below.
         local selected
         selected=$(git worktree list --porcelain | awk -v main="$main_worktree" '
             /^worktree / { wt = substr($0, 10) }
             /^branch /   {
                 b = substr($0, 8); sub(/^refs\/heads\//, "", b);
-                disp = (wt == main) ? b " (main)" : b;
+                n = split(wt, parts, "/"); dir = parts[n];
+                if (length(dir) > 28) dir = substr(dir, 1, 26) "..";
+                marker = (wt == main) ? " (main)" : "";
+                disp = sprintf("%-28s %s%s", dir, b, marker);
                 print disp "\t" b "\t" wt
             }
         ' | fzf --delimiter='\t' --with-nth=1 --preview 'echo {3}' --prompt="Switch to worktree> ")
