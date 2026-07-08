@@ -22,12 +22,26 @@ sock="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
 
 req() { printf '%s\n' "$1" | nc -U "$sock"; }
 
-info=$(req "{\"id\":\"1\",\"method\":\"pane.process_info\",\"params\":{\"pane_id\":\"$pane\"}}")
+# Ask for the pane's process info; retry once on an empty reply to ride out a
+# transient socket hiccup (this runs on every ctrl+hjkl press).
+proc_req="{\"id\":\"1\",\"method\":\"pane.process_info\",\"params\":{\"pane_id\":\"$pane\"}}"
+info=$(req "$proc_req")
+[[ -z $info ]] && info=$(req "$proc_req")
 
-# Same process set as the tmux is_vim pattern, plus fzf.
-vim_re='"name":"g?\.?(view|l?n?vim?x?|fzf)(diff)?(-wrapped)?"'
+# Command name of the FOREGROUND process-group leader only — same leader
+# selection as herdr-tab-autoname. Matching the whole JSON blob would forward
+# keys whenever a backgrounded vim/fzf still lingers in the pane's process tree.
+fg=$(jq -r '(.result.process_info // {}) as $pi
+    | ($pi.foreground_processes // []) as $fps
+    | (($fps[] | select(.pid == $pi.foreground_process_group_id)) // $fps[-1] // {}) as $p
+    | ($p.argv0 // $p.name // "")' 2>/dev/null <<<"$info")
+fg=${fg%% *}; fg=${fg##*/}   # first token, basename
 
-if [[ $info =~ $vim_re ]]; then
+# Same process set as the tmux is_vim pattern, plus fzf. Anchored, so an empty
+# name (unknown/failed lookup) does NOT match and we fall back to moving focus.
+vim_re='^g?\.?(view|l?n?vim?x?|fzf)(diff)?(-wrapped)?$'
+
+if [[ -n $fg && $fg =~ $vim_re ]]; then
   req "{\"id\":\"2\",\"method\":\"pane.send_keys\",\"params\":{\"pane_id\":\"$pane\",\"keys\":[\"$key\"]}}" >/dev/null
 else
   req "{\"id\":\"2\",\"method\":\"pane.focus_direction\",\"params\":{\"direction\":\"$dir\"}}" >/dev/null

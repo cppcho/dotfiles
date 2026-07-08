@@ -7,7 +7,7 @@
 # left untouched, so herdr-sessionizer's label matching keeps working.
 #
 # herdr has no hooks, so this polls the socket API. Run it as a background
-# daemon (see ~/Library/LaunchAgents/dev.herdr.tab-autoname.plist):
+# daemon (see ~/Library/LaunchAgents/com.cppcho.herdr-tab-autoname.plist):
 #   herdr-tab-autoname            # poll forever
 #   herdr-tab-autoname --dry      # print proposed renames once, apply nothing
 #   herdr-tab-autoname --once     # one pass, apply
@@ -82,7 +82,7 @@ pass() {
 
         # Representative pane: the tab's focused pane, else its first pane.
         pane=$(jq -r --arg t "$tab" '
-            [(.result.panes // [])[] | select(.tab_id==$t)] as $ps
+            [(.result.panes // [])[] | select((.tab_id|tostring)==$t)] as $ps
             | (($ps[] | select(.focused)) // $ps[0]).pane_id // empty' 2>/dev/null <<<"$panes")
         [[ -z $pane ]] && continue
 

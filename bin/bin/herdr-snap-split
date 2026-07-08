@@ -24,7 +24,7 @@ if [[ $(jq -r '.zoomed' <<<"$layout") == true ]]; then
   layout=$(get_layout)
 fi
 
-ratio=$(jq -r '[.splits[] | select(.direction == "right")][0].ratio // empty' <<<"$layout")
+ratio=$(jq -r '[(.splits // [])[] | select(.direction == "right")][0].ratio // empty' <<<"$layout")
 
 if [[ -z "$ratio" ]]; then
   herdr pane split "${pane_args[@]}" --direction right --ratio "$target" --no-focus >/dev/null
