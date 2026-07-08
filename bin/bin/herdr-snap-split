@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Snap the current herdr tab's horizontal split to a target left-pane ratio.
+#
+# Usage: herdr-snap-split <ratio>   e.g. herdr-snap-split 0.64
+#
+# If the tab has no horizontal split yet, create one at that ratio
+# (mirrors the tmux prefix+( / prefix+) bindings this replaces).
+set -euo pipefail
+
+target="${1:?usage: herdr-snap-split <ratio>}"
+
+pane_args=(--current)
+[[ -n "${HERDR_ACTIVE_PANE_ID:-}" ]] && pane_args=(--pane "$HERDR_ACTIVE_PANE_ID")
+
+get_layout() { herdr pane layout "${pane_args[@]}" | jq '.result.layout'; }
+
+layout=$(get_layout)
+if [[ $(jq -r '.zoomed' <<<"$layout") == true ]]; then
+  herdr pane zoom "${pane_args[@]}" --off >/dev/null
+  layout=$(get_layout)
+fi
+
+ratio=$(jq -r '[.splits[] | select(.direction == "right")][0].ratio // empty' <<<"$layout")
+
+if [[ -z "$ratio" ]]; then
+  herdr pane split "${pane_args[@]}" --direction right --ratio "$target" --no-focus >/dev/null
+  exit 0
+fi
+
+# Snap the outermost (root) horizontal split; resize acts on its left pane.
+move=$(jq -rn --argjson r "$ratio" --argjson t "$target" '
+  ($t - $r) as $d
+  | if ($d | fabs) < 0.005 then empty
+    elif $d > 0 then "right \($d * 1000 | round / 1000)"
+    else "left \(-$d * 1000 | round / 1000)"
+    end')
+[[ -z "$move" ]] && exit 0
+
+read -r direction amount <<<"$move"
+left_pane=$(jq -r '.panes | min_by(.rect.x) | .pane_id' <<<"$layout")
+herdr pane resize --pane "$left_pane" --direction "$direction" --amount "$amount" >/dev/null

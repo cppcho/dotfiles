@@ -1,0 +1,59 @@
+# Minimal herdr config, mapped from tmux muscle memory (~/.tmux.conf)
+# Workspaces (spaces) are used like tmux windows; tabs are mostly unused.
+
+[keys]
+prefix = "ctrl+a"                # tmux prefix
+
+# Workspace = tmux window
+new_workspace = "prefix+c"       # tmux C-a c new-window
+previous_workspace = "prefix+ctrl+p"  # tmux C-a C-p
+next_workspace = "prefix+ctrl+n"      # tmux C-a C-n
+switch_workspace = "prefix+1..9"      # tmux C-a <n>
+close_pane = "prefix+x"               # tmux C-a x kill-pane
+
+# Move tab bindings out of the way (tabs unused)
+new_tab = ""
+previous_tab = ""
+next_tab = ""
+switch_tab = ""
+close_tab = ""
+
+split_vertical = "prefix+%"      # split right, tmux C-a %
+split_horizontal = 'prefix+"'    # split down, tmux C-a "
+focus_pane_left = "ctrl+h"       # direct, like tmux C-h
+focus_pane_down = "ctrl+j"       # direct, like tmux C-j
+focus_pane_up = "ctrl+k"         # direct, like tmux C-k
+focus_pane_right = "ctrl+l"      # direct, like tmux C-l
+
+# Navigate mode: j/k selects workspaces (vim-style); pane up/down moves to arrows
+navigate_workspace_up = "k"
+navigate_workspace_down = "j"
+navigate_pane_up = "up"
+navigate_pane_down = "down"
+
+# Snap split to 36:64 / 64:36, ~ tmux C-a ( / ); splits first if single pane
+[[keys.command]]
+key = "prefix+("
+type = "shell"
+command = "~/bin/herdr-snap-split 0.36"
+description = "snap split 36:64 (big right)"
+
+[[keys.command]]
+key = "prefix+)"
+type = "shell"
+command = "~/bin/herdr-snap-split 0.64"
+description = "snap split 64:36 (big left)"
+
+[[keys.command]]
+key = "prefix+="
+type = "shell"
+command = "~/bin/herdr-snap-split 0.5"
+description = "snap split 50:50"
+
+[theme]
+name = "catppuccin"              # = mocha
+
+[ui]
+hide_tab_bar_when_single_tab = true  # tabs unused; hide the row
+agent_panel_sort = "priority"
+show_agent_labels_on_pane_borders = false
