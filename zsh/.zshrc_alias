@@ -8,10 +8,27 @@ alias update='brew update; brew upgrade; brew cleanup'
 alias k=kubectl
 alias ag='rg'
 alias c='_ ; claude'
-alias ccr='claude --resume'
-alias ccc='claude --continue'
+alias r='claude --resume'
+alias t='claude --continue'
 alias gclone='~/bin/git-clone-dev'
 alias _='[[ -n "$TMUX" ]] && cd "$(tmux display-message -p "#{session_path}")"'
+
+# ~/bin/gwt runs as a child process, so its `cd` can't move this shell. It
+# writes the target dir to $GWT_CD_FILE; cd there after it exits, so `gwt
+# delete`/`purge` from inside the removed worktree lands you in the main repo
+# (previously only worked inside tmux via a send-keys hack).
+gwt() {
+  local cdfile ret dest
+  cdfile=$(mktemp "${TMPDIR:-/tmp}/gwt-cd.XXXXXX") || { command gwt "$@"; return; }
+  GWT_CD_FILE="$cdfile" command gwt "$@"
+  ret=$?
+  if [[ -s "$cdfile" ]]; then
+    dest=$(<"$cdfile")
+    [[ -d "$dest" ]] && cd "$dest"
+  fi
+  rm -f "$cdfile"
+  return $ret
+}
 
 # Open nvim straight into a PR review (:PRReview). Optional arg: PR number/url/branch; none -> picker.
 ghr() {
