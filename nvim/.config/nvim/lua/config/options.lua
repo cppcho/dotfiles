@@ -91,3 +91,19 @@ vim.o.updatetime = 50
 vim.api.nvim_create_autocmd("VimResized", {
   command = "wincmd =",
 })
+
+-- Shorten tab labels to the active buffer's filename (the default tabline
+-- shows the full path, which gets long for e.g. diffview tabs).
+function _G.tabline()
+  local s = ""
+  for i = 1, vim.fn.tabpagenr("$") do
+    local buflist = vim.fn.tabpagebuflist(i)
+    local bufnr = buflist[vim.fn.tabpagewinnr(i)]
+    local name = vim.fn.bufname(bufnr)
+    local label = name == "" and "[No Name]" or vim.fn.fnamemodify(name, ":t")
+    s = s .. (i == vim.fn.tabpagenr() and "%#TabLineSel#" or "%#TabLine#")
+    s = s .. "%" .. i .. "T " .. i .. ":" .. label .. " "
+  end
+  return s .. "%#TabLineFill#%T"
+end
+vim.o.tabline = "%!v:lua.tabline()"

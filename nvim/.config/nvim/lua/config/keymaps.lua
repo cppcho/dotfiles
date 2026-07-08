@@ -44,6 +44,29 @@ vim.api.nvim_create_autocmd("LspAttach", {
     vim.keymap.set("n", "K", function()
       vim.lsp.buf.hover({ max_width = 80 })
     end, { buffer = ev.buf, desc = "LSP hover" })
+
+    -- For Go, override grr (references) to push _test.go matches to the bottom
+    if vim.bo[ev.buf].filetype == "go" then
+      vim.keymap.set("n", "grr", function()
+        vim.lsp.buf.references(nil, {
+          on_list = function(opts)
+            table.sort(opts.items, function(a, b)
+              local a_test = a.filename:match("_test%.go$") ~= nil
+              local b_test = b.filename:match("_test%.go$") ~= nil
+              if a_test ~= b_test then
+                return not a_test -- non-test references first
+              end
+              if a.filename ~= b.filename then
+                return a.filename < b.filename
+              end
+              return a.lnum < b.lnum
+            end)
+            vim.fn.setqflist({}, " ", opts)
+            vim.cmd("botright copen")
+          end,
+        })
+      end, { buffer = ev.buf, desc = "LSP references (tests last)" })
+    end
   end,
 })
 
@@ -77,4 +100,4 @@ vim.api.nvim_create_user_command("W", "w", {})
 vim.api.nvim_create_user_command("Q", "q", {})
 vim.api.nvim_create_user_command("Wq", "wq", {})
 vim.api.nvim_create_user_command("WQ", "wq", {})
-vim.api.nvim_create_user_command("Qa", "qa", {})
+vim.api.nvim_create_user_command("Qa", "qa<bang>", { bang = true })
