@@ -5,6 +5,10 @@
 #
 # If the tab has no horizontal split yet, create one at that ratio
 # (mirrors the tmux prefix+( / prefix+) bindings this replaces).
+#
+# Uses the herdr CLI, not the socket API: as of herdr 0.7.3 the socket's
+# pane.split/pane.resize ignore pane_id and act on the focused tab, while the
+# CLI honors --pane. This isn't a hot path, so CLI latency is fine.
 set -euo pipefail
 
 target="${1:?usage: herdr-snap-split <ratio>}"
