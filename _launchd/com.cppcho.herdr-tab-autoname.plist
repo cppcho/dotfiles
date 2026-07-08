@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template. Placeholders (__BASH__, __SCRIPT__, __LOG__) are filled in by
+     `make launchd`, which renders this to ~/Library/LaunchAgents and loads it. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cppcho.herdr-tab-autoname</string>
+
+    <!-- Pin to Homebrew bash 5; the script needs associative arrays (bash 4+),
+         which /bin/bash 3.2 lacks. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>__BASH__</string>
+        <string>__SCRIPT__</string>
+    </array>
+
+    <!-- launchd starts with a minimal PATH; the script shells out to herdr/jq. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <!-- Poller loops forever; restart it if it ever dies. -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>StandardOutPath</key>
+    <string>__LOG__</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG__</string>
+</dict>
+</plist>
