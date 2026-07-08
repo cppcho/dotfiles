@@ -10,6 +10,7 @@ alias ag='rg'
 alias c='_ ; claude'
 alias r='claude --resume'
 alias t='claude --continue'
+alias h='herdr'
 alias gclone='~/bin/git-clone-dev'
 alias _='[[ -n "$TMUX" ]] && cd "$(tmux display-message -p "#{session_path}")"'
 
