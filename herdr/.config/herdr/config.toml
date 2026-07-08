@@ -20,16 +20,39 @@ close_tab = ""
 
 split_vertical = "prefix+%"      # split right, tmux C-a %
 split_horizontal = 'prefix+"'    # split down, tmux C-a "
-focus_pane_left = "ctrl+h"       # direct, like tmux C-h
-focus_pane_down = "ctrl+j"       # direct, like tmux C-j
-focus_pane_up = "ctrl+k"         # direct, like tmux C-k
-focus_pane_right = "ctrl+l"      # direct, like tmux C-l
+# focus_pane_* stay on the default prefix+h/j/k/l; direct ctrl+h/j/k/l go
+# through herdr-navigate below so vim/fzf panes receive the keys instead.
 
 # Navigate mode: j/k selects workspaces (vim-style); pane up/down moves to arrows
 navigate_workspace_up = "k"
 navigate_workspace_down = "j"
 navigate_pane_up = "up"
 navigate_pane_down = "down"
+
+# Vim-aware pane navigation, ~ tmux is_vim bindings (vim side in nvim config)
+[[keys.command]]
+key = "ctrl+h"
+type = "shell"
+command = "~/bin/herdr-navigate left"
+description = "navigate left (vim-aware)"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "shell"
+command = "~/bin/herdr-navigate down"
+description = "navigate down (vim-aware)"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "shell"
+command = "~/bin/herdr-navigate up"
+description = "navigate up (vim-aware)"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "shell"
+command = "~/bin/herdr-navigate right"
+description = "navigate right (vim-aware)"
 
 # Snap split to 36:64 / 64:36, ~ tmux C-a ( / ); splits first if single pane
 [[keys.command]]
