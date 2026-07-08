@@ -70,7 +70,7 @@ rows=$(tmux list-panes -a -F "#{window_bell_flag}	#{session_name}:#{window_index
       split(target, tparts, ":")
       session = tparts[1]
 
-      printf "%s\t%s\t%s\t%s %5s  %-20.20s\t%s\n", mt, target, path, bell_icon, age, session, clean
+      printf "%s\t%s\t%s\t%s\t%s %5s  %-20.20s\t%s\n", bell, mt, target, path, bell_icon, age, session, clean
     }')
 
 if [ -z "$rows" ]; then
@@ -83,7 +83,7 @@ fi
 
 # Group panes by their git repo (shared across worktrees), newest-active group first.
 declare -A repo_of repo_max branch_of
-while IFS=$'\t' read -r mt target path rest; do
+while IFS=$'\t' read -r bell mt target path rest; do
   repo="${repo_of[$path]}"
   if [ -z "$repo" ]; then
     common=$(git -C "$path" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
@@ -96,15 +96,15 @@ while IFS=$'\t' read -r mt target path rest; do
   fi
 done <<< "$rows"
 
-# Sort key: repo's newest mtime (desc), repo name (keeps a group together), then mtime (desc).
+# Sort key: bell/alert first (desc), then repo's newest mtime (desc), repo name (keeps a group together), then mtime (desc).
 lines=$(
-  while IFS=$'\t' read -r mt target path predisplay clean; do
+  while IFS=$'\t' read -r bell mt target path predisplay clean; do
     repo="${repo_of[$path]}"
     branch=$(printf '%-20.20s' "${branch_of[$path]}")
-    printf '%s\t%s\t%s\t%s\t%s  %s  %s\n' "${repo_max[$repo]}" "$repo" "$mt" "$target" "$predisplay" "$branch" "$clean"
+    printf '%s\t%s\t%s\t%s\t%s\t%s  %s  %s\n' "$bell" "${repo_max[$repo]}" "$repo" "$mt" "$target" "$predisplay" "$branch" "$clean"
   done <<< "$rows" \
-    | sort -t$'\t' -k1,1nr -k2,2 -k3,3nr \
-    | cut -f4-
+    | sort -t$'\t' -k1,1nr -k2,2nr -k3,3 -k4,4nr \
+    | cut -f5-
 )
 
 echo "$lines" \
