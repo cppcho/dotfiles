@@ -188,6 +188,19 @@ kill_worktree_tmux_session() {
     echo "Killed tmux session: $session_name"
 }
 
+# Move the *interactive* shell to a new directory. gwt runs as a child process,
+# so it can't cd its parent; instead the gwt() shell wrapper (in .zshrc_alias)
+# passes a temp path via $GWT_CD_FILE and cds there after we exit. Falls back to
+# the tmux send-keys hack when invoked directly without that wrapper.
+emit_cd() {
+    local dest="$1"
+    if [[ -n "${GWT_CD_FILE:-}" ]]; then
+        printf '%s\n' "$dest" > "$GWT_CD_FILE"
+    elif [[ -n "${TMUX:-}" ]]; then
+        tmux send-keys "cd '$dest'" Enter
+    fi
+}
+
 run_setup_script() {
     local worktree_path="$1"
     local main_worktree
@@ -482,9 +495,7 @@ cmd_delete() {
         cd "$main_worktree"
         git worktree remove "${remove_args[@]}"
         echo "Switched to: $main_worktree"
-        if [[ -n "${TMUX:-}" ]]; then
-            tmux send-keys "cd '$main_worktree'" Enter
-        fi
+        emit_cd "$main_worktree"
     else
         git worktree remove "${remove_args[@]}"
     fi
@@ -582,8 +593,8 @@ cmd_purge() {
         git branch -D "$b" 2>/dev/null || true
     done
 
-    if [[ "$moved" == "1" && -n "${TMUX:-}" ]]; then
-        tmux send-keys "cd '$main_worktree'" Enter
+    if [[ "$moved" == "1" ]]; then
+        emit_cd "$main_worktree"
     fi
 
     # Kill associated tmux sessions (must be last — may kill our own process)
