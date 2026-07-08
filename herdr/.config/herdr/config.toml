@@ -6,6 +6,7 @@ prefix = "ctrl+a"                # tmux prefix
 
 # Workspace = tmux window
 workspace_picker = "prefix+f"    # ~ tmux C-a f sessionizer (spaces list)
+open_worktree = "prefix+g"       # ~ tmux C-a g gwt switch (worktree picker)
 next_agent = "prefix+n"          # jump to next/prev agent pane (priority order)
 previous_agent = "prefix+p"
 # free prefix+j/k for the agent bindings; ctrl+j/k still focus panes directly
@@ -15,6 +16,7 @@ new_workspace = "prefix+c"       # tmux C-a c new-window
 next_workspace = "prefix+j"      # cycle spaces
 previous_workspace = "prefix+k"
 switch_workspace = "prefix+1..9"      # tmux C-a <n>
+focus_agent = "ctrl+1..9"
 close_pane = "prefix+x"               # tmux C-a x kill-pane
 
 # Move tab bindings out of the way (tabs unused)
@@ -84,5 +86,6 @@ name = "catppuccin"              # = mocha
 
 [ui]
 hide_tab_bar_when_single_tab = true  # tabs unused; hide the row
-agent_panel_sort = "priority"
+agent_panel_sort = "spaces"
+confirm_close = true
 show_agent_labels_on_pane_borders = false
