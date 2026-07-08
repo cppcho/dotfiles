@@ -5,8 +5,8 @@
 prefix = "ctrl+a"                # tmux prefix
 
 # Workspace = tmux window
-goto = "prefix+f"                # ~ tmux C-a f sessionizer (session navigator)
-workspace_picker = "prefix+w"    # spaces list picker (moved off prefix+f)
+goto = ""                        # freed: prefix+f now runs herdr-sessionizer (below)
+workspace_picker = "prefix+w"    # spaces list picker (existing spaces only)
 open_worktree = "prefix+g"       # ~ tmux C-a g gwt switch (worktree picker)
 next_agent = "prefix+n"          # jump to next/prev agent pane (priority order)
 previous_agent = "prefix+p"
@@ -37,6 +37,14 @@ navigate_workspace_up = "k"
 navigate_workspace_down = "j"
 navigate_pane_up = "up"
 navigate_pane_down = "down"
+
+# Sessionizer: fzf a project dir; focus its space if open, else create one.
+# ~ tmux C-a f (~/bin/tmux-sessionizer). Runs in a temp pane so fzf is interactive.
+[[keys.command]]
+key = "prefix+f"
+type = "pane"
+command = "~/bin/herdr-sessionizer"
+description = "sessionizer (open project as space)"
 
 # Vim-aware pane navigation, ~ tmux is_vim bindings (vim side in nvim config)
 [[keys.command]]
