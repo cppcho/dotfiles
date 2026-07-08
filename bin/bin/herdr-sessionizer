@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# herdr-sessionizer — a tmux-sessionizer for herdr spaces.
+#
+# fzf a project directory; if a herdr space is already open for it, focus that
+# space, otherwise create a new one there. The herdr sibling of
+# ~/bin/tmux-sessionizer: same project roots ($TMUX_SESSIONIZER_PATHS) and ~/.z
+# frecency ordering.
+#
+# Spaces are matched to directories by label, which herdr defaults to the dir
+# basename (this script labels new spaces the same way). When several spaces
+# share a label the most recent is focused; use the workspace picker (prefix+w)
+# to reach a specific one.
+#
+# Bind via a herdr [[keys.command]] with type = "pane" so fzf runs in a
+# temporary interactive pane:
+#   [[keys.command]]
+#   key = "prefix+f"
+#   type = "pane"
+#   command = "~/bin/herdr-sessionizer"
+#
+# With a directory argument it skips the picker (mirrors `af <dir>`):
+#   herdr-sessionizer ~/dev/foo
+set -euo pipefail
+
+# label -> most recent space with that label (for focus-if-exists).
+declare -A lbl_ws lbl_num
+while IFS=$'\t' read -r wsid num label; do
+    [[ -z $label ]] && continue
+    if (( num > ${lbl_num[$label]:-0} )); then lbl_ws[$label]=$wsid; lbl_num[$label]=$num; fi
+done < <(herdr workspace list 2>/dev/null \
+    | jq -r '(.result.workspaces // [])[] | "\(.workspace_id)\t\(.number)\t\(.label)"')
+
+open_dir() {
+    local dir="$1" label
+    dir="${dir/#\~/$HOME}"; dir="${dir%/}"
+    label=$(basename "$dir")
+    if [[ -n ${lbl_ws[$label]:-} ]]; then
+        herdr workspace focus "${lbl_ws[$label]}" >/dev/null
+    else
+        herdr workspace create --cwd "$dir" --label "$label" --focus >/dev/null
+    fi
+}
+
+# Direct argument skips the picker.
+if [[ $# -eq 1 ]]; then
+    open_dir "$1"
+    exit 0
+fi
+
+# --- candidate directories (mirror tmux-sessionizer discovery) --------------
+declare -a root_dirs=()
+IFS=':' read -ra _paths <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
+for p in "${_paths[@]}"; do
+    p="${p/#\~/$HOME}"
+    if [[ "$p" == */ ]]; then
+        while IFS= read -r d; do root_dirs+=("$d"); done \
+            < <(find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    else
+        [[ -d "$p" ]] && root_dirs+=("$p")
+    fi
+done
+
+# ~/.z frecency scores order the list (highest first), like `zz`.
+declare -A zscore
+if [[ -f ~/.z ]]; then
+    while IFS='|' read -r zd zs _; do zscore[$zd]=$zs; done < ~/.z
+fi
+
+selected=$(
+    for dir in "${root_dirs[@]}"; do
+        printf '%s\t%s\n' "${zscore[$dir]:-0}" "$dir"
+    done | sort -rn | cut -f2- | sed "s|^$HOME|~|" \
+      | fzf --exact --no-sort --prompt='Space > '
+) || exit 0
+[[ -z $selected ]] && exit 0
+
+open_dir "$selected"
