@@ -5,9 +5,15 @@
 prefix = "ctrl+a"                # tmux prefix
 
 # Workspace = tmux window
+workspace_picker = "prefix+f"    # ~ tmux C-a f sessionizer (spaces list)
+next_agent = "prefix+n"          # jump to next/prev agent pane (priority order)
+previous_agent = "prefix+p"
+# free prefix+j/k for the agent bindings; ctrl+j/k still focus panes directly
+focus_pane_down = ""
+focus_pane_up = ""
 new_workspace = "prefix+c"       # tmux C-a c new-window
-previous_workspace = "prefix+ctrl+p"  # tmux C-a C-p
-next_workspace = "prefix+ctrl+n"      # tmux C-a C-n
+next_workspace = "prefix+j"      # cycle spaces
+previous_workspace = "prefix+k"
 switch_workspace = "prefix+1..9"      # tmux C-a <n>
 close_pane = "prefix+x"               # tmux C-a x kill-pane
 

@@ -53,5 +53,11 @@ vv() {
   fi
 }
 
+# Fuzzy-pick a directory from z's frecency list and cd into it.
+zz() {
+  local dir
+  dir=$(z -l 2>&1 | sed "s/^[0-9.,]* *//; s|^$HOME|~|" | fzf --tac --no-sort --query "$*") && cd "${dir/#\~/$HOME}"
+}
+
 # URL encode a string
 urlencode() { python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"; }
