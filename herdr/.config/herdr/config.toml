@@ -2,35 +2,33 @@
 # Workspaces (spaces) are used like tmux windows; tabs are mostly unused.
 
 [keys]
-prefix = "ctrl+a"                # tmux prefix
+prefix = "ctrl+a"
 
-# Workspace = tmux window
-goto = ""                        # freed: prefix+f now runs herdr-sessionizer (below)
-workspace_picker = "prefix+w"    # spaces list picker (existing spaces only)
-open_worktree = "prefix+g"       # ~ tmux C-a g gwt switch (worktree picker)
-next_agent = "prefix+n"          # jump to next/prev agent pane (priority order)
-previous_agent = "prefix+p"
-# free prefix+j/k for the agent bindings; ctrl+j/k still focus panes directly
+goto = "prefix+v"
+detach = "prefix+d"
+workspace_picker = "prefix+w"
+open_worktree = "prefix+g"
+focus_pane_left = ""
 focus_pane_down = ""
 focus_pane_up = ""
-new_workspace = "prefix+c"       # tmux C-a c new-window
-next_workspace = "prefix+j"      # cycle spaces
+focus_pane_right = ""
+new_workspace = ""
+next_workspace = "prefix+j"      
 previous_workspace = "prefix+k"
-switch_workspace = "prefix+1..9"      # tmux C-a <n>
-focus_agent = "ctrl+1..9"
-close_pane = "prefix+x"               # tmux C-a x kill-pane
+next_agent = "prefix+l"
+previous_agent = "prefix+h"
+switch_workspace = "" 
+focus_agent = ""
+close_pane = "prefix+x"         
 
-# Move tab bindings out of the way (tabs unused)
-new_tab = ""
-previous_tab = ""
-next_tab = ""
-switch_tab = ""
+new_tab = "prefix+c"
+previous_tab = "ctrl+["
+next_tab = "ctrl+]"
+switch_tab = "ctrl+1..9"
 close_tab = ""
 
 split_vertical = "prefix+%"      # split right, tmux C-a %
 split_horizontal = 'prefix+"'    # split down, tmux C-a "
-# focus_pane_* stay on the default prefix+h/j/k/l; direct ctrl+h/j/k/l go
-# through herdr-navigate below so vim/fzf panes receive the keys instead.
 
 # Navigate mode: j/k selects workspaces (vim-style); pane up/down moves to arrows
 navigate_workspace_up = "k"
@@ -98,3 +96,7 @@ hide_tab_bar_when_single_tab = true  # tabs unused; hide the row
 agent_panel_sort = "spaces"
 confirm_close = true
 show_agent_labels_on_pane_borders = false
+prompt_new_tab_name = false
+
+[ui.toast]
+delivery = "herdr"
