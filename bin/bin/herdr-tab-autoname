@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# herdr-tab-autoname — tmux-style automatic-rename for herdr TABS.
+#
+# Renames each tab to the foreground process running in its active pane
+# (nvim, claude, git, lazygit, …). Bare-shell tabs keep their default number,
+# and a tab reverts to its number when its command exits. Workspace labels are
+# left untouched, so herdr-sessionizer's label matching keeps working.
+#
+# herdr has no hooks, so this polls the socket API. Run it as a background
+# daemon (see ~/Library/LaunchAgents/dev.herdr.tab-autoname.plist):
+#   herdr-tab-autoname            # poll forever
+#   herdr-tab-autoname --dry      # print proposed renames once, apply nothing
+#   herdr-tab-autoname --once     # one pass, apply
+#
+# Manual renames are preserved: once a tab's label differs from both its number
+# and the last name we set, we stop managing it (like tmux allow-rename off).
+#
+# Env:
+#   HERDR_TAB_AUTONAME_INTERVAL   poll seconds (default 2)
+set -uo pipefail
+
+interval="${HERDR_TAB_AUTONAME_INTERVAL:-2}"
+
+mode="loop"
+case "${1:-}" in
+    --dry)  mode="dry" ;;
+    --once) mode="once" ;;
+esac
+
+is_shell_re='^-?(zsh|bash|sh|fish|dash|tcsh|ksh|nu)$'
+
+# Desired label for a pane: the command name of the foreground process-group
+# leader. Prefers argv0 over name (some apps, e.g. claude, set their process
+# name to a version string). Empty for a bare shell (tab keeps its number) or a
+# gone pane.
+pane_label() {
+    local pane="$1" info cmd shell_pid tty fg
+    info=$(herdr pane process-info --pane "$pane" 2>/dev/null) || return
+    [[ -z $info ]] && return
+    # Group leader = process whose pid == foreground_process_group_id.
+    cmd=$(jq -r '(.result.process_info // {}) as $pi
+        | ($pi.foreground_processes // []) as $fps
+        | (($fps[] | select(.pid == $pi.foreground_process_group_id)) // $fps[-1] // {}) as $p
+        | ($p.argv0 // $p.name // "")' 2>/dev/null <<<"$info")
+
+    # herdr sometimes reports no foreground group (e.g. a `top` pane), only
+    # shell_pid. Fall back to reading the tty's foreground process via ps.
+    if [[ -z $cmd ]]; then
+        shell_pid=$(jq -r '.result.process_info.shell_pid // empty' 2>/dev/null <<<"$info")
+        tty=$(ps -o tty= -p "${shell_pid:-0}" 2>/dev/null | tr -d ' ')
+        if [[ -n $tty && $tty != "?"* ]]; then
+            fg=$(ps -t "$tty" -o pid=,pgid=,stat=,comm= 2>/dev/null | awk '$3 ~ /\+/')
+            # Prefer the group leader (pid==pgid); else any foreground process.
+            cmd=$(awk -v sh="${shell_pid:-0}" '$1==$2 && $1!=sh {print $4; exit}' <<<"$fg")
+            [[ -z $cmd ]] && cmd=$(awk -v sh="${shell_pid:-0}" '$1!=sh {print $4; exit}' <<<"$fg")
+        fi
+    fi
+
+    cmd=${cmd%% *}          # first token (drop args baked into argv0)
+    cmd=${cmd##*/}          # basename
+    cmd=${cmd#-}            # strip login-shell leading dash
+    [[ -z $cmd || $cmd =~ $is_shell_re ]] && return
+    printf '%s' "$cmd"
+}
+
+declare -A last_set   # tab_id -> last label we assigned
+
+pass() {
+    local tabs panes tab cur num pane label
+    tabs=$(herdr tab list 2>/dev/null) || return
+    panes=$(herdr pane list 2>/dev/null) || return
+    [[ -z $tabs || -z $panes ]] && return
+
+    while IFS=$'\t' read -r tab cur num; do
+        [[ -z $tab ]] && continue
+
+        # Preserve manual renames: only manage tabs still on their default
+        # numeric label or on a name we set ourselves.
+        if [[ ! $cur =~ ^[0-9]+$ && $cur != "${last_set[$tab]:-}" ]]; then
+            continue
+        fi
+
+        # Representative pane: the tab's focused pane, else its first pane.
+        pane=$(jq -r --arg t "$tab" '
+            [(.result.panes // [])[] | select(.tab_id==$t)] as $ps
+            | (($ps[] | select(.focused)) // $ps[0]).pane_id // empty' 2>/dev/null <<<"$panes")
+        [[ -z $pane ]] && continue
+
+        label=$(pane_label "$pane")
+
+        # Bare shell: revert a name we previously set back to the tab number.
+        if [[ -z $label ]]; then
+            [[ -z ${last_set[$tab]:-} || $cur == "$num" ]] && continue
+            label=$num
+        fi
+        [[ $label == "$cur" ]] && continue
+
+        if [[ $mode == "dry" ]]; then
+            printf '%s: %q -> %q (pane %s)\n' "$tab" "$cur" "$label" "$pane"
+        else
+            herdr tab rename "$tab" "$label" >/dev/null 2>&1 \
+                && if [[ $label == "$num" ]]; then unset 'last_set[$tab]'; else last_set[$tab]=$label; fi
+        fi
+    done < <(jq -r '(.result.tabs // [])[] | "\(.tab_id)\t\(.label)\t\(.number)"' 2>/dev/null <<<"$tabs")
+}
+
+case "$mode" in
+    dry|once) pass ;;
+    loop)     while :; do pass; sleep "$interval"; done ;;
+esac
