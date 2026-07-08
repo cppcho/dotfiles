@@ -2,9 +2,10 @@
 # herdr-tab-autoname — tmux-style automatic-rename for herdr TABS.
 #
 # Renames each tab to the foreground process running in its active pane
-# (nvim, claude, git, lazygit, …). Bare-shell tabs keep their default number,
-# and a tab reverts to its number when its command exits. Workspace labels are
-# left untouched, so herdr-sessionizer's label matching keeps working.
+# (nvim, claude, git, lazygit, …). Bare-shell tabs show their position number
+# within the workspace (gap-free, unlike herdr's own tab number), and a tab
+# reverts to its number when its command exits. Workspace labels are left
+# untouched, so herdr-sessionizer's label matching keeps working.
 #
 # herdr has no hooks, so this polls the socket API. Run it as a background
 # daemon (see ~/Library/LaunchAgents/com.cppcho.herdr-tab-autoname.plist):
@@ -71,7 +72,10 @@ pass() {
     panes=$(herdr pane list 2>/dev/null) || return
     [[ -z $tabs || -z $panes ]] && return
 
-    while IFS=$'\t' read -r tab cur num; do
+    # label goes last: tab is a whitespace char in IFS, so an empty label in a
+    # middle field would collapse and shift the columns. As the final field it
+    # just reads as empty.
+    while IFS=$'\t' read -r tab num cur; do
         [[ -z $tab ]] && continue
 
         # Preserve manual renames: only manage tabs still on their default
@@ -88,9 +92,10 @@ pass() {
 
         label=$(pane_label "$pane")
 
-        # Bare shell: revert a name we previously set back to the tab number.
+        # Bare shell: show the tab's position within its workspace. Unlike
+        # herdr's own .number, this is renumbered each pass so it stays
+        # gap-free as tabs are created and closed.
         if [[ -z $label ]]; then
-            [[ -z ${last_set[$tab]:-} || $cur == "$num" ]] && continue
             label=$num
         fi
         [[ $label == "$cur" ]] && continue
@@ -101,7 +106,12 @@ pass() {
             herdr tab rename "$tab" "$label" >/dev/null 2>&1 \
                 && if [[ $label == "$num" ]]; then unset 'last_set[$tab]'; else last_set[$tab]=$label; fi
         fi
-    done < <(jq -r '(.result.tabs // [])[] | "\(.tab_id)\t\(.label)\t\(.number)"' 2>/dev/null <<<"$tabs")
+    done < <(jq -r '
+        (.result.tabs // [])
+        | group_by(.workspace_id)                       # stable: preserves tab order
+        | map(to_entries | map(.value + {pos: (.key + 1)}))
+        | add
+        | .[] | "\(.tab_id)\t\(.pos)\t\(.label)"' 2>/dev/null <<<"$tabs")
 }
 
 case "$mode" in
