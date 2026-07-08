@@ -5,7 +5,8 @@
 prefix = "ctrl+a"                # tmux prefix
 
 # Workspace = tmux window
-workspace_picker = "prefix+f"    # ~ tmux C-a f sessionizer (spaces list)
+goto = "prefix+f"                # ~ tmux C-a f sessionizer (session navigator)
+workspace_picker = "prefix+w"    # spaces list picker (moved off prefix+f)
 open_worktree = "prefix+g"       # ~ tmux C-a g gwt switch (worktree picker)
 next_agent = "prefix+n"          # jump to next/prev agent pane (priority order)
 previous_agent = "prefix+p"
