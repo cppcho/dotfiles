@@ -4,7 +4,7 @@
 [keys]
 prefix = "ctrl+a"
 
-goto = "prefix+v"
+goto = ""
 detach = "prefix+d"
 workspace_picker = "prefix+w"
 open_worktree = "prefix+g"
@@ -15,36 +15,32 @@ focus_pane_right = ""
 new_workspace = ""
 previous_workspace = "ctrl+up"
 next_workspace = "ctrl+down"      
-previous_agent = "ctrl+left"
-next_agent = "ctrl+right"
-switch_workspace = "" 
-focus_agent = ""
+previous_agent = "ctrl+-"
+next_agent = "ctrl+="
 close_pane = "prefix+x"         
 
 new_tab = "prefix+c"
 previous_tab = ""
 next_tab = ""
-switch_tab = "ctrl+1..9"
 close_tab = ""
 
-split_vertical = "prefix+%"      # split right, tmux C-a %
-split_horizontal = 'prefix+"'    # split down, tmux C-a "
+split_vertical = "prefix+%"
+split_horizontal = 'prefix+"'
 
-# Navigate mode: j/k selects workspaces (vim-style); pane up/down moves to arrows
 navigate_workspace_up = "k"
 navigate_workspace_down = "j"
 navigate_pane_up = "up"
 navigate_pane_down = "down"
 
-# Sessionizer: fzf a project dir; focus its space if open, else create one.
-# ~ tmux C-a f (~/bin/tmux-sessionizer). Runs in a temp pane so fzf is interactive.
+switch_workspace = "" 
+switch_tab = "ctrl+1..9"
+
 [[keys.command]]
 key = "prefix+f"
 type = "pane"
 command = "~/bin/herdr-sessionizer"
 description = "sessionizer (open project as space)"
 
-# Vim-aware pane navigation, ~ tmux is_vim bindings (vim side in nvim config)
 [[keys.command]]
 key = "ctrl+h"
 type = "shell"
@@ -69,7 +65,6 @@ type = "shell"
 command = "~/bin/herdr-navigate right"
 description = "navigate right (vim-aware)"
 
-# Snap split to 36:64 / 64:36, ~ tmux C-a ( / ); splits first if single pane
 [[keys.command]]
 key = "prefix+("
 type = "shell"
@@ -89,11 +84,11 @@ command = "~/bin/herdr-snap-split 0.5"
 description = "snap split 50:50"
 
 [theme]
-name = "catppuccin"              # = mocha
+name = "catppuccin"
 
 [ui]
-hide_tab_bar_when_single_tab = true  # tabs unused; hide the row
-agent_panel_sort = "spaces"
+hide_tab_bar_when_single_tab = false
+agent_panel_sort = "priority"
 confirm_close = true
 show_agent_labels_on_pane_borders = false
 prompt_new_tab_name = false
