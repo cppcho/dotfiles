@@ -55,6 +55,15 @@ find_worktree_for_branch() {
     '
 }
 
+# Clear a lock on a worktree if one is set. gwt-created worktrees can be locked
+# by external tooling (e.g. a Claude Code session tags the tree with its PID);
+# when that process dies the lock is left stale and blocks `git worktree remove`.
+# Unlocking is a no-op when the tree isn't locked, so this is safe to call
+# unconditionally before removal.
+unlock_worktree() {
+    git worktree unlock "$1" 2>/dev/null || true
+}
+
 # Resolve a user-supplied ref to a branch name.
 # Accepts a branch name, a PR number (#123 or 123), or a GitHub PR URL.
 resolve_branch() {
@@ -399,7 +408,11 @@ cmd_review() {
     close_worktree_session "$wt_path" "$main_worktree"
     local existing
     existing=$(find_worktree_for_branch "$branch")
-    [[ -n "$existing" ]] && git worktree remove --force "$existing" 2>/dev/null || true
+    if [[ -n "$existing" ]]; then
+        # Clear any stale lock first — a single --force won't override a lock.
+        unlock_worktree "$existing"
+        git worktree remove --force "$existing" 2>/dev/null || true
+    fi
     git worktree prune
     git branch -D "$branch" 2>/dev/null || true
     [[ -d "$wt_path" ]] && rm -rf "$wt_path"
@@ -439,15 +452,13 @@ cmd_review_done() {
 
     echo "Finishing review: $branch ($wt_path)"
 
-    # Operate from the main worktree so removing this one is safe.
-    cd "$main_worktree"
-    git worktree remove --force "$wt_path"
-    git worktree prune
-    git branch -D "$branch" 2>/dev/null || true
-
-    # Kill the review tmux session (switches the client back to main first).
-    # Must be last — it may kill the session this process runs in.
-    close_worktree_session "$wt_path" "$main_worktree"
+    # Remove the worktree + tear down its session (native herdr path when
+    # possible, git fallback otherwise). Force: review worktrees carry an
+    # intentional unstaged diff (see cmd_review).
+    remove_worktree "$wt_path" "$main_worktree" 1 \
+        || { echo "Error: failed to remove $wt_path" >&2; exit 1; }
+    git -C "$main_worktree" worktree prune
+    git -C "$main_worktree" branch -D "$branch" 2>/dev/null || true
 }
 
 cmd_delete() {
@@ -503,29 +514,16 @@ cmd_delete() {
 
     echo "Removing worktree: $wt_path (branch: $branch)"
 
-    local remove_args=("$wt_path")
-    if [[ "$force" == "1" ]]; then
-        remove_args=(--force "$wt_path")
-    fi
-
-    # If we're inside the worktree being deleted, cd to main first
-    if [[ "$current_dir" == "$wt_path"* ]]; then
-        cd "$main_worktree"
-        git worktree remove "${remove_args[@]}"
-        echo "Switched to: $main_worktree"
-        emit_cd "$main_worktree"
-    else
-        git worktree remove "${remove_args[@]}"
-    fi
+    # Remove the worktree + tear down its session (native herdr path when
+    # possible, git fallback otherwise). Keeps the branch.
+    remove_worktree "$wt_path" "$main_worktree" "$force" || return
 
     # Review worktrees ride a synthetic review/* branch (see cmd_review) that has
-    # no upstream — drop it too so they don't accumulate.
+    # no upstream — drop it too so they don't accumulate. Run from main since we
+    # may no longer be inside a valid worktree.
     if [[ "$branch" == review/* ]]; then
-        git branch -D "$branch" 2>/dev/null || true
+        git -C "$main_worktree" branch -D "$branch" 2>/dev/null || true
     fi
-
-    # Kill associated tmux session (must be last — may kill our own process)
-    close_worktree_session "$wt_path" "$main_worktree"
 }
 
 cmd_setup() {
@@ -584,42 +582,32 @@ cmd_purge() {
         return
     fi
 
-    # If we're inside one of the worktrees being removed, jump out first.
-    local current_dir
+    # Remove each worktree + tear down its session. The one we're sitting in (if
+    # any) goes LAST: native herdr removal of the current workspace can tear down
+    # this pane and kill gwt mid-loop, so purge the others first. Branches were
+    # verified merged above, so force-removal and force branch-delete are safe.
+    local current_dir current_entry=""
     current_dir=$(pwd)
-    local moved=0
     for entry in "${entries[@]}"; do
         local w="${entry##*$'\t'}"
-        if [[ "$current_dir" == "$w"* ]]; then
-            cd "$main_worktree"
-            moved=1
-            break
-        fi
-    done
-
-    for entry in "${entries[@]}"; do
+        if [[ "$current_dir" == "$w"* ]]; then current_entry="$entry"; continue; fi
         local b="${entry%%$'\t'*}"
-        local w="${entry##*$'\t'}"
         echo "Removing worktree: $w"
-        if git worktree remove "$w" 2>/dev/null; then
-            :
-        else
-            echo "  (worktree is dirty; retrying with --force)"
-            git worktree remove --force "$w" || continue
-        fi
-        # Branch was verified as merged above, so force-delete is safe.
-        git branch -D "$b" 2>/dev/null || true
+        remove_worktree "$w" "$main_worktree" 1 || continue
+        git -C "$main_worktree" branch -D "$b" 2>/dev/null || true
     done
 
-    if [[ "$moved" == "1" ]]; then
-        emit_cd "$main_worktree"
+    if [[ -n "$current_entry" ]]; then
+        local b="${current_entry%%$'\t'*}"
+        local w="${current_entry##*$'\t'}"
+        echo "Removing worktree: $w"
+        remove_worktree "$w" "$main_worktree" 1 || return
+        # Native removal of our own workspace may kill gwt before this runs; the
+        # branch can only be dropped after removal (it's checked out until then),
+        # so a merged branch that lingers here is harmless — the next purge or
+        # clean-gone will delete it.
+        git -C "$main_worktree" branch -D "$b" 2>/dev/null || true
     fi
-
-    # Kill associated tmux sessions (must be last — may kill our own process)
-    for entry in "${entries[@]}"; do
-        local w="${entry##*$'\t'}"
-        close_worktree_session "$w" "$main_worktree"
-    done
 }
 
 # ---------------------------------------------------------------------------
@@ -640,6 +628,58 @@ open_session() {
 # Tear down the session/workspace associated with a worktree path.
 close_worktree_session() {
     if in_herdr; then close_worktree_herdr "$@"; else kill_worktree_tmux_session "$@"; fi
+}
+
+# Remove a worktree's checkout and tear down its multiplexer session.
+#
+# In herdr, first try the native `herdr worktree remove`: for a herdr-managed
+# worktree it removes the git worktree, closes the workspace, and refocuses the
+# parent repo — atomically, server-side, keeping the branch. Because it's one
+# server call, gwt doesn't need to outlive the pane teardown (this is what makes
+# the setsid-daemon dance in close_worktree_herdr unnecessary here). It refuses
+# a dirty worktree unless force=1, mirroring `git worktree remove`.
+#
+# Anything herdr doesn't manage as a worktree (Claude Code's .claude/worktrees
+# spaces, plain workspaces), tmux, or any native failure (incl. dirty-without
+# -force) falls through to `git worktree remove` + close_worktree_session.
+#
+# The caller deletes the branch afterwards if it wants to — native remove keeps
+# it. Args: <wt_path> <main_worktree> <force:0|1>. Returns non-zero if removal
+# failed (e.g. dirty without force).
+remove_worktree() {
+    local wt_path="$1" main_worktree="$2" force="$3"
+
+    if in_herdr; then
+        local abs wsid
+        abs=$(cd "$wt_path" 2>/dev/null && pwd || echo "$wt_path")
+        wsid=$(herdr_workspace_for_path "$abs")
+        if [[ -n "$wsid" ]]; then
+            local args=(--workspace "$wsid")
+            [[ "$force" == "1" ]] && args+=(--force)
+            # Success closes the workspace, which may kill this pane (and gwt)
+            # mid-call — but the removal+refocus already happened server-side, so
+            # that's a clean outcome. Only a genuine failure returns here without
+            # a result, and it leaves the worktree untouched → git fallback.
+            if herdr worktree remove "${args[@]}" --json 2>&1 | grep -q '"result"'; then
+                return 0
+            fi
+        fi
+    fi
+
+    # --- git + session-teardown fallback ---
+    unlock_worktree "$wt_path"
+    local remove_args=("$wt_path")
+    [[ "$force" == "1" ]] && remove_args=(--force "$wt_path")
+
+    # If we're inside the worktree being removed, jump to main first.
+    if [[ "$(pwd)" == "$wt_path"* ]]; then
+        cd "$main_worktree"
+        git worktree remove "${remove_args[@]}" || return 1
+        emit_cd "$main_worktree"
+    else
+        git worktree remove "${remove_args[@]}" || return 1
+    fi
+    close_worktree_session "$wt_path" "$main_worktree"
 }
 
 open_in_tmux() {
@@ -729,12 +769,14 @@ open_in_herdr() {
 # land back on the main repo's workspace instead of an arbitrary neighbour.
 #
 # Two herdr quirks force the approach below:
-#   1. `workspace focus` before a close doesn't stick — closing the focused
-#      workspace makes herdr re-home to the newest remaining one regardless. So
-#      the refocus must happen *after* the close.
-#   2. Closing the focused workspace also hangs up the pane gwt runs in, killing
-#      this process mid-command. So the close+refocus is detached into a
-#      SIGHUP-immune background shell that outlives the pane.
+#   1. `workspace focus` before a close doesn't stick — closing a workspace makes
+#      herdr re-home to the newest remaining one regardless. So the refocus must
+#      happen *after* the close.
+#   2. Closing our own workspace tears down the pane gwt runs in and kills every
+#      process still living in it — including a `& disown` background job, which
+#      stays in the pane's process group. So the close+refocus must be *fully*
+#      detached (double-fork + setsid → new session, no controlling terminal) to
+#      outlive the pane. macOS has no setsid(1), so we daemonize via python3.
 close_worktree_herdr() {
     local wt_path="$1"
     local main_worktree="${2:-}"
@@ -743,12 +785,15 @@ close_worktree_herdr() {
     wsid=$(herdr_workspace_for_path "$wt_path")
     [[ -z "$wsid" ]] && return
 
-    local focused
-    focused=$(herdr workspace list 2>/dev/null \
-        | jq -r --arg id "$wsid" '(.result.workspaces // [])[] | select(.workspace_id == $id) | .focused')
+    # Are we closing the workspace gwt itself is running in? Derive the current
+    # workspace id from HERDR_PANE_ID (e.g. "w36:p1" → "w36"). This is reliable
+    # regardless of focus state or whether the checkout still exists — unlike the
+    # UI-global `.focused` flag, which by the time we get here has already moved
+    # off the just-removed worktree, so the refocus-to-main branch never ran.
+    local current_wsid="${HERDR_PANE_ID%%:*}"
 
     local main_id=""
-    if [[ "$focused" == "true" && -n "$main_worktree" ]]; then
+    if [[ -n "$current_wsid" && "$wsid" == "$current_wsid" && -n "$main_worktree" ]]; then
         main_id=$(herdr_workspace_for_path "$(cd "$main_worktree" && pwd)")
         # Ensure the main repo's workspace exists so the detached refocus below
         # has a target (open_in_herdr creates it if missing).
@@ -758,16 +803,20 @@ close_worktree_herdr() {
         fi
     fi
 
-    if [[ -n "$main_id" ]]; then
-        # Detached + SIGHUP-immune: closing this (focused) workspace hangs up our
-        # own pane, so the refocus has to survive our death. A tiny delay lets
-        # gwt return first.
-        ( trap '' HUP INT TERM
-          sleep 0.3
-          herdr workspace close "$wsid" >/dev/null 2>&1
-          herdr workspace focus "$main_id" >/dev/null 2>&1
-        ) </dev/null >/dev/null 2>&1 &
-        disown 2>/dev/null || true
+    if [[ -n "$main_id" ]] && command -v python3 >/dev/null 2>&1; then
+        # Fully detached daemon (double-fork + setsid): closing our own workspace
+        # kills everything left in this pane's process group, so a plain
+        # `& disown` job dies before it can refocus. A new session survives it.
+        # The brief sleep lets gwt return and the pane settle before the close.
+        python3 -c '
+import os, sys, time, subprocess
+if os.fork() != 0: os._exit(0)
+os.setsid()
+if os.fork() != 0: os._exit(0)
+time.sleep(0.4)
+subprocess.run(["herdr", "workspace", "close", sys.argv[1]])
+subprocess.run(["herdr", "workspace", "focus", sys.argv[2]])
+' "$wsid" "$main_id" </dev/null >/dev/null 2>&1
         echo "Closing herdr workspace $wsid; returning to $(basename "$main_worktree")"
     else
         herdr workspace close "$wsid" >/dev/null 2>&1
