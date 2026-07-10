@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# herdr-gwt-switch — the herdr sibling of tmux's `prefix g` binding.
+#
+# Opens gwt's fzf worktree picker and switches to the chosen worktree's herdr
+# workspace. A no-argument wrapper because herdr [[keys.command]] runs the
+# command string as a single executable (no shell word-splitting), so
+# `~/bin/gwt switch` can't be inlined. Bind with type = "pane":
+#   [[keys.command]]
+#   key = "prefix+g"
+#   type = "pane"
+#   command = "~/bin/herdr-gwt-switch"
+exec "$HOME/bin/gwt" switch

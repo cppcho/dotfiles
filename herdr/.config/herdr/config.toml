@@ -7,14 +7,17 @@ prefix = "ctrl+a"
 goto = ""
 detach = "prefix+d"
 workspace_picker = "prefix+w"
-open_worktree = "prefix+g"
+# prefix+g / prefix+shift+g are driven by ~/bin/gwt (see [[keys.command]] below),
+# ported from tmux. Disable herdr's native worktree actions so the keys are free.
+open_worktree = ""
+new_worktree = ""
 focus_pane_left = ""
 focus_pane_down = ""
 focus_pane_up = ""
 focus_pane_right = ""
 new_workspace = ""
-previous_workspace = "ctrl+up"
-next_workspace = "ctrl+down"      
+previous_workspace = "ctrl+b"
+next_workspace = "ctrl+f"      
 previous_agent = "ctrl+-"
 next_agent = "ctrl+="
 close_pane = "prefix+x"         
@@ -40,6 +43,19 @@ key = "prefix+f"
 type = "pane"
 command = "~/bin/herdr-sessionizer"
 description = "sessionizer (open project as space)"
+
+# gwt worktree switching, ported from tmux prefix g / G.
+[[keys.command]]
+key = "prefix+g"
+type = "pane"
+command = "~/bin/herdr-gwt-switch"
+description = "worktree switch (gwt fzf picker)"
+
+[[keys.command]]
+key = "prefix+shift+g"
+type = "pane"
+command = "~/bin/herdr-gwt-prompt"
+description = "worktree / review PR (branch/#pr/url)"
 
 [[keys.command]]
 key = "ctrl+h"
@@ -88,7 +104,7 @@ name = "catppuccin"
 
 [ui]
 hide_tab_bar_when_single_tab = false
-agent_panel_sort = "priority"
+agent_panel_sort = "spaces"
 confirm_close = true
 show_agent_labels_on_pane_borders = false
 prompt_new_tab_name = false
