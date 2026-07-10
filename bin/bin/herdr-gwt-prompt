@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# herdr-gwt-prompt — the herdr sibling of tmux's `prefix G` command-prompt.
+#
+# Prompts for a branch / #PR / PR URL, then hands off to `gwt switch`, which
+# resolves or creates the worktree and focuses its herdr workspace. Bind via a
+# herdr [[keys.command]] with type = "pane" so this runs in a temporary
+# interactive pane (readline + fzf need a real TTY):
+#   [[keys.command]]
+#   key = "prefix+shift+g"
+#   type = "pane"
+#   command = "~/bin/herdr-gwt-prompt"
+#
+# Empty input cancels. Calls the gwt binary directly (not the gwt() shell
+# wrapper); landing in the worktree is handled by the workspace focus, so the
+# $GWT_CD_FILE cd-propagation the wrapper provides isn't needed here.
+set -euo pipefail
+read -e -rp "Worktree / review PR (branch/#pr/url): " ref
+[[ -z "${ref// /}" ]] && exit 0
+exec "$HOME/bin/gwt" switch "$ref"
