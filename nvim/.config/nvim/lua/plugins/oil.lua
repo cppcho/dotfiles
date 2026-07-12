@@ -7,6 +7,11 @@ return {
     view_options = {
       show_hidden = true,
     },
+    -- Show the current directory as a header at the top of the oil window.
+    -- Scoped to oil windows only, so it won't affect normal buffers.
+    win_options = {
+      winbar = "%{fnamemodify(v:lua.require('oil').get_current_dir(), ':~')}",
+    },
     use_default_keymaps = false,
     keymaps = {
       ["-"] = { "actions.parent", mode = "n" },
