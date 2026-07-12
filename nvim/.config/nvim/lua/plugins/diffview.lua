@@ -1,29 +1,18 @@
 -- https://github.com/sindrets/diffview.nvim
 -- Git diff / merge tool and file history. Single-tabpage interface.
 
--- diffview opens in its own tab. The snacks explorer is a global picker that
--- would follow onto that tab as a redundant sidebar, so close it when opening.
-local function close_snacks_explorer()
-  if _G.Snacks and Snacks.picker then
-    for _, p in ipairs(Snacks.picker.get({ source = "explorer" })) do
-      p:close()
-    end
-  end
-end
+-- Drop ":DiffviewOpen " into the command line and wait for the user to type a
+-- git-rev (or nothing, for the working-tree-vs-index default).
+local function open_diff_cmdline() vim.api.nvim_feedkeys(":DiffviewOpen ", "n", false) end
 
 -- Show a PR-style diff: <ref>...HEAD compares from the merge-base, so only
 -- changes on this branch since it diverged from the ref are shown
 -- (upstream-only commits ignored).
-local function open_diff(ref)
-  close_snacks_explorer()
-  vim.cmd("DiffviewOpen " .. vim.fn.fnameescape(ref .. "...HEAD"))
-end
+local function open_diff(ref) vim.cmd("DiffviewOpen " .. vim.fn.fnameescape(ref .. "...HEAD")) end
 
 local function prompt_for_ref()
   vim.ui.input({ prompt = "Diff against ref: ", default = "origin/" }, function(ref)
-    if ref and ref ~= "" then
-      open_diff(ref)
-    end
+    if ref and ref ~= "" then open_diff(ref) end
   end)
 end
 
@@ -43,25 +32,18 @@ local function diff_against_ref()
       end
     end)
   end)
-  if not ok then
-    prompt_for_ref()
-  end
+  if not ok then prompt_for_ref() end
 end
 
 -- The file history panel inherits the global scrolloff, which wastes rows on
 -- the short list. Drop it to 0 so entries reach the top/bottom edges.
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "DiffviewFileHistory",
-  callback = function()
-    vim.wo.scrolloff = 0
-  end,
+  callback = function() vim.wo.scrolloff = 0 end,
 })
 
 local function history(arg)
-  return function()
-    close_snacks_explorer()
-    vim.cmd("DiffviewFileHistory" .. (arg and (" " .. arg) or ""))
-  end
+  return function() vim.cmd("DiffviewFileHistory" .. (arg and (" " .. arg) or "")) end
 end
 
 return {
@@ -75,10 +57,29 @@ return {
     "DiffviewFocusFiles",
     "DiffviewRefresh",
   },
-  opts = {},
+  -- opts is a function so require("diffview.actions") only runs when the plugin
+  -- loads (via the cmd trigger above), keeping lazy-loading intact.
+  opts = function()
+    local actions = require("diffview.actions")
+    return {
+      -- --imply-local: whenever a range ends at HEAD, show the live working-tree
+      -- files on that side instead of the committed snapshot. Applied to every
+      -- DiffviewOpen (manual or via the mappings below).
+      default_args = {
+        DiffviewOpen = { "--imply-local" },
+      },
+      keymaps = {
+        file_history_panel = {
+          { "n", "D", actions.open_in_diffview, { desc = "Open the entry in a diffview" } },
+        },
+      },
+    }
+  end,
   keys = {
-    { "<leader>gc", diff_against_ref, desc = "Diffview: diff against ref" },
+    { "<leader>gc", open_diff_cmdline, desc = "Diffview: open (prompt for rev)" },
+    { "<leader>gC", diff_against_ref, desc = "Diffview: diff against PR base" },
     { "<leader>gl", history(), desc = "Diffview: repo history" },
     { "<leader>gh", history("%"), desc = "Diffview: current file history" },
+    { "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diffview: close" },
   },
 }
