@@ -1,3 +1,6 @@
 .DS_Store
 .vscode/
 *.local.*
+herdr/.config/herdr/*.log
+herdr/.config/herdr/session.json
+herdr/.config/herdr/*.sock
