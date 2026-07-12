@@ -1,10 +1,6 @@
 -- https://github.com/sindrets/diffview.nvim
 -- Git diff / merge tool and file history. Single-tabpage interface.
 
--- Drop ":DiffviewOpen " into the command line and wait for the user to type a
--- git-rev (or nothing, for the working-tree-vs-index default).
-local function open_diff_cmdline() vim.api.nvim_feedkeys(":DiffviewOpen ", "n", false) end
-
 -- Show a PR-style diff: <ref>...HEAD compares from the merge-base, so only
 -- changes on this branch since it diverged from the ref are shown
 -- (upstream-only commits ignored).
@@ -76,10 +72,10 @@ return {
     }
   end,
   keys = {
-    { "<leader>gc", open_diff_cmdline, desc = "Diffview: open (prompt for rev)" },
+    { "<leader>gc", "<cmd>DiffviewOpen<cr>", desc = "Diffview: open (working tree)" },
     { "<leader>gC", diff_against_ref, desc = "Diffview: diff against PR base" },
-    { "<leader>gl", history(), desc = "Diffview: repo history" },
-    { "<leader>gh", history("%"), desc = "Diffview: current file history" },
+    { "<leader>gh", history(), desc = "Diffview: repo history" },
+    { "<leader>gH", history("%"), desc = "Diffview: current file history" },
     { "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diffview: close" },
   },
 }
