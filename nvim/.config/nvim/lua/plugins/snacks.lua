@@ -25,29 +25,10 @@ return {
           },
         },
       },
-      sources = {
-        explorer = {
-          hidden = true,
-          ignored = true,
-          win = {
-            input = {
-              keys = {
-                ["<Esc>"] = false,
-              },
-            },
-            list = {
-              keys = {
-                ["<Esc>"] = false,
-              },
-            },
-          },
-        },
-      },
     },
-    explorer = {},
   },
   keys = {
-    -- Top Pickers & Explorer
+    -- Top Pickers
     {
       "<C-p>",
       function() Snacks.picker.files(find_files_opts) end,
@@ -77,16 +58,6 @@ return {
       "<leader>n",
       function() Snacks.picker.notifications() end,
       desc = "Notification History",
-    },
-    {
-      "<leader>e",
-      function() Snacks.explorer() end,
-      desc = "File Explorer",
-    },
-    {
-      "<C-e>",
-      function() Snacks.explorer() end,
-      desc = "File Explorer",
     },
     -- find
     {
