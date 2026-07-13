@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Balance every split in the current herdr tab so all panes get equal area.
+
+Like tmux's "select-layout even-*", generalized to arbitrary split trees:
+3 columns become 33/33/33, a 2x2 grid becomes four equal quadrants, etc.
+
+herdr has no native balance command and its splits are binary (each carries a
+direction + ratio, relative to its own rect). Equal leaf area ⇒ each split's
+ratio must be (leaves in its first child) / (leaves in the whole split). Because
+a ratio is relative to the split's own rect, splits are independent: resizing
+one never changes another's ratio, so a single pass over the splits suffices.
+
+Uses the herdr CLI (not the socket API): as of herdr 0.7.3 the socket ignores
+pane_id on resize, while the CLI honors --pane. Not a hot path, so CLI latency
+is fine.
+"""
+import json
+import os
+import subprocess
+import sys
+
+
+def herdr(*args):
+    return subprocess.run(
+        ["herdr", *args], check=True, capture_output=True, text=True
+    ).stdout
+
+
+def pane_scope():
+    pid = os.environ.get("HERDR_ACTIVE_PANE_ID")
+    return ["--pane", pid] if pid else ["--current"]
+
+
+def get_layout(scope):
+    return json.loads(herdr("pane", "layout", *scope))["result"]["layout"]
+
+
+def inside(a, b):
+    """True if rect a is contained in rect b (shared edges allowed)."""
+    return (
+        a["x"] >= b["x"]
+        and a["y"] >= b["y"]
+        and a["x"] + a["width"] <= b["x"] + b["width"]
+        and a["y"] + a["height"] <= b["y"] + b["height"]
+    )
+
+
+def build_tree(layout):
+    """Return {split_id: {split, children:[nodes]}} keyed by split id.
+
+    A node is {"kind": "pane"|"split", "id", "rect", (split fields)}.
+    """
+    nodes = [
+        {"kind": "pane", "id": p["pane_id"], "rect": p["rect"]}
+        for p in layout["panes"]
+    ] + [
+        {"kind": "split", "id": s["id"], "rect": s["rect"],
+         "direction": s["direction"], "ratio": s["ratio"]}
+        for s in layout["splits"]
+    ]
+
+    tree = {}
+    for s in layout["splits"]:
+        # Direct children = nodes inside s that no other node-inside-s contains.
+        desc = [n for n in nodes if n["id"] != s["id"] and inside(n["rect"], s["rect"])]
+        children = [
+            n for n in desc
+            if not any(
+                m is not n and inside(n["rect"], m["rect"]) for m in desc
+            )
+        ]
+        key = "x" if s["direction"] == "right" else "y"
+        children.sort(key=lambda n: n["rect"][key])
+        tree[s["id"]] = {"split": s, "children": children}
+    return tree
+
+
+def leaf_count(node, tree):
+    if node["kind"] == "pane":
+        return 1
+    return sum(leaf_count(c, tree) for c in tree[node["id"]]["children"])
+
+
+def resize_target(split, layout, grow):
+    """Pick (pane_id, direction) that moves exactly this split's boundary.
+
+    herdr's `pane resize --direction D` moves the pane's border on side D. So to
+    move split S's dividing boundary we resize a pane adjacent to it, naming the
+    side the boundary sits on for that pane — otherwise we'd move a *different*
+    split that happens to border the pane on another side.
+
+    To grow the first child (boundary moves right/down), resize a first-child
+    pane whose far edge is the boundary toward it. To shrink (boundary moves
+    left/up), resize a second-child pane whose near edge is the boundary.
+    """
+    r = split["rect"]
+    horizontal = split["direction"] == "right"
+    tree = build_tree(layout)
+    first = tree[split["id"]]["children"][0]
+    fr = first["rect"]
+    # Exact integer boundary from the first child's extent (no rounding drift).
+    boundary = fr["x"] + fr["width"] if horizontal else fr["y"] + fr["height"]
+
+    if grow:
+        direction = "right" if horizontal else "down"
+    else:
+        direction = "left" if horizontal else "up"
+
+    best = None
+    for p in layout["panes"]:
+        pr = p["rect"]
+        if not inside(pr, r):
+            continue
+        if horizontal:
+            edge = pr["x"] + pr["width"] if grow else pr["x"]
+        else:
+            edge = pr["y"] + pr["height"] if grow else pr["y"]
+        if edge != boundary:
+            continue
+        # Topmost / leftmost adjacent pane, for determinism.
+        if best is None or (pr["y"], pr["x"]) < (best["rect"]["y"], best["rect"]["x"]):
+            best = p
+    return (best["pane_id"], direction) if best else (None, None)
+
+
+def main():
+    scope = pane_scope()
+    layout = get_layout(scope)
+
+    if layout.get("zoomed"):
+        herdr("pane", "zoom", *scope, "--off")
+        layout = get_layout(scope)
+
+    if not layout["splits"]:
+        return  # single pane, nothing to balance
+
+    tree = build_tree(layout)
+    targets = {}
+    for sid, node in tree.items():
+        first = node["children"][0]
+        total = sum(leaf_count(c, tree) for c in node["children"])
+        targets[sid] = leaf_count(first, tree) / total
+
+    for sid, target in targets.items():
+        layout = get_layout(scope)  # refetch: geometry shifts as we resize
+        split = next((s for s in layout["splits"] if s["id"] == sid), None)
+        if split is None:
+            continue
+        delta = target - split["ratio"]
+        if abs(delta) < 0.005:
+            continue
+        pane, direction = resize_target(split, layout, grow=delta > 0)
+        if pane is None:
+            continue
+        herdr("pane", "resize", "--pane", pane,
+              "--direction", direction, "--amount", f"{abs(delta):.3f}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(e.stderr or str(e))
+        sys.exit(1)
