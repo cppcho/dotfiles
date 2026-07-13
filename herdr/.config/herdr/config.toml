@@ -1,3 +1,4 @@
+onboarding = false
 # Minimal herdr config, mapped from tmux muscle memory (~/.tmux.conf)
 # Workspaces (spaces) are used like tmux windows; tabs are mostly unused.
 
@@ -96,8 +97,8 @@ description = "snap split 64:36 (big left)"
 [[keys.command]]
 key = "prefix+="
 type = "shell"
-command = "~/bin/herdr-snap-split 0.5"
-description = "snap split 50:50"
+command = "~/bin/herdr-evenize"
+description = "evenize all splits (equal panes)"
 
 [theme]
 name = "catppuccin"
