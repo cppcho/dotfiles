@@ -62,7 +62,7 @@ return {
       -- files on that side instead of the committed snapshot. Applied to every
       -- DiffviewOpen (manual or via the mappings below).
       default_args = {
-        DiffviewOpen = { "--imply-local" },
+        -- DiffviewOpen = { "--imply-local" },
       },
       keymaps = {
         file_history_panel = {
