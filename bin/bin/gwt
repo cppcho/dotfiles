@@ -745,14 +745,21 @@ open_in_herdr() {
     # worktree list, remove confirmation) instead of a generic space. Idempotent:
     # herdr reconciles by checkout path, focusing the existing workspace — and
     # upgrading a plain space's metadata — if it's already open.
-    local created wsid pane
-    created=$(herdr worktree open --path "$wt_path" --label "$label" --focus --json 2>/dev/null)
+    #
+    # --cwd the main worktree: herdr rejects worktree open/create actions whose
+    # source is a *linked* worktree (error "linked_worktree_source"), so anchor
+    # the call to the repo's parent workspace instead of gwt's caller — otherwise
+    # it fails whenever invoked from a secondary worktree. The `|| true` keeps a
+    # non-zero exit from aborting gwt under `set -e` so the fallback below runs.
+    local main_worktree created wsid pane
+    main_worktree=$(get_main_worktree)
+    created=$(herdr worktree open --cwd "$main_worktree" --path "$wt_path" --label "$label" --focus --json 2>/dev/null) || true
     wsid=$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id // empty')
 
     # Fall back to a plain space if the path isn't a registered git worktree
     # (e.g. a stale directory) or `worktree open` is unavailable.
     if [[ -z "$wsid" ]]; then
-        created=$(herdr workspace create --cwd "$wt_path" --label "$label" --focus 2>/dev/null)
+        created=$(herdr workspace create --cwd "$wt_path" --label "$label" --focus 2>/dev/null) || true
     fi
 
     if [[ -z "$existing" && -n "$start_cmd" ]]; then
