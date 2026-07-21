@@ -21,7 +21,8 @@ previous_workspace = "ctrl+["
 next_workspace = "ctrl+]"
 previous_agent = "ctrl+;"
 next_agent = "ctrl+'"
-close_pane = "prefix+x"         
+close_pane = "prefix+x"
+close_workspace = "prefix+shift+x"
 
 new_tab = "prefix+c"
 previous_tab = ""
@@ -95,6 +96,12 @@ command = "~/bin/herdr-snap-split 0.64"
 description = "snap split 64:36 (big left)"
 
 [[keys.command]]
+key = "prefix+shift+o"
+type = "shell"
+command = "~/bin/herdr-close-other-tabs"
+description = "close all other tabs in workspace"
+
+[[keys.command]]
 key = "prefix+="
 type = "shell"
 command = "~/bin/herdr-evenize"
@@ -106,7 +113,7 @@ name = "catppuccin"
 [ui]
 hide_tab_bar_when_single_tab = false
 agent_panel_sort = "spaces"
-confirm_close = true
+confirm_close = false
 show_agent_labels_on_pane_borders = true
 prompt_new_tab_name = false
 
