@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Close every tab in the current herdr workspace except the focused one
+# (vim :tabonly / tmux kill-window -a). Bound to prefix+shift+o.
+set -euo pipefail
+
+ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
+cur="${HERDR_ACTIVE_TAB_ID:?not run from a herdr keybinding}"
+
+herdr tab list --workspace "$ws" \
+  | jq -r --arg cur "$cur" '.result.tabs[].tab_id | select(. != $cur)' \
+  | while read -r tab; do
+      herdr tab close "$tab" >/dev/null
+    done
