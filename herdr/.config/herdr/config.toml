@@ -57,7 +57,7 @@ description = "worktree switch (gwt fzf picker)"
 key = "prefix+shift+g"
 type = "pane"
 command = "~/bin/herdr-gwt-prompt"
-description = "worktree / review PR (branch/#pr/url)"
+description = "worktree switch (branch/#pr/url)"
 
 [[keys.command]]
 key = "ctrl+h"

@@ -22,12 +22,36 @@
 #   herdr-sessionizer ~/dev/foo
 set -euo pipefail
 
+# Surface a fatal error in the throwaway herdr pane, then pause so it stays
+# readable before the pane closes.
+die() {
+    printf '\n\033[1;31mherdr-sessionizer: %s\033[0m\n' "$1" >&2
+    printf 'Press Enter to close… ' >&2
+    read -r _ || true
+    exit 1
+}
+
+# Run a herdr socket command; on transport failure or a JSON {"error":...}
+# response (e.g. a client/server protocol mismatch after a herdr upgrade),
+# surface it and pause instead of silently doing nothing. Result left in
+# $HERDR_OUT. Must be called from the main shell so die() can exit the script.
+HERDR_OUT=""
+herdr_call() {
+    if ! HERDR_OUT=$(herdr "$@" 2>&1); then
+        die "'herdr $*' failed:"$'\n'"$HERDR_OUT"
+    fi
+    if printf '%s' "$HERDR_OUT" | jq -e 'has("error")' >/dev/null 2>&1; then
+        die "'herdr $*':"$'\n'"$(printf '%s' "$HERDR_OUT" | jq -r '.error.message // .error')"
+    fi
+}
+
 # label -> most recent space with that label (for focus-if-exists).
 declare -A lbl_ws lbl_num
+herdr_call workspace list
 while IFS=$'\t' read -r wsid num label; do
     [[ -z $label ]] && continue
     if (( num > ${lbl_num[$label]:-0} )); then lbl_ws[$label]=$wsid; lbl_num[$label]=$num; fi
-done < <(herdr workspace list 2>/dev/null \
+done < <(printf '%s' "$HERDR_OUT" \
     | jq -r '(.result.workspaces // [])[] | "\(.workspace_id)\t\(.number)\t\(.label)"')
 
 open_dir() {
@@ -35,9 +59,9 @@ open_dir() {
     dir="${dir/#\~/$HOME}"; dir="${dir%/}"
     label=$(basename "$dir")
     if [[ -n ${lbl_ws[$label]:-} ]]; then
-        herdr workspace focus "${lbl_ws[$label]}" >/dev/null
+        herdr_call workspace focus "${lbl_ws[$label]}"
     else
-        herdr workspace create --cwd "$dir" --label "$label" --focus >/dev/null
+        herdr_call workspace create --cwd "$dir" --label "$label" --focus
     fi
 }
 
