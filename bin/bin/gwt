@@ -491,8 +491,17 @@ cmd_purge() {
 
 in_herdr() { [[ -n "${HERDR_PANE_ID:-}" ]]; }
 
+# Report the worktree gwt settled on to its caller: set $GWT_WT_FILE and gwt
+# writes "<branch>\t<path>" there. Used by ~/bin/herdr-gwt-prompt to find the
+# workspace to open a PR diff in, instead of re-deriving the path itself.
+emit_worktree() {
+    [[ -n "${GWT_WT_FILE:-}" ]] || return 0
+    printf '%s\t%s\n' "$1" "$2" > "$GWT_WT_FILE"
+}
+
 # Create or focus a session/workspace for a worktree.
 open_session() {
+    emit_worktree "$@"
     if in_herdr; then open_in_herdr "$@"; else open_in_tmux "$@"; fi
 }
 

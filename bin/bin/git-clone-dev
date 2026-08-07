@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Clone a git repo to ~/dev/ and switch tmux session to it
+# Clone a git repo to ~/dev/ and open it: a tmux session, or a herdr space when
+# run inside herdr (the sessionizer dispatches on $HERDR_PANE_ID).
 
 url="$1"
 if [[ -z "$url" ]]; then
@@ -21,5 +22,5 @@ else
     git clone "$url" "$dest" || exit 1
 fi
 
-# Reuse tmux-sessionizer to create/switch session
+# Reuse the sessionizer to create/switch the session (or herdr space)
 exec ~/bin/tmux-sessionizer "$dest"
