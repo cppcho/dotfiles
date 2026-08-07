@@ -23,7 +23,7 @@ Then read what is already on disk. If `.scratch/<feature-slug>/issues/` exists, 
 
 ## 2. Explore the codebase
 
-If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary from `.scratch/context.md`, if one exists.
+If you have not already explored the codebase, do so to understand the current state of the code. Read `.scratch/context.md` if it exists and use its domain glossary vocabulary in ticket titles and descriptions.
 
 Look for opportunities to prefactor the code to make the implementation easier — "make the change easy, then make the easy change." A prefactor becomes its own ticket that blocks the slices needing it.
 
