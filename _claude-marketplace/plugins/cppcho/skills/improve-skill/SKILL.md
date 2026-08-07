@@ -1,7 +1,7 @@
 ---
 name: improve-skill
 description: Reviews and rewrites a SKILL.md against Anthropic's skill-authoring and current-model prompting guidance — cutting what Claude already knows, fixing descriptions that under-trigger, and removing instructions that backfire. Use when writing a new skill, improving or reviewing an existing one, or when a skill isn't triggering or isn't being followed.
-argument-hint: "Path to a SKILL.md, or the skill name"
+argument-hint: "[skill-md-path|skill-name]"
 disable-model-invocation: true
 ---
 
@@ -35,10 +35,13 @@ Length follows from that. Keep the body under 500 lines; past that, split into `
 
 ## Frontmatter
 
-- **The description is the trigger.** It needs what the skill does *and* when to use it, in third person, using the words a user would actually type. Under-triggering is the common failure, so lean pushy: name the situations, including ones where the user won't say the skill's name. Max 1,024 characters.
+- **The description is the trigger** — for a model-invocable skill. It needs what the skill does *and* when to use it, in third person, using the words a user would actually type. Under-triggering is the common failure, so lean pushy: name the situations, including ones where the user won't say the skill's name. `description` plus `when_to_use` are truncated together at 1,536 characters in the listing.
+- **A `disable-model-invocation: true` skill's description never enters context** — it only labels the `/` menu, so spend the effort on the body instead. Don't grade a manual skill's description as if it had to trigger.
 - **Keep all "when to use" wording in the description.** A body that explains when to invoke is talking to nobody — it is only read after invocation.
-- `name`: lowercase, hyphens, ≤64 characters, no `claude` or `anthropic`. Match the collection's existing naming pattern over the docs' gerund preference.
-- Manual-only skills set `disable-model-invocation: true`; a skill with a narrow tool set gets `allowed-tools`; a skill that takes a path or ticket number gets `argument-hint`.
+- **Where skills overlap, make each description say what the others are for.** Two skills that both interview-then-write leave Claude nothing to choose on; a clause naming the sibling and its territory fixes it without merging them.
+- `name`: lowercase, hyphens, ≤64 characters, no `claude` or `anthropic`. In a plugin, `name` sets only the last segment and the plugin prefix is added automatically, so write it bare (`code-review`, not `myplugin:code-review`). Match the collection's existing naming pattern over the docs' gerund preference.
+- Manual-only skills set `disable-model-invocation: true`; a skill that takes a path or ticket number gets `argument-hint`, in `[bracket-form]` since it renders in autocomplete.
+- `allowed-tools` **pre-approves** for one turn, it does not restrict — so list every tool the body actually reaches for, including the ones consumed by `` !`command` `` injection, and drop the ones it never calls. To genuinely remove a tool, use `disallowed-tools`. Reach for `context: fork` when the skill is a self-contained task that should run as a background subagent, and `paths` when it only applies to certain files.
 
 ## Body
 
@@ -48,8 +51,10 @@ Length follows from that. Keep the body under 500 lines; past that, split into `
 - **Multi-step work gets numbered steps and a copyable checklist.** Quality-critical work gets a feedback loop: run the check, fix, re-run, proceed only when it passes.
 - **One default with an escape hatch**, not a menu of options.
 - **Consistent terminology.** One word per concept throughout; mixed synonyms make the model wonder whether you meant something different.
-- **No dates or "as of now".** Put superseded guidance in a collapsed "old patterns" section, or delete it.
+- **No dates or "as of now"** — and for the same reason, no pinned model names. "Use a Haiku agent for the cheap pass" goes stale the way a date does; say what the step needs instead. Put superseded guidance in a collapsed "old patterns" section, or delete it.
 - **Concrete over abstract** — real paths, real commands, input/output pairs where style matters.
+- **A reference to a sibling skill uses its invocable name.** `/domain-modeling` does not resolve when the skill ships in a plugin as `/cppcho:domain-modeling`.
+- **Numbered steps that cross-reference each other drift.** When a step says "the files from step 2", check that it is step 2.
 - Forward slashes in paths, fully qualified MCP tool names (`Server:tool_name`), and say whether a script is to be run or read.
 
 ## Instructions that backfire

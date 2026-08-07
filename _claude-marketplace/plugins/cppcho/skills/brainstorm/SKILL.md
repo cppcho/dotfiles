@@ -1,9 +1,9 @@
 ---
 name: brainstorm
-description: Brainstorms with the user relentlessly about a plan, decision, or idea, working a design tree in rounds. Use when the user wants to stress-test their thinking, or says brainstorm.
+description: Brainstorms a plan, decision, or idea with the user in rounds, working a design tree until nothing is left silently assumed. Use when the user says brainstorm, wants to stress-test or poke holes in their thinking, asks what they are missing, or is weighing an approach and wants the trade-offs worked through. Produces shared understanding, not a document — for requirements gathering that ends in a written spec, use spec-interview instead.
 ---
 
-Use the `/domain-modeling` skill.
+Use the `/cppcho:domain-modeling` skill.
 
 Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
 

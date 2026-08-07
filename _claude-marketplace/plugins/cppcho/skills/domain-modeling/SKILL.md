@@ -5,20 +5,9 @@ description: Builds and sharpens a project's domain model in `.scratch/context.m
 
 # Domain Modeling
 
-Actively build and sharpen the project's domain model as you design. This is the *active* discipline — challenging terms, inventing edge-case scenarios, and writing the glossary down the moment terms crystallise. (Merely *reading* the glossary for vocabulary is not this skill — that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
+Actively build and sharpen the project's domain model as you design: challenge terms, invent edge-case scenarios, and write the glossary down the moment terms crystallise. This is for changing the model, not consuming it — reading the glossary for vocabulary is a habit any skill can have.
 
-## File structure
-
-The glossary lives at `.scratch/context.md` — one per repo:
-
-```
-/
-├── .scratch/
-│   └── context.md
-└── src/
-```
-
-Create it lazily — only when you have something to write. If no `.scratch/context.md` exists, create one when the first term is resolved.
+The glossary lives at `.scratch/context.md`, one per repo. Create it lazily, when the first term is resolved.
 
 ## During the session
 

@@ -1,7 +1,7 @@
 ---
 name: implement
 description: Implements the work a spec or ticket describes, TDD at agreed seams, then runs the repo's gate and commits to the current branch. Use when building work that has already been specced or ticketed.
-argument-hint: "Path to a spec or ticket, or a ticket number"
+argument-hint: "[spec-or-ticket-path|ticket-number]"
 disable-model-invocation: true
 ---
 
