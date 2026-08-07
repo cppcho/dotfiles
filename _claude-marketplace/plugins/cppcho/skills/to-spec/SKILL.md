@@ -1,10 +1,10 @@
 ---
 name: to-spec
-description: Synthesizes the current conversation into a spec under `.scratch/`, with no interview.
+description: Synthesizes the current conversation into a spec under `.scratch/` — writes, doesn't ask.
 disable-model-invocation: true
 ---
 
-This skill takes the current conversation context and codebase understanding and produces a spec. Synthesize only what the conversation and the code already tell you; the interview has already happened.
+This skill takes the current conversation context and codebase understanding and produces a spec. Don't gather new requirements — synthesize only what the conversation and the code already tell you. If something essential is genuinely missing, ask that one question; don't open a round of discovery.
 
 ## Process
 
