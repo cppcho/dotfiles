@@ -2,7 +2,7 @@
 # Numbered sibling-clone workflow helper
 #
 # Usage:
-#   gs            Pick a sibling clone (fzf) and open/switch its tmux session
+#   gs            Pick a sibling clone (fzf) and open/switch its session (tmux or herdr space)
 #   gs new        Clone the next numbered sibling from origin (repo-2, repo-3, ...)
 #
 # Layout (siblings live next to the repo, sharing nothing):
@@ -59,6 +59,19 @@ open_in_tmux() {
     else
         tmux new-session -d -s "$session_name" -c "$dir"
         tmux switch-client -t "=$session_name"
+    fi
+}
+
+in_herdr() { [[ -n "${HERDR_PANE_ID:-}" ]]; }
+
+# Create or focus a session/workspace for a clone. Same tmux-or-herdr split as
+# ~/bin/gwt: running tmux inside a herdr pane nests a multiplexer there, which
+# breaks herdr's vim-aware ctrl+hjkl (see ~/bin/herdr-navigate).
+open_session() {
+    if in_herdr; then
+        exec "$HOME/bin/herdr-sessionizer" "$1"
+    else
+        open_in_tmux "$1"
     fi
 }
 
@@ -123,7 +136,7 @@ cmd_pick() {
 
     local name
     name=$(echo "$selected" | awk '{print $1}')
-    open_in_tmux "$REPO_PARENT/$name"
+    open_session "$REPO_PARENT/$name"
 }
 
 cmd_new() {
@@ -170,7 +183,7 @@ case "${1:-}" in
     new)        shift; cmd_new "$@" ;;
     -h|--help)
         echo "Usage: gs [new]"
-        echo "  gs        Pick a sibling clone and open/switch its tmux session"
+        echo "  gs        Pick a sibling clone and open/switch its session"
         echo "  gs new    Clone the next numbered sibling from origin"
         ;;
     "")         cmd_pick ;;

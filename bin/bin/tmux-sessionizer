@@ -12,6 +12,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Inside a herdr pane, starting tmux would nest a whole multiplexer in the pane,
+# and herdr then only sees `tmux` as the pane's foreground process — so the
+# vim-aware ctrl+hjkl bindings (~/bin/herdr-navigate) stop reaching the nvim
+# running inside it. Hand off to the herdr equivalent instead. $TMUX already set
+# means we're inside tmux, where switching sessions doesn't deepen any nesting.
+# --cmd/--prompt are dropped here: their only callers are the ~/.tmux.conf binds,
+# which by definition run with $TMUX set.
+if [[ -z ${TMUX:-} && -n ${HERDR_PANE_ID:-} ]]; then
+    exec "$HOME/bin/herdr-sessionizer" "$@"
+fi
+
 if [[ $# -eq 1 ]]; then
     selected=$1
 else

@@ -11,10 +11,216 @@
 #   type = "pane"
 #   command = "~/bin/herdr-gwt-prompt"
 #
+# A pasted PR *URL* gets two extras, since the URL is the only input form that
+# names the repo it belongs to:
+#   1. it is resolved to a local clone of that repo (cloned into ~/dev if there
+#      is none) and gwt runs there, so a PR from another repo works without
+#      first switching to that repo's workspace;
+#   2. once the worktree's workspace is focused, nvim opens in it on the PR diff
+#      (:DiffviewPR, same as <leader>gC).
+# Branch names, #N and bare numbers keep the plain switch behaviour.
+#
 # Empty input cancels. Calls the gwt binary directly (not the gwt() shell
 # wrapper); landing in the worktree is handled by the workspace focus, so the
 # $GWT_CD_FILE cd-propagation the wrapper provides isn't needed here.
 set -euo pipefail
+
+# Surface a fatal error in the throwaway herdr pane, then pause so it stays
+# readable before the pane closes.
+die() {
+    printf '\n\033[1;31mherdr-gwt-prompt: %s\033[0m\n' "$1" >&2
+    printf 'Press Enter to close… ' >&2
+    read -r _ || true
+    exit 1
+}
+
+# ---------------------------------------------------------------------------
+# PR URL → local clone
+# ---------------------------------------------------------------------------
+
+# Echo "owner/repo" for a GitHub PR URL, else return non-zero.
+pr_url_slug() {
+    [[ "$1" =~ github\.com/([^/]+)/([^/?#]+)/pull/[0-9]+ ]] || return 1
+    printf '%s/%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]%.git}"
+}
+
+# Does any remote of the repo at <dir> point at <owner/repo>? Matching on the
+# remotes rather than the directory name keeps a same-named clone of someone
+# else's repo out, and checking every remote (not just origin) still finds the
+# repo when it's cloned from a fork and the PR lives on the upstream.
+remote_matches() {
+    local url
+    while IFS= read -r url; do
+        url="${url%.git}"
+        [[ "${url,,}" == *"/${2,,}" || "${url,,}" == *":${2,,}" ]] && return 0
+    done < <(git -C "$1" remote -v 2>/dev/null | awk '{print $2}' | sort -u)
+    return 1
+}
+
+# Main worktree of the repo at <dir> (gwt is happiest anchored there).
+main_worktree_of() {
+    git -C "$1" worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //'
+}
+
+# Echo the path of a local clone of <owner/repo>, or nothing. Checks the current
+# repo first, then ~/dev/<repo> (the usual clone location), then every project
+# root in $TMUX_SESSIONIZER_PATHS — the same discovery herdr-sessionizer uses.
+find_clone() {
+    local slug="$1" dir
+    local repo="${slug##*/}"
+
+    if dir=$(git rev-parse --show-toplevel 2>/dev/null) && remote_matches "$dir" "$slug"; then
+        main_worktree_of "$dir"
+        return
+    fi
+
+    local -a candidates=("$HOME/dev/$repo")
+    local -a roots=()
+    local p d
+    IFS=':' read -ra roots <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
+    for p in "${roots[@]}"; do
+        p="${p/#\~/$HOME}"
+        if [[ "$p" == */ ]]; then
+            while IFS= read -r d; do candidates+=("$d"); done \
+                < <(find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+        else
+            candidates+=("$p")
+        fi
+    done
+
+    for dir in "${candidates[@]}"; do
+        [[ -d "$dir" ]] || continue
+        if remote_matches "$dir" "$slug"; then
+            main_worktree_of "$dir"
+            return
+        fi
+    done
+}
+
+# Clone <owner/repo> into <dest>. Called from the main shell (not a command
+# substitution) so a die() here actually stops the script.
+clone_repo() {
+    local slug="$1" dest="$2"
+    [[ -e "$dest" ]] && die "no clone of $slug found, and $dest already exists"
+    printf 'No local clone of %s — cloning into %s…\n' "$slug" "$dest"
+    if command -v gh &>/dev/null; then
+        gh repo clone "$slug" "$dest" || die "failed to clone $slug"
+    else
+        git clone "git@github.com:${slug}.git" "$dest" || die "failed to clone $slug"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# nvim diff view in the worktree's workspace
+# ---------------------------------------------------------------------------
+
+# Workspace rooted at a worktree path: match on the git checkout path herdr
+# tracks (robust), falling back to the dir-basename label. Mirrors gwt's
+# herdr_workspace_for_path.
+workspace_for_path() {
+    herdr workspace list 2>/dev/null | jq -r --arg p "$1" --arg l "$(basename "$1")" '
+        (.result.workspaces // [])
+        | ( map(select(.worktree.checkout_path == $p))
+          + map(select(.label == $l)) )
+        | (.[0].workspace_id // empty)'
+}
+
+# State of a pane's foreground:
+#   idle    — nothing but a shell, so a command can be typed into it
+#   busy    — running something (an agent, an editor, …); leave it alone
+#   unknown — no process info yet, i.e. the pane's shell is still starting
+#
+# Judged by process name, like herdr-navigate's is_vim check: process_info lists
+# only foreground processes, and shell_pid is unreliable for the first moments
+# of a pane's life (it briefly disagrees with the shell that is running).
+pane_state() {
+    herdr pane process-info --pane "$1" 2>/dev/null | jq -r '
+        (.result.process_info.foreground_processes // []) as $fg
+        | if ($fg | length) == 0 then "unknown"
+          elif ($fg | all(.name | test("^(zsh|bash|fish|dash|sh)$"))) then "idle"
+          else "busy" end' 2>/dev/null || true
+}
+
+# Wait (~2s) for a pane to be idle at a shell prompt. A pane herdr just created
+# isn't idle yet — no shell for the first samples, then a shell busy with
+# /etc/zprofile (path_helper) — so one busy sample proves nothing; only a pane
+# that never goes idle within the window counts as occupied.
+wait_for_shell() {
+    local pane="$1" i
+    for ((i = 0; i < 20; i++)); do
+        [[ "$(pane_state "$pane")" == "idle" ]] && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
+# Pane to launch nvim in: the workspace's focused pane once it reaches its
+# shell, otherwise a fresh tab — `pane run` types into the terminal, so never
+# aim it at a pane already running something (an agent, or another nvim).
+pane_for_nvim() {
+    local wsid="$1" wt_path="$2" pane
+    pane=$(herdr pane list --workspace "$wsid" 2>/dev/null | jq -r '
+        (.result.panes // []) | (map(select(.focused)) + .) | (.[0].pane_id // empty)')
+    if [[ -n "$pane" ]] && wait_for_shell "$pane"; then
+        printf '%s\n' "$pane"
+        return
+    fi
+    pane=$(herdr tab create --workspace "$wsid" --cwd "$wt_path" --focus 2>/dev/null \
+        | jq -r '.result.root_pane.pane_id // empty')
+    [[ -n "$pane" ]] || return
+    wait_for_shell "$pane" || true
+    printf '%s\n' "$pane"
+}
+
+# Open nvim on the PR diff in the worktree's workspace. Best-effort: a failure
+# here shouldn't undo the switch that already happened, so it only warns.
+open_diffview() {
+    local wt_path="$1" wsid pane
+    wsid=$(workspace_for_path "$wt_path")
+    if [[ -z "$wsid" ]]; then
+        printf 'herdr-gwt-prompt: no workspace found for %s; skipping diff view\n' "$wt_path" >&2
+        return
+    fi
+    pane=$(pane_for_nvim "$wsid" "$wt_path")
+    if [[ -z "$pane" ]]; then
+        printf 'herdr-gwt-prompt: no pane to open nvim in (workspace %s)\n' "$wsid" >&2
+        return
+    fi
+
+    herdr pane run "$pane" nvim -c DiffviewPR >/dev/null 2>&1 \
+        || printf 'herdr-gwt-prompt: failed to start nvim in %s\n' "$pane" >&2
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 read -e -rp "Worktree (branch/#pr/url): " ref
-[[ -z "${ref// /}" ]] && exit 0
-exec "$HOME/bin/gwt" switch "$ref"
+# Trim surrounding whitespace: a pasted URL often carries some, and gwt turns
+# spaces in its argument into hyphens.
+ref="${ref#"${ref%%[![:space:]]*}"}"
+ref="${ref%"${ref##*[![:space:]]}"}"
+[[ -z "$ref" ]] && exit 0
+
+# PR URL: run gwt inside a clone of the PR's own repo, so `gh pr view` resolves
+# against it rather than whatever repo this pane happens to sit in.
+slug=""
+if slug=$(pr_url_slug "$ref"); then
+    clone=$(find_clone "$slug")
+    if [[ -z "$clone" ]]; then
+        clone="$HOME/dev/${slug##*/}"
+        clone_repo "$slug" "$clone"
+    fi
+    cd "$clone" || die "cannot enter $clone"
+fi
+
+# $GWT_WT_FILE has gwt report the worktree it settled on, so the diff view lands
+# in the right workspace without re-deriving the path here.
+wt_file=$(mktemp "${TMPDIR:-/tmp}/gwt-wt.XXXXXX")
+trap 'rm -f "$wt_file"' EXIT
+GWT_WT_FILE="$wt_file" "$HOME/bin/gwt" switch "$ref" || die "gwt switch failed for: $ref"
+
+[[ -n "$slug" ]] || exit 0
+wt_path=$(cut -f2 <"$wt_file")
+[[ -n "$wt_path" ]] || exit 0
+open_diffview "$(cd "$wt_path" && pwd)"

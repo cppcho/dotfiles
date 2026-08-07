@@ -31,6 +31,10 @@ local function diff_against_ref()
   if not ok then prompt_for_ref() end
 end
 
+-- Also a command so external callers can launch straight into the PR diff:
+-- `nvim -c DiffviewPR` (used by ~/bin/herdr-gwt-prompt when opening a PR URL).
+vim.api.nvim_create_user_command("DiffviewPR", diff_against_ref, { desc = "Diffview: diff against PR base" })
+
 -- The file history panel inherits the global scrolloff, which wastes rows on
 -- the short list. Drop it to 0 so entries reach the top/bottom edges.
 vim.api.nvim_create_autocmd("FileType", {
@@ -73,7 +77,7 @@ return {
   end,
   keys = {
     { "<leader>gc", "<cmd>DiffviewOpen<cr>", desc = "Diffview: open (working tree)" },
-    { "<leader>gC", diff_against_ref, desc = "Diffview: diff against PR base" },
+    { "<leader>gC", "<cmd>DiffviewPR<cr>", desc = "Diffview: diff against PR base" },
     { "<leader>gh", history(), desc = "Diffview: repo history" },
     { "<leader>gH", history("%"), desc = "Diffview: current file history" },
     { "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diffview: close" },
