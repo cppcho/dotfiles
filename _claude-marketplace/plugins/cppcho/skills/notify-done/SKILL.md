@@ -1,5 +1,5 @@
 ---
-name: cppcho:notify-done
+name: notify-done
 description: Send me a notification (Slack DM + macOS banner + tmux bell) when the current task finishes, so I can walk away during a long session. Invoke when the user says "notify me when done", "ping me when finished", "let me know when this is done", or runs /notify-done before/with a long-running request.
 allowed-tools: Bash(~/bin/notify:*), Bash(notify:*)
 ---

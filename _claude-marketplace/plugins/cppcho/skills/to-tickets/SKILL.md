@@ -1,6 +1,7 @@
 ---
 name: to-tickets
 description: Breaks a plan or conversation into tracer-bullet tickets under `.scratch/`.
+argument-hint: "[spec-path|issue-number|issue-url]"
 disable-model-invocation: true
 ---
 
@@ -14,7 +15,7 @@ Break a plan, spec, or conversation into a set of **tickets** — tracer-bullet 
 
 Work from whatever is already in the conversation context. If the user passes a reference (a spec path such as `.scratch/<feature-slug>/spec.md`, an issue number or URL) as an argument, fetch it and read its full body and comments.
 
-### 2. Explore the codebase (optional)
+### 2. Explore the codebase
 
 If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary from `.scratch/context.md`, if one exists.
 
@@ -35,7 +36,13 @@ Break the work into **tracer bullet** tickets.
 
 Give each ticket its **blocking edges** — the other tickets that must complete before it can start. A ticket with no blockers can start immediately.
 
-**Wide refactors are the exception to vertical slicing.** A **wide refactor** is one mechanical change — rename a column, retype a shared symbol — whose **blast radius** fans across the whole codebase, so a single edit breaks thousands of call sites at once and no vertical slice can land green. Don't force it into a tracer bullet; sequence it as **expand–contract**. First expand: add the new form beside the old so nothing breaks. Then migrate the call sites over in batches sized by blast radius (per package, per directory), each batch its own ticket blocked by the expand, keeping CI green batch to batch because the old form still exists. Finally contract: delete the old form once no caller remains, in a ticket blocked by every migrate batch. When even the batches can't stay green alone, keep the sequence but let them share an integration branch that all block a final integrate-and-verify ticket — green is promised only there.
+**Wide refactors are the exception to vertical slicing.** A **wide refactor** is one mechanical change — rename a column, retype a shared symbol — whose **blast radius** fans across the whole codebase, so a single edit breaks thousands of call sites at once and no vertical slice can land green. Sequence it as **expand–contract** instead of forcing it into a tracer bullet:
+
+1. **Expand** — add the new form beside the old so nothing breaks.
+2. **Migrate** — move the call sites over in batches sized by blast radius (per package, per directory), each batch its own ticket blocked by the expand. CI stays green batch to batch because the old form still exists.
+3. **Contract** — delete the old form once no caller remains, in a ticket blocked by every migrate batch.
+
+When even the batches can't stay green alone, keep the sequence but let them share an integration branch that all block a final integrate-and-verify ticket — green is promised only there.
 
 ### 4. Quiz the user
 
@@ -71,7 +78,5 @@ Keep each ticket to the template's four parts. A ticket carries the behaviour an
 - [ ] Acceptance criterion 2
 
 </ticket-template>
-
-Work the **frontier**: any ticket whose blockers are all done. For a purely linear chain that means top to bottom.
 
 Avoid specific file paths or code snippets in tickets — they go stale fast. Exception: if a snippet encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it. Trim to the decision-rich parts — not a working demo, just the important bits.

@@ -1,9 +1,10 @@
 ---
 name: research
 description: Investigates a question against high-trust primary sources and captures the findings as a Markdown file under `.scratch/research/`. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.
+argument-hint: "[question]"
 ---
 
-Spin up a **background agent** to do the research, so you keep working while it reads.
+Dispatch a **background subagent** with the Agent tool to do the research, so you keep working while it reads. It inherits this conversation, so pass it the question plus anything it needs that the conversation doesn't already carry.
 
 Its job:
 

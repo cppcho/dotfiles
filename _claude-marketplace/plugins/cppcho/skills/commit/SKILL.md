@@ -1,7 +1,7 @@
 ---
-name: cppcho:commit
-description: Create a git commit
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*)
+name: commit
+description: Creates one git commit from the current changes in Conventional Commits format, with no scope and no footers. Use when the user says commit, asks to commit or check in the changes, or wants the current work recorded; other skills invoke it to commit work they just finished.
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*)
 ---
 
 ## Context
