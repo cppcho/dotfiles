@@ -16,7 +16,11 @@ This skill takes the current conversation context and codebase understanding and
 
 3. Write the spec using the template below to `.scratch/<feature-slug>/spec.md`, creating the directory if it does not exist.
 
+   If `spec.md` already exists, read it first and treat it as established context: carry forward every decision that still holds and revise only what this conversation changed. Regenerating from the conversation alone silently drops the decisions nobody revisited this session. Write the file as a snapshot of the current state — no change notes, no revision history, no "previously X" asides.
+
 Match each section's length to what it carries. The user stories are deliberately exhaustive; everything else covers its substance and stops. Leave out filler sections, restated summaries, and boilerplate.
+
+Stop once the spec is written — don't start implementing it. `/cppcho:to-tickets` breaks it into tickets when the user is ready.
 
 <spec-template>
 
