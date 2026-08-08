@@ -22,7 +22,9 @@ Track progress with this checklist:
 
 ## 1. Read the work
 
-If the user passed a reference — `.scratch/<feature-slug>/spec.md`, `.scratch/<feature-slug>/issues/03-*.md`, a ticket number, an issue URL — read its full body. With no argument, look under `.scratch/*/issues/` for the **frontier**: a ticket whose blockers are all done and that no **Superseded** line has retired — a superseded ticket is a dead end, not work, however unticked its criteria. If several qualify, ask which. Otherwise work from the conversation.
+If the user passed a reference — `.scratch/<feature-slug>/spec.md`, `.scratch/<feature-slug>/issues/03-*.md`, a ticket number, an issue URL — read its full body.
+
+With no argument, draw the ticket set with the `cppcho:ticket-dag` skill and take the **frontier** from it: a `●` row — blockers all done, no **Superseded** line retiring it, nothing outside the graph parking it. Drawing beats scanning the directory yourself because `●` is this frontier rule applied to every ticket at once, so the pick becomes visible to the user instead of a choice made silently in your head. It's also stricter than counting checkboxes: a ticket whose blockers are all `✓` but which is parked on an environment or another repo draws `○`, and picking it up would cost a planning round before discovering it can't start. If several rows are `●`, show the graph and ask which — the sizes and the chain depth behind each are what make that an informed answer rather than a coin toss. With no ticket set at all, work from the conversation.
 
 Read `.scratch/context.md` if it exists and use its vocabulary in code, tests, and commit messages.
 
@@ -86,4 +88,6 @@ Fix and re-run until both pass. Reaching green by deleting an assertion, skippin
 
 Tick the acceptance criteria you satisfied in the ticket file, then commit to the **current branch** with the `cppcho:commit` skill — one commit per slice as it goes green, not one batch at the end. No new branch, no push.
 
-Close with the outcome first: what landed, what you left out, and where you diverged from the plan.
+Then redraw the set with the `cppcho:ticket-dag` skill. The ticks you just made flip this ticket to `✓` and can release several others to `●`, and what a finished slice unblocks is the one thing the user can't read off the diff. It's also the cheapest check on your own bookkeeping: a criterion the work satisfied but you forgot to tick leaves the row reading `◐`, and a row still `○` behind a ticket you just finished means an edge is wrong.
+
+Close with the outcome first: what landed, what you left out, where you diverged from the plan, and the ticket the graph points at next.

@@ -19,6 +19,10 @@ Every path depends on the slug, so settle it before reading anything. Take the f
 3. A single `.scratch/*/issues/` directory on disk.
 4. Several exist → list them and ask which. Don't guess between sibling features; drawing the wrong graph wastes the glance the user came for.
 
+**A set that isn't written yet.** `/cppcho:to-tickets` draws the graph during its approval quiz, while the tickets are still a proposal in the conversation and no file exists. Take those rows from the proposal and skip the disk read for them — you don't need a slug to draw what you were handed. When the proposal revises a set that partly exists, read the written tickets as usual and fold the proposed ones in beside them: how the new work lands against tickets already in flight is the thing the reader is checking.
+
+This needs no notation of its own. A proposed ticket is unstarted by definition, so it draws `●` or `○`, while `✓` and `◐` can only come from a file whose criteria have been ticked. The glyphs already separate what is frozen from what is still open to argument, which is the distinction the quiz turns on. Do note in the footer that unwritten rows carry **provisional numbers** — they're assigned when the files are written, so a number quoted from a proposal graph can move.
+
 ## 2. Read the tickets, not the index
 
 Read every `.scratch/<slug>/issues/<NN>-*.md`. From each ticket take:
