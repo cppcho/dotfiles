@@ -17,7 +17,7 @@ Settle the **feature slug** early, since every path below depends on it. A spec 
 
 Then read what is already on disk. If `.scratch/<feature-slug>/issues/` exists, read every ticket in it before drafting anything, because tickets in flight are load-bearing: `/cppcho:implement` ticks acceptance criteria in place as it works, so a ticket file is the only record of what is done. Regenerating the set from the conversation would erase that.
 
-- A ticket with any criterion ticked, or that the conversation says is underway, is **frozen** — leave its text and its number alone.
+- A ticket with any criterion ticked, or that the conversation says is underway, is **frozen** — leave its text and its number alone. When a change of direction invalidates a frozen ticket, don't edit it — **supersede** it (see "When the plan changes").
 - Revise unstarted tickets freely.
 - New work becomes new tickets, appended.
 
@@ -98,4 +98,19 @@ Finally, write `.scratch/<feature-slug>/issues/README.md` holding the blocking g
 - **03 — <title>** — blocked by: 01, 02
 ```
 
-The graph is worth indexing because it changes only when tickets are added, while status changes constantly — so status stays in the ticket files, and finding the **frontier** means reading this file for the shape, then checking the checkboxes of only the candidates it points at. Putting status here too would mean two records of the same fact, and the stale one always wins an argument it shouldn't.
+The graph is worth indexing because it changes only when tickets are added or superseded, while status changes constantly — so status stays in the ticket files, and finding the **frontier** means reading this file for the shape, then checking the checkboxes of only the candidates it points at. Putting status here too would mean two records of the same fact, and the stale one always wins an argument it shouldn't.
+
+## When the plan changes
+
+Decisions move after tickets are cut — a spec revision, a discovery mid-build, a change of heart. Reconciling the set is this skill's job: re-read the spec and every ticket, then route each affected ticket by its state. Unstarted tickets revise freely, as above. For an in-flight ticket the change invalidates, the graceful move is to **supersede** it, never to rewrite it — its ticked criteria are the only record of work actually done, and a session may still be holding its text.
+
+To supersede a ticket:
+
+1. Add one line to the frozen ticket, directly under **Blocked by**, and change nothing else: `**Superseded by:** <NN — title>` — or `**Superseded:** <reason>` when the work is dropped outright and nothing replaces it.
+2. Write the replacement as a new ticket under the next free number — the old number is retired with its ticket, because a reused number makes every reference to the dead ticket ambiguous. Carry forward the still-valid unticked criteria, add the changed behaviour, and give it the blocking edges that are true now.
+3. Re-point every **Blocked by** that named the superseded ticket — in unstarted tickets and in the README graph — at its replacement, or drop the edge when the work is dropped. An edge into a dead ticket blocks its dependents forever.
+4. In `README.md`, strike the entry through and name its successor: `- ~~**03 — <title>**~~ — superseded by 07`. Keep the line rather than deleting it — the graph is the map of every number ever issued, and a silent gap in the numbering reads as a mistake to the next session.
+
+The spec must not be left contradicting the reshaped tickets — every ticket's Spec link feeds it to `/cppcho:implement` as established context, so a stale decision there misleads every later session. Update the spec's affected Implementation Decisions in place to match the change, and touch nothing else in it; a change big enough to move user stories or the problem statement deserves a `/cppcho:to-spec` session instead.
+
+Superseding is graph surgery, so only this skill does it. `/cppcho:implement` may amend the unticked criteria of the one ticket it is building when a change is contained there; anything that moves other tickets, the graph, or a spec decision comes back here.

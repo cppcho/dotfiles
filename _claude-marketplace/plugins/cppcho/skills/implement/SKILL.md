@@ -22,7 +22,7 @@ Track progress with this checklist:
 
 ## 1. Read the work
 
-If the user passed a reference — `.scratch/<feature-slug>/spec.md`, `.scratch/<feature-slug>/issues/03-*.md`, a ticket number, an issue URL — read its full body. With no argument, look under `.scratch/*/issues/` for the **frontier**: a ticket whose blockers are all done. If several qualify, ask which. Otherwise work from the conversation.
+If the user passed a reference — `.scratch/<feature-slug>/spec.md`, `.scratch/<feature-slug>/issues/03-*.md`, a ticket number, an issue URL — read its full body. With no argument, look under `.scratch/*/issues/` for the **frontier**: a ticket whose blockers are all done and that no **Superseded** line has retired — a superseded ticket is a dead end, not work, however unticked its criteria. If several qualify, ask which. Otherwise work from the conversation.
 
 Read `.scratch/context.md` if it exists and use its vocabulary in code, tests, and commit messages.
 
@@ -63,6 +63,15 @@ An awkward test is a design signal, not a licence to add a seam mid-flight. A ne
 
 Do the work yourself: a subagent editing in parallel, or re-checking work you can check with the commands from step 3, costs more than it returns here.
 
+### When the plan changes mid-build
+
+Decisions move while code is being written — the user changes their mind, or the code proves a decision wrong. Route the change by its blast radius:
+
+- **Contained to this ticket** — the behaviour this slice delivers shifts, but no other ticket, the graph, or a spec decision moves with it. Amend the ticket file directly: rewrite or add **unticked** criteria to match what is now agreed, leaving ticked ones alone — they record work already done. The ticket is already the live record this session ticks as it goes; amending it is the same motion. Say what changed in the close-out.
+- **Wider than this ticket** — the change moves a spec decision, another ticket's behaviour, or the blocking graph. Finish the current red-green cycle so the branch is green, commit what's done, and stop: name what changed and hand the reshaping to `/cppcho:to-spec` (decision level) or `/cppcho:to-tickets` (ticket level), which owns superseding in-flight tickets. Building on a plan you know is stale wastes the work; reshaping the plan from inside one slice's context loses the view the reshaping needs.
+
+Either way, never edit `spec.md` or any ticket other than the one being built. That boundary is what keeps a mid-build change graceful instead of sprawling.
+
 ## 5. Verify
 
 Tightest loop first:
@@ -71,7 +80,7 @@ Tightest loop first:
 - **the one test file** you are working in during the loop, not the suite
 - at the end, once: **the suite scoped to your changed files**, then **the gate**
 
-Fix and re-run until both pass. Reaching green by deleting an assertion, skipping a test, or loosening lint and type config hides the failure rather than fixing it. If a failure looks legitimate — the spec is wrong, or an existing test contradicts it — stop and say so.
+Fix and re-run until both pass. Reaching green by deleting an assertion, skipping a test, or loosening lint and type config hides the failure rather than fixing it. If a failure looks legitimate — the spec is wrong, or an existing test contradicts it — don't code around it: treat it as a plan change and route it by blast radius, as above.
 
 ## 6. Commit
 
