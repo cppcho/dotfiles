@@ -9,6 +9,12 @@
 #   gwt delete [--force]            Pick a worktree with fzf and remove it
 #   gwt purge                      Remove worktrees whose branches are merged
 #   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
+#   gwt links [--apply]            Open .gwt-links with $EDITOR (--apply: link here now)
+#
+# Shared paths:
+#   New worktrees get symlinks to git-ignored paths in the main worktree, so
+#   scratch space and local config follow you across trees. `.scratch` is always
+#   linked; a `.gwt-links` file in the repo root adds repo-specific paths.
 #
 # Setup script:
 #   Place a `.gwt-setup` file in your repo root (git-ignored).
@@ -204,6 +210,91 @@ emit_cd() {
     fi
 }
 
+# Paths symlinked from the main worktree into every new worktree, so git-ignored
+# scratch space and local config are shared rather than recreated per tree.
+GWT_DEFAULT_LINKS=(.scratch)
+
+# Emit one link spec per line: the built-in defaults, then the repo's .gwt-links.
+# Blank lines and '#' comments (whole-line or trailing) are dropped.
+read_link_specs() {
+    local main_worktree="$1"
+    printf '%s\n' "${GWT_DEFAULT_LINKS[@]}"
+
+    local links_file="${main_worktree}/.gwt-links"
+    [[ -f "$links_file" ]] || return 0
+
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [[ -n "$line" ]] && printf '%s\n' "$line"
+    done < "$links_file"
+}
+
+# Symlink a single path into the new worktree. Missing sources are skipped (a
+# spec may only apply to some repos), as is anything already present in the
+# worktree — the checkout's own copy always wins.
+link_one() {
+    local src="$1" dest="$2" label="$3"
+
+    if [[ ! -e "$src" && ! -L "$src" ]]; then
+        return 0
+    fi
+    if [[ -e "$dest" || -L "$dest" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    if ln -s "$src" "$dest"; then
+        echo "  linked $label -> $src"
+    fi
+}
+
+# Apply the link specs to a worktree. Idempotent, so it's safe to re-run.
+link_shared_paths() {
+    local wt_path="$1"
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+
+    wt_path=$(cd "$wt_path" && pwd)
+    [[ "$wt_path" == "$main_worktree" ]] && return 0
+
+    local spec
+    while IFS= read -r spec; do
+        [[ -n "$spec" ]] || continue
+        case "$spec" in
+            /*|~*|../*)
+                echo "  skipped '$spec': .gwt-links paths must be repo-relative" >&2
+                continue
+                ;;
+        esac
+
+        if [[ "$spec" != */ ]]; then
+            link_one "$main_worktree/$spec" "$wt_path/$spec" "$spec"
+            continue
+        fi
+
+        # Trailing slash: link the directory's *entries* instead of the directory
+        # itself. Needed when a dir is only partly git-ignored — a symlink over
+        # the whole dir would shadow the tracked files this checkout owns.
+        local rel="${spec%/}"
+        [[ -d "$main_worktree/$rel" ]] || continue
+        mkdir -p "$wt_path/$rel"
+
+        local entry name
+        for entry in "$main_worktree/$rel"/* "$main_worktree/$rel"/.[!.]*; do
+            [[ -e "$entry" || -L "$entry" ]] || continue
+            name=$(basename "$entry")
+            # Tracked here — leave the checkout's own copy alone.
+            if git -C "$wt_path" ls-files --error-unmatch "$rel/$name" &>/dev/null; then
+                continue
+            fi
+            link_one "$entry" "$wt_path/$rel/$name" "$rel/$name"
+        done
+    done < <(read_link_specs "$main_worktree")
+}
+
 # Run the repo's .gwt-setup script for a freshly created worktree, detached and
 # in the background so the session opens immediately instead of blocking on it.
 # Output goes to <worktree>/.gwt-setup.log (git-ignored globally); nohup +
@@ -332,6 +423,10 @@ cmd_switch() {
     # Resolve to absolute path
     wt_path=$(cd "$wt_path" && pwd)
 
+    # Link shared paths before the setup script runs, so the script can rely on
+    # them being in place.
+    link_shared_paths "$wt_path"
+
     # Run setup script for new worktrees
     run_setup_script "$wt_path"
 
@@ -403,6 +498,29 @@ cmd_setup() {
     local setup_script="${main_worktree}/.gwt-setup"
 
     "${EDITOR:-vim}" "$setup_script"
+}
+
+cmd_links() {
+    local apply=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --apply) apply=1; shift ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+
+    # --apply retrofits the current worktree, for links added after it was created.
+    if [[ "$apply" == "1" ]]; then
+        local toplevel
+        toplevel=$(git rev-parse --show-toplevel)
+        echo "Linking shared paths into $toplevel"
+        link_shared_paths "$toplevel"
+        return
+    fi
+
+    local main_worktree
+    main_worktree=$(get_main_worktree)
+    "${EDITOR:-vim}" "${main_worktree}/.gwt-links"
 }
 
 cmd_purge() {
@@ -714,6 +832,15 @@ show_help() {
     echo "                    -f/--force removes even with uncommitted changes"
     echo "  gwt purge         Remove worktrees whose branches are merged"
     echo "  gwt setup         Open .gwt-setup in \$EDITOR"
+    echo "  gwt links [--apply]"
+    echo "                    Open .gwt-links in \$EDITOR"
+    echo "                    --apply links shared paths into the current worktree"
+    echo ""
+    echo "Shared paths:"
+    echo "  New worktrees are symlinked to git-ignored paths in the main worktree."
+    echo "  .scratch is always linked; list extra repo-relative paths in .gwt-links,"
+    echo "  one per line. A path ending in a slash links the directory's entries"
+    echo "  instead of the directory itself, leaving tracked files alone."
     echo ""
     echo "Setup:"
     echo "  Place a .gwt-setup script in your repo root. It runs automatically"
@@ -723,6 +850,7 @@ show_help() {
 case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
+    links)         shift; cmd_links "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
     purge)         shift; cmd_purge "$@" ;;
     -h|--help|"")  show_help ;;
