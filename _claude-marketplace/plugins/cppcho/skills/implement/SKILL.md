@@ -7,13 +7,13 @@ disable-model-invocation: true
 
 # Implement
 
-Build what a spec or ticket describes. Agree the plan before touching code, then run to completion red-green at the agreed seams.
+Build what a spec or ticket describes. Plan before touching code, check the plan with the user only where it rests on a decision the work didn't already make, then run to completion red-green at the agreed seams.
 
 Track progress with this checklist:
 
 ```
 - [ ] Read the work
-- [ ] Agree the plan — no edits before this
+- [ ] Plan it — post the plan, stop only if a call in it is yours
 - [ ] Find the commands
 - [ ] Build it red-green
 - [ ] Verify: suite on changed files, then the gate
@@ -30,16 +30,22 @@ Read `.scratch/context.md` if it exists and use its vocabulary in code, tests, a
 
 Read the code the work touches before planning it. Existing patterns beat new ones.
 
-## 2. Agree the plan
+## 2. Plan it
 
-Present this and stop. No edits until the user agrees.
+Write the plan out either way — it's what you build against, and what lets the user catch a wrong turn early:
 
 - **Scope** — the behaviour this pass delivers, and what you are leaving for later
 - **Seams** — where each behaviour gets tested (a seam being where behaviour can be substituted without editing the code under test). If the spec fixed them, restate rather than reopen; otherwise propose the highest and fewest that work
 - **Touch list** — the modules you expect to change, plus any prefactor to land first
 - **Not TDD** — the parts you will build without a failing test first, and how you will verify them instead
 
-Keep it to a list, and iterate until approved. Then build that scope and stop there; adjacent fixes and unrequested refactors belong in a follow-up.
+Keep it to a list. Then judge whether the plan is yours or the work's, and act on that:
+
+**Go ahead without waiting** when every line follows from what's written: the spec or ticket fixed the seams, the criteria are unambiguous, and the touch list falls out of the code you just read. A ticket is already an approved plan — asking the user to re-approve your restatement of it costs a round trip and buys nothing they didn't already decide. Post the plan and start building. Nothing is lost by moving: the user reads as you go, and the first commit is one green slice rather than the whole ticket.
+
+**Stop and ask** when a line is a call you made rather than one the work handed you — a seam the spec left open where the plausible options differ in cost, scope you want to cut or add, a prefactor reaching outside the ticket, or a criterion with two readings that lead to different code. Name the choice and the options; that question is cheap, and work built on the wrong branch of it is what gets thrown away. If you can't tell which case you're in, that uncertainty *is* the ambiguity — ask.
+
+Either way, build that scope and stop there; adjacent fixes and unrequested refactors belong in a follow-up.
 
 ## 3. Find the commands
 
