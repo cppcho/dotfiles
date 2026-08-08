@@ -45,19 +45,17 @@ Give each ticket its **blocking edges** — the other tickets that must complete
 
 ## 4. Quiz the user
 
-Present the proposed breakdown as a numbered list. For each ticket, show:
+Draw the proposed set with the `cppcho:ticket-dag` skill — rails carrying the blocking edges, one row per ticket with its title, the behaviour it delivers in a line, and its size. It handles a set that isn't on disk yet, and folds in any tickets already written so the new work is visible against work in flight.
 
-- **Title**: short descriptive name
-- **Blocked by**: which other tickets (if any) must complete first
-- **What it delivers**: the end-to-end behaviour this ticket makes work
+Draw it rather than listing it because the edges are what this quiz is really about, and a wrong edge is something you *see* as a rail while a prose "blocked by: 01, 04" reads as plausible either way. The graph also puts the shape in front of the user — a chain five deep where they expected two branches, or a lone ticket gating everything — which is the granularity question answered before it's asked.
 
-Ask the user:
+Then ask:
 
 - Does the granularity feel right? (too coarse / too fine)
 - Are the blocking edges correct — does each ticket only depend on tickets that genuinely gate it?
 - Should any tickets be merged or split further?
 
-Iterate until the user approves the breakdown.
+Redraw after each round of changes instead of describing what moved; the diagram is cheap and a described edit is easy to mis-picture. Iterate until the user approves the breakdown.
 
 ## 5. Write the tickets
 
@@ -100,6 +98,8 @@ Finally, write `.scratch/<feature-slug>/issues/README.md` holding the blocking g
 
 The graph is worth indexing because it changes only when tickets are added or superseded, while status changes constantly — so status stays in the ticket files, and finding the **frontier** means reading this file for the shape, then checking the checkboxes of only the candidates it points at. Putting status here too would mean two records of the same fact, and the stale one always wins an argument it shouldn't.
 
+Finally, draw the set again with the `cppcho:ticket-dag` skill. This isn't a repeat of the quiz diagram: that one drew what you meant, this one draws what you wrote, from the files and the README you just indexed. A blocker typed into the wrong ticket, an edge naming a number that doesn't exist, or a README that already disagrees with the tickets surfaces here — otherwise it waits and surfaces as a session that can't start the ticket it was handed.
+
 ## When the plan changes
 
 Decisions move after tickets are cut — a spec revision, a discovery mid-build, a change of heart. Reconciling the set is this skill's job: re-read the spec and every ticket, then route each affected ticket by its state. Unstarted tickets revise freely, as above. For an in-flight ticket the change invalidates, the graceful move is to **supersede** it, never to rewrite it — its ticked criteria are the only record of work actually done, and a session may still be holding its text.
@@ -110,6 +110,7 @@ To supersede a ticket:
 2. Write the replacement as a new ticket under the next free number — the old number is retired with its ticket, because a reused number makes every reference to the dead ticket ambiguous. Carry forward the still-valid unticked criteria, add the changed behaviour, and give it the blocking edges that are true now.
 3. Re-point every **Blocked by** that named the superseded ticket — in unstarted tickets and in the README graph — at its replacement, or drop the edge when the work is dropped. An edge into a dead ticket blocks its dependents forever.
 4. In `README.md`, strike the entry through and name its successor: `- ~~**03 — <title>**~~ — superseded by 07`. Keep the line rather than deleting it — the graph is the map of every number ever issued, and a silent gap in the numbering reads as a mistake to the next session.
+5. Redraw the set with the `cppcho:ticket-dag` skill. Step 3 is the easiest thing here to leave half-done, and a missed edge still aims at a dead ticket and blocks its dependents forever — which the graph shows as an edge running into a `⊘`, and nothing else shows at all.
 
 The spec must not be left contradicting the reshaped tickets — every ticket's Spec link feeds it to `/cppcho:implement` as established context, so a stale decision there misleads every later session. Update the spec's affected Implementation Decisions in place to match the change, and touch nothing else in it; a change big enough to move user stories or the problem statement deserves a `/cppcho:to-spec` session instead.
 
