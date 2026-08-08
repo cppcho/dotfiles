@@ -112,7 +112,7 @@ name = "catppuccin"
 
 [ui]
 hide_tab_bar_when_single_tab = false
-agent_panel_sort = "spaces"
+agent_panel_sort = "priority"
 confirm_close = false
 show_agent_labels_on_pane_borders = true
 prompt_new_tab_name = false
