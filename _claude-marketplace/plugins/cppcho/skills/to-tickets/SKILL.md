@@ -18,7 +18,7 @@ Settle the **feature slug** early, since every path below depends on it. A spec 
 Then read what is already on disk. If `.scratch/<feature-slug>/issues/` exists, read every ticket in it before drafting anything, because tickets in flight are load-bearing: `/cppcho:implement` ticks acceptance criteria in place as it works, so a ticket file is the only record of what is done. Regenerating the set from the conversation would erase that.
 
 - A ticket with any criterion ticked, or that the conversation says is underway, is **frozen** — leave its text and its number alone. When a change of direction invalidates a frozen ticket, don't edit it — **supersede** it (see "When the plan changes").
-- Revise unstarted tickets freely.
+- Revise unstarted tickets freely, but leave a `**Branch:**` line alone if one is there. `/cppcho:implement` writes it to say where a slice's code went, and it is not derivable from anything else once dropped.
 - New work becomes new tickets, appended.
 
 ## 2. Explore the codebase
@@ -107,7 +107,7 @@ Decisions move after tickets are cut — a spec revision, a discovery mid-build,
 To supersede a ticket:
 
 1. Add one line to the frozen ticket, directly under **Blocked by**, and change nothing else: `**Superseded by:** <NN — title>` — or `**Superseded:** <reason>` when the work is dropped outright and nothing replaces it.
-2. Write the replacement as a new ticket under the next free number — the old number is retired with its ticket, because a reused number makes every reference to the dead ticket ambiguous. Carry forward the still-valid unticked criteria, add the changed behaviour, and give it the blocking edges that are true now.
+2. Write the replacement as a new ticket under the next free number — the old number is retired with its ticket, because a reused number makes every reference to the dead ticket ambiguous. Carry forward the still-valid unticked criteria, add the changed behaviour, and give it the blocking edges that are true now. Leave any `**Branch:**` line behind on the superseded ticket: what carries forward is unfinished intent, and a branch inherited by the replacement would point at code written against a plan that no longer exists.
 3. Re-point every **Blocked by** that named the superseded ticket — in unstarted tickets and in the README graph — at its replacement, or drop the edge when the work is dropped. An edge into a dead ticket blocks its dependents forever.
 4. In `README.md`, strike the entry through and name its successor: `- ~~**03 — <title>**~~ — superseded by 07`. Keep the line rather than deleting it — the graph is the map of every number ever issued, and a silent gap in the numbering reads as a mistake to the next session.
 5. Redraw the set with the `cppcho:ticket-dag` skill. Step 3 is the easiest thing here to leave half-done, and a missed edge still aims at a dead ticket and blocks its dependents forever — which the graph shows as an edge running into a `⊘`, and nothing else shows at all.
