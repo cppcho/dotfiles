@@ -28,7 +28,7 @@ Current public packages: `ghostty`, `herdr`, `logseq`, `nvim`, `tmux`, `vim`, `z
 
 ## Claude Code Plugin
 
-`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin (personal skills like `commit`, `commit-push-pr`, `clean-gone`). It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
+`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin (personal skills like `brainstorm`, `to-tickets`, `implement`, `commit`). It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
 
 After any change under `_claude-marketplace/plugins/cppcho/skills/` — adding, editing, renaming, or deleting a skill — run `make claude` to reload it. The installed plugin is a snapshot copied into `~/.claude/plugins/cache/`, so edits to the source have no effect until it is reinstalled.
 
