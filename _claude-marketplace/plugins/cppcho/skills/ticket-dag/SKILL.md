@@ -31,6 +31,7 @@ Read every `.scratch/<slug>/issues/<NN>-*.md`. From each ticket take:
 - **Edges** from the `**Blocked by:**` line — the numbers it names, or none.
 - **Retirement** from a `**Superseded by:** <NN>` or `**Superseded:** <reason>` line.
 - **Progress** from the acceptance-criteria checkboxes: none ticked, some ticked, all ticked.
+- **Where the work went** from a `**Branch:**` line, if it has one — the branch each slice was committed to, and the PR where `/cppcho:implement` found one. Read it as written; never ask `gh` whether a PR is merged. The graph is a glance, and a network call per ticket makes it something you hesitate before drawing.
 - **A `**Status:**` line if the ticket has one.** Not every set uses it, but where it exists it carries what checkboxes cannot — most usefully that a ticket is parked on something outside the graph, like an environment or another repo. `blocked — parked until X` is a fact no amount of counting boxes will tell you.
 
 Checkboxes win on *doneness*, because they are maintained criterion by criterion as work happens while a header label is written once and left. The `**Status:**` line wins on *why* something cannot start. When the two disagree about whether a ticket is finished, draw the checkboxes and report the disagreement — don't pick silently.
@@ -54,6 +55,8 @@ Drop transitive edges before drawing. If a ticket lists both `04` and `01`, and 
 | `⊘` | superseded — retired, a dead end rather than work |
 
 `●` is the frontier, and it is the same definition `/cppcho:implement` uses to pick up work. Keeping them identical is the whole value: the graph tells you what that skill would offer you. Which is also why `●` has to be earned — a ticket the reader picks up and immediately cannot start costs them more than one they were never offered.
+
+An **unmerged PR on a blocker is not off-graph blocking.** A ticket whose blockers are `✓` draws `●` whether or not their PRs have landed — worktrees branch off unmerged branches routinely, and the `Branches:` line already tells the reader which one to stack on. Withholding `●` until a review finishes would idle the frontier on something no ticket is waiting for.
 
 That is what folds off-graph blocking into `○`. A ticket whose blockers are all `✓` but whose `**Status:**` parks it on an environment is not startable, however green the graph looks. Draw it `○` and **name the cause in the footer**, because otherwise it is indistinguishable from a ticket waiting on a sibling — and the two need completely different actions from the reader. Resist a sixth glyph for it: the vocabulary earns its keep by being small enough to hold in your head, and the footer has room for the explanation.
 
@@ -100,17 +103,22 @@ Then a footer, only with lines that have something to say:
 ```
  ✓ done · ◐ in flight · ● ready · ○ blocked · ⊘ superseded
  Frontier: 02, 03 · Critical path: 01 → 04 → 08 · Weight: 1 L, 3 M, 4 S · sizes inferred for 05, 06
+ Branches: 04 feat/pc-exchange #1234 · 01 feat/pc-spend #1198
  08 is ○ despite its blockers being done: parked on the dev database, not on a ticket.
  07 is done while its blocker 04 is not — one of the two records is wrong.
  README lists 03 as blocked by 02, which is superseded; ticket 03 says 05. Drawn from the ticket.
 ```
 
-Only the glyph legend and the summary line are always there. Everything below them is conditional — off-graph blocking and its cause, a done-before-blocker contradiction, index or spec drift, collapsed transitive edges, `[L]` tickets that look splittable, a numbering gap with no superseded ticket behind it. Include a line when there is something to say and leave it out otherwise; a footer padded with "no drift detected" trains the reader to skip the part that matters. Prune the legend to the glyphs actually used, too — a set with nothing retired doesn't need `⊘` explained.
+**The `Branches:` line** gathers every ticket carrying a `**Branch:**` line into one run, in-flight rows first, then done ones. Keep it to one line however many there are — a block of one line per branch crowds out the footer's warnings, which are what the reader actually needs to see. It belongs in the footer rather than on the rows because a row already carries title, summary and size and is near the terminal's width; and it belongs on the diagram at all because deciding what to pick up is exactly when you need to know whether a blocker's code is on a branch you should stack on.
+
+Only the glyph legend and the summary line are always there. Everything below them is conditional — where the work went, off-graph blocking and its cause, a done-before-blocker contradiction, index or spec drift, collapsed transitive edges, `[L]` tickets that look splittable, a numbering gap with no superseded ticket behind it. Include a line when there is something to say and leave it out otherwise; a footer padded with "no drift detected" trains the reader to skip the part that matters. Prune the legend to the glyphs actually used, too — a set with nothing retired doesn't need `⊘` explained.
 
 **When rails won't lay out cleanly**, don't force them. A set with several cross edges between middle layers produces rails that weave and a diagram nobody can read — which defeats the purpose. Fall back to layered blocks: a heading per depth, tickets listed under it, and each ticket's blockers named in its line. Losing the drawn edges costs less than losing legibility, and it's worth saying which you chose and why.
 
 ## 5. Offer the next move
 
 The graph usually gets drawn because a decision is pending. Close by naming the move it points at rather than restating the diagram — the ready ticket to pick up, the `[L]` that wants splitting, the edge that looks wrong. One or two lines. The user drew the graph to see something; say what you see.
+
+When the move is picking up a ticket whose blocker carries a `**Branch:**` line, name that branch alongside it. Which branch the work continues from is the first thing the next session needs and the last thing it can work out for itself.
 
 Nothing here writes to disk. The graph is a view, and the ticket files stay the record — reshaping the set, superseding a ticket or repointing an edge is `/cppcho:to-tickets` work, so hand it over when the graph reveals the set is wrong rather than editing tickets from here.

@@ -17,7 +17,7 @@ Track progress with this checklist:
 - [ ] Find the commands
 - [ ] Build it red-green
 - [ ] Verify: suite on changed files, then the gate
-- [ ] Commit
+- [ ] Commit — tick the criteria, record the branch it went to
 ```
 
 ## 1. Read the work
@@ -93,6 +93,22 @@ Fix and re-run until both pass. Reaching green by deleting an assertion, skippin
 ## 6. Commit
 
 Tick the acceptance criteria you satisfied in the ticket file, then commit to the **current branch** with the `cppcho:commit` skill — one commit per slice as it goes green, not one batch at the end. No new branch, no push.
+
+Then record where the work went, as the ticket's last header line — below **Spec**, above the criteria:
+
+```
+**Branch:** `feat/pc-exchange` [#1234](https://github.com/acme/billing-api/pull/1234)
+```
+
+`.scratch` is symlinked into every worktree, so one shared ticket set is read from every branch and nothing in it otherwise says which branch a slice's code is sitting on. That's the line's job: the next session, handed the ticket downstream of this one, learns whether to stack on this branch or look for merged code.
+
+Read the current branch and append it if it isn't already listed. If it is listed but carries no PR, ask `gh pr view <branch> --json number,url` and fill the PR in — that re-check is what lets the line complete itself on a later slice without a separate motion. Then:
+
+- **Append, never rewrite.** Existing entries stay as written and in order, joined with ` · `. A ticket spanning an expand and its migrate batches carries both branches, and the old entry is the record of work that actually happened.
+- **Use `[#1234](url)` — number for reading, URL for clicking.** When the PR sits in a different repo from the ticket set, write `[owner/repo#1234](url)` so the cross-repo hop is visible without following the link.
+- **Record identity, never merge state.** A `merged` written once and left is the record that drifts, and it wins arguments it shouldn't; anyone who needs the state asks `gh` when they ask.
+- **Say nothing when there's nothing to say.** No PR yet, `gh` unauthed, no network — record the branch alone and move on. The next close-out fixes it for free, so a warning here is noise on the common path.
+- **Skip the line entirely** on the default branch, where no PR is coming and the branch name tells the reader nothing, and when the work has no ticket file — the close-out prose already names the branch.
 
 Then redraw the set with the `cppcho:ticket-dag` skill. The ticks you just made flip this ticket to `✓` and can release several others to `●`, and what a finished slice unblocks is the one thing the user can't read off the diff. It's also the cheapest check on your own bookkeeping: a criterion the work satisfied but you forgot to tick leaves the row reading `◐`, and a row still `○` behind a ticket you just finished means an edge is wrong.
 
