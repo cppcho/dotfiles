@@ -1,6 +1,6 @@
 ---
 name: check-comments
-description: Audits the comments in a diff with a fresh pair of eyes — for truth first, then for length — against the code-comment rules in CLAUDE.md, and fixes what doesn't hold up. Use when the user asks to check, review, tighten or clean up comments or doc comments, wonders whether a comment is still accurate or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
+description: Audits the comments in a diff with a fresh pair of eyes — for truth first, then for length — and fixes what doesn't hold up: false claims, narration of the revision, and prose restating what the code already shows. Use when the user asks to check, review, tighten or clean up comments or doc comments, wonders whether a comment is still accurate or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
 argument-hint: "[diff-range|path]"
 ---
 
@@ -8,7 +8,14 @@ argument-hint: "[diff-range|path]"
 
 Hold every comment a diff adds or touches against two questions, in this order: **is it true**, and **is it carrying its weight**. Fix the ones that fail. A false comment is the more urgent of the two, because a reader trusts it — a verbose one only costs them time.
 
-The rules being applied are the "Code Comments" section of `~/.claude/CLAUDE.md`, plus any comment conventions in the repo's own `CLAUDE.md`. Read both rather than working from memory of them; the repo's may add conventions of its own.
+The standard being applied, in full:
+
+- **Concise.** A sentence or two on the non-obvious "why", not paragraphs.
+- **Not a restatement** of what the code already shows.
+- **Final state, never the revision.** Only the last version reaches the base branch, so a comment explaining why something changed explains a change no future reader ever sees. No "changed from X to Y", "now also handles…", "previously this returned…", "kept flat because nesting didn't work". Rewrite it to describe how the code behaves, as though it had been written that way from the start. Reasoning about the revision belongs in the commit message or the PR.
+- **Tighten a verbose neighbour** rather than matching its length, when you're editing next to one.
+
+Then read the repo's own conventions — `CLAUDE.md`, `CONTRIBUTING.md`, a style guide — and apply those too. Where they differ from the above, the repo wins: it's the codebase these comments have to live in.
 
 ## 1. Work out who reads
 
@@ -25,7 +32,7 @@ With an argument, take it as given — a range, a path, a branch name.
 
 With none, `git diff $(git merge-base HEAD <base-branch>)` is usually right: it spans the branch's commits and any uncommitted work in one range, so a session that already committed a slice or two is still fully in scope, and a clean tree simply means the range is all commits. The fallback is only for the case where that range comes back empty — on the default branch, say — where the session's own commits are what you want instead.
 
-A diff isn't history-free — it shows one step of change, so a reader can still narrate *that*. Whoever reviews should describe the code as though it had always been this way. What the diff does hide is the churn inside the branch, and that's exactly the history CLAUDE.md calls worthless.
+A diff isn't history-free — it shows one step of change, so a reader can still narrate *that*. Whoever reviews should describe the code as though it had always been this way. What the diff does hide is the churn inside the branch, which is exactly the history no future reader will ever see.
 
 ## 3. Review, and fix in the files
 
@@ -35,7 +42,7 @@ Three things to hold onto, since wordiness isn't the only way a comment fails an
 
 - **A comment can be wrong, not just wordy.** An invariant nothing enforces, a bound that stopped matching the constant, a documented return the function no longer produces. You're holding the code the comment describes, so settle these by reading it rather than guessing — and where a claim is cheap to test, test it. Correct the claim rather than cut it where you can: the sentence exists because someone thought the fact mattered, and a true version of it usually still does.
 - **A summary line isn't restatement.** Where a language has a doc convention — godoc's leading sentence, a docstring, a JSDoc summary — that first line is the convention being met, not prose duplicating the signature. Keep it and judge what follows. Deleting it to satisfy "don't restate the code" leaves the declaration undocumented and trades one lint for another.
-- **A comment carrying a real "why" gets tightened, not deleted.** The rule is against paragraphs and restatement, not against explanation; the load-bearing sentence is the one thing prose can do that code can't. Comments on unchanged lines next to the edits are in scope — CLAUDE.md asks for those tightened rather than matched in length — but code the diff doesn't touch is not.
+- **A comment carrying a real "why" gets tightened, not deleted.** The rule is against paragraphs and restatement, not against explanation; the load-bearing sentence is the one thing prose can do that code can't. Comments on unchanged lines next to the edits are in scope, since a verbose neighbour gets tightened rather than matched, but code the diff doesn't touch is not.
 - **Directives are not comments.** `//go:build`, `//go:generate`, `//nolint`, `# type: ignore`, `# noqa`, `eslint-disable`, JSDoc types, annotation pragmas — these are syntax wearing a comment's clothes, and deleting one changes behaviour or breaks the build. Leave every line a tool reads exactly as it is.
 
 Sometimes a comment is false because the **code** is wrong — it documents a wait the loop never performs, a guard that got dropped. "Describe the final state" does not mean documenting the bug. Take the false premise out, leave a comment that's true of the code as it stands, and flag the defect for the caller; fixing it is a code change and belongs to whoever owns the work, not to a comment pass.
