@@ -1,62 +1,32 @@
 ---
 name: check-comments
-description: Audits the comments in a diff with a fresh pair of eyes — for truth first, then for length — and fixes what doesn't hold up: false claims, narration of the revision, and prose restating what the code already shows. Use when the user asks to check, review, tighten or clean up comments or doc comments, wonders whether a comment is still accurate or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
+description: Reviews the comments in a diff and fixes what fails three rules — unnecessary comments get removed, verbose ones get tightened to a concise non-obvious "why", and comments narrating the revision get rewritten to describe the final state. Use when the user asks to check, review, tighten or clean up comments or doc comments, wonders whether a comment is needed or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
 argument-hint: "[diff-range|path]"
 ---
 
 # Check comments
 
-Hold every comment a diff adds or touches against two questions, in this order: **is it true**, and **is it carrying its weight**. Fix the ones that fail. A false comment is the more urgent of the two, because a reader trusts it — a verbose one only costs them time.
+Hold every comment the diff adds or touches against three questions, in this order:
 
-The standard being applied, in full:
+1. **Is it really necessary?** If the code would read just as well without it, remove it. Most comments fail here: restatements of what the code shows, narration of the obvious, rationale nobody would question.
+2. **Is it concise?** A sentence or two on the non-obvious "why", not paragraphs. When editing near a verbose comment, tighten it rather than matching its length.
+3. **Does it describe the final state, not the revision?** Only the last version reaches the base branch, so a comment explaining why something changed explains a change no future reader ever sees. No "changed from X to Y", "now also handles…", "previously this returned…". Rewrite it to describe how the code behaves, as though it had been written that way from the start.
 
-- **Concise.** A sentence or two on the non-obvious "why", not paragraphs.
-- **Not a restatement** of what the code already shows.
-- **Final state, never the revision.** Only the last version reaches the base branch, so a comment explaining why something changed explains a change no future reader ever sees. No "changed from X to Y", "now also handles…", "previously this returned…", "kept flat because nesting didn't work". Rewrite it to describe how the code behaves, as though it had been written that way from the start. Reasoning about the revision belongs in the commit message or the PR.
-- **Tighten a verbose neighbour** rather than matching its length, when you're editing next to one.
+And one check that overrides tightening: if a comment is flat-out wrong — an invariant nothing enforces, a return the function no longer produces — correct it rather than trim it.
 
-Then read the repo's own conventions — `CLAUDE.md`, `CONTRIBUTING.md`, a style guide — and apply those too. Where they differ from the above, the repo wins: it's the codebase these comments have to live in.
+## Scope
 
-## 1. Work out who reads
+With an argument, take it as given — a range or a path. With none, review the branch: `git diff $(git merge-base HEAD <base-branch>)`, which covers the branch's commits plus uncommitted work. Also check `git status --porcelain` for untracked files and read those in full — new files are where fresh comments are densest, and `git diff` won't show them.
 
-One question, and it decides the rest:
+## Fix, don't list
 
-- **Came to this code cold?** You are the fresh reader. Do it yourself — spawning a subagent to re-derive what you can already see plainly is just latency.
-- **Wrote or edited it in this session?** Delegate. Spawn a general-purpose subagent that hasn't seen the session and give it the diff and nothing else — no plan, no ticket, no what-you-tried, since every line of context you add is a line that can get laundered back into a comment. It needs to edit, so a read-only explorer won't do.
+Edit the files directly rather than producing a list for someone else to apply. Two things to leave alone:
 
-Delegation in that second case is the point of this skill, not ceremony, because the failure mode in your own comments is memory rather than inattention, and neither way it leaks is visible from the inside. **Narration:** you write "kept flat because nesting broke the encoder" because you remember trying nesting, and the attempt isn't in the diff, so a reader who only has the diff has nowhere to get the sentence from. **Intent hardening into a claim the code never makes:** you meant callers to hold the mutex, so you write "callers must hold mu", and it reads as documentation though nothing enforces it and two call sites don't. You believe it, which is exactly what makes it invisible to you. A fresh reader believes nothing yet, so it checks.
+- **Directives are not comments.** `//go:build`, `//go:generate`, `//nolint`, `# type: ignore`, `# noqa`, `eslint-disable`, JSDoc types — these are syntax a tool reads, and deleting one changes behaviour or breaks the build.
+- **A doc-convention summary line isn't restatement.** godoc's leading sentence, a docstring, a JSDoc summary — that first line is the convention being met. Keep it and judge what follows.
 
-## 2. Scope the diff
+## Report
 
-With an argument, take it as given — a range, a path, a branch name.
+State the range reviewed, then per edit: `file:line`, what it said, what it says now, and which rule it failed. Finding nothing to fix is a real answer — say so plainly rather than reaching for a change to justify the pass.
 
-With none, `git diff $(git merge-base HEAD <base-branch>)` is usually right: it spans the branch's commits and any uncommitted work in one range, so a session that already committed a slice or two is still fully in scope, and a clean tree simply means the range is all commits. The fallback is only for the case where that range comes back empty — on the default branch, say — where the session's own commits are what you want instead.
-
-A diff isn't history-free — it shows one step of change, so a reader can still narrate *that*. Whoever reviews should describe the code as though it had always been this way. What the diff does hide is the churn inside the branch, which is exactly the history no future reader will ever see.
-
-## 3. Review, and fix in the files
-
-Edit directly rather than producing a list for someone else to apply. When the review is delegated, the rewrite needs the same fresh eyes the finding did; handing a list back to the author puts the history-holder in charge of the wording again.
-
-Three things to hold onto, since wordiness isn't the only way a comment fails and a reader with a mandate to cut will otherwise overshoot:
-
-- **A comment can be wrong, not just wordy.** An invariant nothing enforces, a bound that stopped matching the constant, a documented return the function no longer produces. You're holding the code the comment describes, so settle these by reading it rather than guessing — and where a claim is cheap to test, test it. Correct the claim rather than cut it where you can: the sentence exists because someone thought the fact mattered, and a true version of it usually still does.
-- **A summary line isn't restatement.** Where a language has a doc convention — godoc's leading sentence, a docstring, a JSDoc summary — that first line is the convention being met, not prose duplicating the signature. Keep it and judge what follows. Deleting it to satisfy "don't restate the code" leaves the declaration undocumented and trades one lint for another.
-- **A comment carrying a real "why" gets tightened, not deleted.** The rule is against paragraphs and restatement, not against explanation; the load-bearing sentence is the one thing prose can do that code can't. Comments on unchanged lines next to the edits are in scope, since a verbose neighbour gets tightened rather than matched, but code the diff doesn't touch is not.
-- **Directives are not comments.** `//go:build`, `//go:generate`, `//nolint`, `# type: ignore`, `# noqa`, `eslint-disable`, JSDoc types, annotation pragmas — these are syntax wearing a comment's clothes, and deleting one changes behaviour or breaks the build. Leave every line a tool reads exactly as it is.
-
-Sometimes a comment is false because the **code** is wrong — it documents a wait the loop never performs, a guard that got dropped. "Describe the final state" does not mean documenting the bug. Take the false premise out, leave a comment that's true of the code as it stands, and flag the defect for the caller; fixing it is a code change and belongs to whoever owns the work, not to a comment pass.
-
-Identifiers carry claims too — a test named `TestRoundsUp` against a function that truncates is the same bug in a different place. Renaming is a code change rather than a comment fix, so flag it instead of doing it.
-
-## 4. Re-run the gate
-
-Comment edits look inert and mostly are, but a stripped pragma fails loudly, and it's cheaper to find here than after the commit. Re-run the project's gate — `make check`, `npm run lint`, whatever CI treats as the bar — or at minimum the formatter and typecheck. A build tag that gates a file out of the default build hides that file from the check, so build it the way the tag asks (`go vet -tags=integration ./...`) before calling it clean.
-
-## 5. Report
-
-Per edit: `file:line`, what it said, what it says now, and which question it failed — both, where it was wrong *and* overlong. Then what you deliberately left alone and why: that half is what shows the pass had judgment rather than a quota. Anything you flagged rather than fixed — a misleading identifier, a defect behind a false premise — goes here too, since it's work for someone else.
-
-Finding nothing to fix is a real answer. Say so plainly rather than reaching for a change to justify the pass.
-
-Leave the edits uncommitted; where they land is the caller's call. `cppcho:implement` folds them into the slice it's about to commit. Invoked on your own, they sit in the working tree until the user says otherwise — `cppcho:commit` records them.
+Leave the edits uncommitted; where they land is the caller's call.
