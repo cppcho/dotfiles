@@ -17,7 +17,7 @@ Track progress with this checklist:
 - [ ] Find the commands
 - [ ] Build it red-green
 - [ ] Verify: suite on changed files, then the gate
-- [ ] Read the comments with fresh eyes — delegate the diff, no history
+- [ ] Check the comments — `cppcho:check-comments` on the diff
 - [ ] Commit — tick the criteria, record the branch it went to
 ```
 
@@ -70,7 +70,7 @@ Skip TDD where it doesn't pay — mechanical refactors, generated code, config, 
 
 An awkward test is a design signal, not a licence to add a seam mid-flight. A new seam changes what the spec committed to, so agree it with the user first.
 
-Do the work yourself: a subagent editing in parallel, or re-checking work you can check with the commands from step 3, costs more than it returns here. Step 6 is the one exception, and for a reason care can't substitute for.
+Do the work yourself: a subagent editing in parallel, or re-checking work you can check with the commands from step 3, costs more than it returns here. The comment pass in step 6 is the one exception, and for a reason care can't substitute for.
 
 ### When the plan changes mid-build
 
@@ -91,37 +91,13 @@ Tightest loop first:
 
 Fix and re-run until both pass. Reaching green by deleting an assertion, skipping a test, or loosening lint and type config hides the failure rather than fixing it. If a failure looks legitimate — the spec is wrong, or an existing test contradicts it — don't code around it: treat it as a plan change and route it by blast radius, as above.
 
-## 6. Read the comments with fresh eyes
+## 6. Check the comments
 
-Once the gate is green, hand the diff to a general-purpose subagent that has not seen this session and let it fix the comments that don't hold up. It needs to edit, so a read-only explorer won't do.
+Once the gate is green, read the `cppcho:check-comments` skill and follow it over the diff this session produced. Don't improvise the pass from this step: the rules it applies, the diff range to use, and the guards that stop a fresh reader stripping comments that were pulling their weight all live there.
 
-Delegate rather than rereading your own work, because the failure mode is memory, not inattention, and neither leak is visible from the inside. The obvious one is narration: you write "kept flat because nesting broke the encoder" because you remember trying nesting, and a reader holding only the diff has nowhere to get that sentence from. The subtler one does more damage — your intent hardens into a claim the code never makes. Having decided that construction goes through `NewLog`, you write "every Log must come from NewLog"; it reads as documentation, but nothing enforces it and `Log{}` still compiles. You believe it, so you can't audit it. A fresh reader believes nothing yet, so it checks.
+The one thing to carry in from here is why you don't do it yourself. The comments you can't audit are your own — you believe them, which is exactly what makes them invisible. So let it delegate, and don't brief that reader on the plan, the ticket, or what you tried; every line of that is a line it can launder back into a comment.
 
-So send the diff and nothing else. No plan, no ticket, no what-you-tried — every line of context you add is a line that can get laundered back into a comment. `git diff $(git merge-base HEAD <base-branch>)` gives it committed slices and working tree in one range; on the default branch, where that range is empty, pass the session's own commits instead. A diff isn't history-free — it shows one step of change, so it can still narrate *that*, and it should be told to describe the code as though it had always been this way. What the diff does hide is the churn inside the branch, which is exactly the history CLAUDE.md calls worthless.
-
-Prompt it roughly like this:
-
-```
-Review only the comments in this diff — <diff command>.
-You have no context on how this code was written, and you don't need any.
-
-Read the "Code Comments" section of ~/.claude/CLAUDE.md and any comment
-conventions in the repo's CLAUDE.md, then hold every comment the diff adds
-or sits next to against them — for truth first, then for length. Fix what
-breaks them, in the files. Then report each edit as file:line — what it
-said, what it says now, and which rule it broke. Finding nothing to fix is
-a real answer; say so rather than reaching for a change to justify the pass.
-```
-
-It edits directly rather than handing you a list, because the rewrite needs the same fresh eyes the finding did — routing it back through you puts the history-holder in charge of the wording again.
-
-Three things worth telling it, since wordiness isn't the only way a comment fails and a reader with a mandate to cut will otherwise overshoot:
-
-- **A comment can be wrong, not just wordy** — and a false one is worse than a verbose one, because a reader trusts it. An invariant nothing enforces, a bound that stopped matching the constant, a documented return the function no longer produces. It's holding the code the comment describes, so it can settle these by reading rather than guessing. Have it correct the claim rather than cut it where it can: the sentence exists because someone thought the fact mattered, and a true version of it usually still does.
-- **A comment carrying a real "why" gets tightened, not deleted.** The rule is against paragraphs and restatement, not against explanation; the load-bearing sentence is the one thing prose can do that code can't. Comments on unchanged lines next to your edits are in scope — CLAUDE.md asks for those tightened rather than matched in length — but code the diff doesn't touch is not.
-- **Directives are not comments.** `//go:build`, `//go:generate`, `//nolint`, `# type: ignore`, `# noqa`, `eslint-disable`, JSDoc types, annotation pragmas — these are syntax wearing a comment's clothes, and deleting one changes behaviour or breaks the build. Leave every line that a tool reads exactly as it is.
-
-That last hazard is why the pass ends with **typecheck and the gate again**. Comment edits look inert and mostly are, but a stripped pragma fails loudly and it's cheaper to find here than after the commit. Fold the fixes into the slice's commit and name them in the close-out.
+Fold its fixes into the slice's commit and name them in the close-out in a line or two.
 
 ## 7. Commit
 
