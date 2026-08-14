@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #fff; --ink: #1c2733; --muted: #5c6b76;
+    --line: #e2e9ee; --code: #0f2733; --codebg: #f3f6f8;
+    --high: #c0392b; --high-bg: #fdecea; --med: #b9770e; --med-bg: #fdf3e2;
+    --low: #4a6b7c; --low-bg: #eef4f7; --ok: #1e7e46; --ok-bg: #e7f6ec;
+    --badc: #c0392b; --goodc: #1e7e46; --walkbg: #eef3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b141a; --card: #10202a; --ink: #e9f2f6; --muted: #8ba2ae;
+      --line: #223540; --code: #cfe3ee; --codebg: #0a1620;
+      --high: #ff6b5e; --high-bg: #2a1512; --med: #ffb84d; --med-bg: #2a2410;
+      --low: #7fb2cc; --low-bg: #12222b; --ok: #57d68d; --ok-bg: #10241a;
+      --badc: #ff6b5e; --goodc: #57d68d; --walkbg: #0d1c25;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 27px; margin: 0 0 6px; }
+  .lede { color: var(--muted); margin: 0 0 24px; }
+  h2 { font-size: 15px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin: 40px 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin: 0 0 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .card h3 { margin: 0 0 4px; font-size: 18px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .num { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .loc { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--muted); margin: 2px 0 12px; word-break: break-all; }
+  .badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .b-high { color: var(--high); background: var(--high-bg); }
+  .b-med  { color: var(--med);  background: var(--med-bg); }
+  .b-low  { color: var(--low);  background: var(--low-bg); }
+  .b-ok   { color: var(--ok);   background: var(--ok-bg); }
+  .row { margin: 10px 0; }
+  .row > b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--codebg); color: var(--code); padding: 1px 5px; border-radius: 5px; }
+  .walk { margin: 12px 0; padding: 12px 14px 12px 16px; background: var(--walkbg); border-radius: 8px; }
+  .walk .cap { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+  .walk ol { margin: 0; padding-left: 20px; }
+  .walk li { margin: 3px 0; }
+  .res { color: var(--badc); font-weight: 600; }
+  .exp { color: var(--goodc); font-weight: 600; }
+  .snip { margin: 8px 0 4px; }
+  .snip .cap { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .cap.bad { color: var(--badc); } .cap.good { color: var(--goodc); }
+  pre { background: var(--codebg); color: var(--code); padding: 10px 12px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; margin: 0; font-family: ui-monospace, Menlo, monospace; }
+  pre.bad { border-left: 3px solid var(--badc); } pre.good { border-left: 3px solid var(--goodc); }
+  pre .c { color: var(--muted); font-style: italic; } pre .del { color: var(--badc); } pre .add { color: var(--goodc); }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .toc { columns: 2; column-gap: 28px; font-size: 14px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .toc li { margin: 0 0 4px; break-inside: avoid; }
+  .toc a { color: var(--ink); text-decoration: none; } .toc a:hover { text-decoration: underline; }
+  .note { font-size: 13.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>__TITLE__</h1>
+  <p class="lede">__SUBTITLE__ Each finding has the <b>problem</b>, a <b>walkthrough</b> (steps that trigger the failure), the <span style="color:var(--badc);font-weight:600">current code</span>, and a <span style="color:var(--goodc);font-weight:600">fix sketch</span>. "Verified" = reproduced by running the code or tracing the path.</p>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--high)"></i> High — data loss / severe</span>
+    <span><i class="dot" style="background:var(--med)"></i> Medium — breaks / misleads</span>
+    <span><i class="dot" style="background:var(--low)"></i> Low — edge / polish</span>
+    <span><i class="dot" style="background:var(--ok)"></i> Cleanup</span>
+  </div>
+
+  <h2>Contents</h2>
+  <ul class="toc">
+    <!-- TOC: one <li> per finding, linking to its card id -->
+    <li><a href="#f1">1. Short title of finding 1</a></li>
+    <li><a href="#f2">2. Short title of finding 2</a></li>
+  </ul>
+
+  <!-- ============ Group findings by severity: High, then Medium, then Low, then Cleanup ============ -->
+  <h2>High severity</h2>
+
+  <!-- EXAMPLE CARD — a correctness finding with every section. Copy this shape per finding.
+       Delete rows that don't apply (e.g. no fix sketch for a purely-observational note). -->
+  <div class="card" id="f1">
+    <h3><span class="num">1.</span> One-line title of the bug <span class="badges"><span class="badge b-high">High</span><span class="badge b-ok">Verified</span></span></h3>
+    <div class="loc">path/to/file.ext:123</div>
+    <div class="row"><b>The problem</b>One or two plain-English sentences: what goes wrong and why. No jargon dumps.</div>
+    <div class="walk"><div class="cap">Walkthrough</div>
+      <ol>
+        <li>Starting state (the input / page / app state), in concrete terms.</li>
+        <li>What the user (or a forged message) does, step by step.</li>
+        <li>What the code does with it.</li>
+        <li class="res">❌ Result: the wrong output / crash / silent loss.</li>
+        <li class="exp">✓ Expected: what should have happened (optional).</li>
+      </ol>
+    </div>
+    <div class="snip"><div class="cap bad">Current — quote the real buggy line(s)</div>
+<pre class="bad">someCall(x)  <span class="c">// comment on why this is wrong</span></pre></div>
+    <div class="snip"><div class="cap good">Fix sketch — illustrative, not a final patch</div>
+<pre class="good"><span class="add">guard(x); someCall(x)</span>  <span class="c">// the smallest change that addresses it</span></pre></div>
+    <div class="row note">Optional: caveats, reachability, how it was verified, links to related findings.</div>
+  </div>
+
+  <h2>Cleanup / maintainability</h2>
+
+  <!-- EXAMPLE CARD — a cleanup finding (no walkthrough needed; often just current + fix). -->
+  <div class="card" id="f2">
+    <h3><span class="num">2.</span> Duplicated / redundant thing <span class="badges"><span class="badge b-ok">Cleanup</span></span></h3>
+    <div class="loc">path/to/file.ext:45</div>
+    <div class="row"><b>The problem</b>What is duplicated / wasted / hard to maintain, and the concrete cost.</div>
+    <div class="snip"><div class="cap good">Fix sketch</div>
+<pre class="good"><span class="c">// the simpler / shared form</span></pre></div>
+  </div>
+
+  <p class="note" style="margin-top:40px">__FOOTER__</p>
+</div>
+</body>
+</html>
