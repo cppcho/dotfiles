@@ -12,22 +12,18 @@ The rules being applied are the "Code Comments" section of `~/.claude/CLAUDE.md`
 
 ## 1. Work out who reads
 
-**If you wrote or edited this code in this session, delegate.** Spawn a general-purpose subagent that hasn't seen the session and give it the diff and nothing else. It needs to edit, so a read-only explorer won't do.
+One question, and it decides the rest:
 
-That delegation is the point of this skill, not ceremony. The failure mode in your own comments is memory, not inattention, and neither way it leaks is visible from the inside:
+- **Came to this code cold?** You are the fresh reader. Do it yourself — spawning a subagent to re-derive what you can already see plainly is just latency.
+- **Wrote or edited it in this session?** Delegate. Spawn a general-purpose subagent that hasn't seen the session and give it the diff and nothing else — no plan, no ticket, no what-you-tried, since every line of context you add is a line that can get laundered back into a comment. It needs to edit, so a read-only explorer won't do.
 
-- **Narration.** You write "kept flat because nesting broke the encoder" because you remember trying nesting. The attempt isn't in the diff, so a reader who only has the diff has nowhere to get the sentence from.
-- **Intent hardening into a claim the code never makes.** You meant callers to hold the mutex before calling, so you write "callers must hold mu" — and it reads as documentation, though nothing enforces it and two call sites don't. You believe it, so you can't audit it. A fresh reader believes nothing yet, so it checks.
-
-Send the diff and nothing else — no plan, no ticket, no what-you-tried. Every line of context you add is a line that can get laundered back into a comment.
-
-**If you're coming to this code cold, you are the fresh reader.** Do it yourself; spawning a subagent to re-derive what you can already see plainly is just latency.
+Delegation in that second case is the point of this skill, not ceremony, because the failure mode in your own comments is memory rather than inattention, and neither way it leaks is visible from the inside. **Narration:** you write "kept flat because nesting broke the encoder" because you remember trying nesting, and the attempt isn't in the diff, so a reader who only has the diff has nowhere to get the sentence from. **Intent hardening into a claim the code never makes:** you meant callers to hold the mutex, so you write "callers must hold mu", and it reads as documentation though nothing enforces it and two call sites don't. You believe it, which is exactly what makes it invisible to you. A fresh reader believes nothing yet, so it checks.
 
 ## 2. Scope the diff
 
 With an argument, take it as given — a range, a path, a branch name.
 
-With none, `git diff $(git merge-base HEAD <base-branch>)` is usually right: it covers committed work and the working tree in one range, so a session that already committed a slice or two is still fully in scope. On the default branch, where that range is empty, use the session's own commits instead.
+With none, `git diff $(git merge-base HEAD <base-branch>)` is usually right: it spans the branch's commits and any uncommitted work in one range, so a session that already committed a slice or two is still fully in scope, and a clean tree simply means the range is all commits. The fallback is only for the case where that range comes back empty — on the default branch, say — where the session's own commits are what you want instead.
 
 A diff isn't history-free — it shows one step of change, so a reader can still narrate *that*. Whoever reviews should describe the code as though it had always been this way. What the diff does hide is the churn inside the branch, and that's exactly the history CLAUDE.md calls worthless.
 
@@ -38,8 +34,11 @@ Edit directly rather than producing a list for someone else to apply. When the r
 Three things to hold onto, since wordiness isn't the only way a comment fails and a reader with a mandate to cut will otherwise overshoot:
 
 - **A comment can be wrong, not just wordy.** An invariant nothing enforces, a bound that stopped matching the constant, a documented return the function no longer produces. You're holding the code the comment describes, so settle these by reading it rather than guessing — and where a claim is cheap to test, test it. Correct the claim rather than cut it where you can: the sentence exists because someone thought the fact mattered, and a true version of it usually still does.
+- **A summary line isn't restatement.** Where a language has a doc convention — godoc's leading sentence, a docstring, a JSDoc summary — that first line is the convention being met, not prose duplicating the signature. Keep it and judge what follows. Deleting it to satisfy "don't restate the code" leaves the declaration undocumented and trades one lint for another.
 - **A comment carrying a real "why" gets tightened, not deleted.** The rule is against paragraphs and restatement, not against explanation; the load-bearing sentence is the one thing prose can do that code can't. Comments on unchanged lines next to the edits are in scope — CLAUDE.md asks for those tightened rather than matched in length — but code the diff doesn't touch is not.
 - **Directives are not comments.** `//go:build`, `//go:generate`, `//nolint`, `# type: ignore`, `# noqa`, `eslint-disable`, JSDoc types, annotation pragmas — these are syntax wearing a comment's clothes, and deleting one changes behaviour or breaks the build. Leave every line a tool reads exactly as it is.
+
+Sometimes a comment is false because the **code** is wrong — it documents a wait the loop never performs, a guard that got dropped. "Describe the final state" does not mean documenting the bug. Take the false premise out, leave a comment that's true of the code as it stands, and flag the defect for the caller; fixing it is a code change and belongs to whoever owns the work, not to a comment pass.
 
 Identifiers carry claims too — a test named `TestRoundsUp` against a function that truncates is the same bug in a different place. Renaming is a code change rather than a comment fix, so flag it instead of doing it.
 
@@ -49,7 +48,7 @@ Comment edits look inert and mostly are, but a stripped pragma fails loudly, and
 
 ## 5. Report
 
-Per edit: `file:line`, what it said, what it says now, and which of the two questions it failed. Then what you deliberately left alone and why — that half is what shows the pass had judgment rather than a quota.
+Per edit: `file:line`, what it said, what it says now, and which question it failed — both, where it was wrong *and* overlong. Then what you deliberately left alone and why: that half is what shows the pass had judgment rather than a quota. Anything you flagged rather than fixed — a misleading identifier, a defect behind a false premise — goes here too, since it's work for someone else.
 
 Finding nothing to fix is a real answer. Say so plainly rather than reaching for a change to justify the pass.
 
