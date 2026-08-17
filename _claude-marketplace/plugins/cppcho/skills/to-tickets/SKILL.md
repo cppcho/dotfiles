@@ -115,3 +115,21 @@ To supersede a ticket:
 The spec must not be left contradicting the reshaped tickets — every ticket's Spec link feeds it to `/cppcho:implement` as established context, so a stale decision there misleads every later session. Update the spec's affected Implementation Decisions in place to match the change, and touch nothing else in it; a change big enough to move user stories or the problem statement deserves a `/cppcho:to-spec` session instead.
 
 Superseding is graph surgery, so only this skill does it. `/cppcho:implement` may amend the unticked criteria of the one ticket it is building when a change is contained there; anything that moves other tickets, the graph, or a spec decision comes back here.
+
+## Cancelling a whole set
+
+When the entire feature is dropped — deprioritised for good, or the need went away — cancel the **set** instead of superseding every ticket in it. Add one line directly under the heading of `.scratch/<feature-slug>/issues/README.md`:
+
+```markdown
+# <Feature> — tickets
+
+**Cancelled:** <reason>
+```
+
+Leave the tickets themselves alone, ticked criteria and all. Retiring eight tickets one at a time to say one thing costs eight edits and eight chances to leave an edge aimed somewhere dead, and the set still draws as a wall of `⊘` rows in every later glance. `cppcho:ticket-dag` and `cppcho:next-actions` both read this line and drop the set, so one line retires the feature.
+
+The **reason** is the load-bearing part, because a cancellation is the one thing a later session cannot reconstruct from the files — the tickets read exactly as they did the day before. A bare marker leaves the next reader unable to tell dropped from forgotten. Reviving the feature is deleting the line.
+
+Carry the same line into `.scratch/<feature-slug>/spec.md` when the feature has one, under its heading and worded the same way. The spec is the door someone comes in through a year later, and it reads as live intent no matter how dead the tickets beside it are — where a live spec eventually gets corrected by the session that picks the work up, a cancelled one never does, because nobody picks it up. Add the line and touch nothing else in it: a cancelled spec is the record of a plan rather than a plan, and rewriting it into the past tense destroys the only account of what was intended.
+
+Cancel the set only when **all** of its outstanding work is dropped. When part of it survives, that is a reshape: supersede what died, keep what lives, and leave the set in the sweep — a cancelled marker over live tickets hides work that is still owed.

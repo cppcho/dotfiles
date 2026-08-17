@@ -12,6 +12,8 @@ Answer one question: **what can I work on right now, across everything in flight
 
 List every `.scratch/*/issues/` directory in the current repo. An argument narrows the sweep to that slug; otherwise take them all. No sets on disk → say so and stop — don't go hunting in other repos or inventing work from the conversation.
 
+A set whose `issues/README.md` opens with a `**Cancelled:** <reason>` line is retired whole and leaves the sweep — it has no outstanding work by definition. An argument naming a cancelled slug gets the reason and nothing else, rather than a list of tickets nobody is going to pick up. That line is the one thing in `README.md` that step 2's "read the tickets, not the index" does not govern: it is a fact about the set, not a claim about any ticket's status, so no ticket can contradict it.
+
 ## 2. Read the tickets, not the index
 
 Read every `<NN>-*.md` in each set. Status comes from the same rules `cppcho:ticket-dag` uses, so the two views never disagree:
@@ -44,7 +46,7 @@ Pick: pc-exchange 02 — smallest slice, continues the chain in flight.
 ```
 
 - Within a set: ready rows first, then in flight, then blocked. A ticket line is glyph, number, title, size — plus the branch to stack on for `●` rows whose blocker carries one, and progress (`3/5`) and branch/PR for `◐` rows. Nothing else; every extra clause on a row costs the scan the list exists for.
-- Done tickets don't get rows, and a fully-done set doesn't get a block — mention it only in passing (`pc-exchange done`) or not at all. Outstanding work is the subject.
+- Done tickets don't get rows, and a fully-done set doesn't get a block — mention it only in passing (`pc-exchange done`) or not at all. A cancelled set gets that passing mention with its reason (`herdr-auth cancelled — vendor SDK covers it`); don't drop it silently, since a set that vanishes from the list reads as missing files. Outstanding work is the subject.
 - Blocked tickets waiting only on siblings collapse to a trailing count. Name a `○` row individually only when it's parked on something *outside* the graph — that needs a different action from the reader than "finish the blocker".
 - Contradictions (done ticket with an unfinished blocker, README/spec drift) get one line under the set they belong to — they're worth more than any row, but still only a line each.
 
