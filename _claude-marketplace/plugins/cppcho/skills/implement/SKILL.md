@@ -121,4 +121,6 @@ Read the current branch and append it if it isn't already listed. If it is liste
 
 Then redraw the set with the `cppcho:ticket-dag` skill. The ticks you just made flip this ticket to `✓` and can release several others to `●`, and what a finished slice unblocks is the one thing the user can't read off the diff. It's also the cheapest check on your own bookkeeping: a criterion the work satisfied but you forgot to tick leaves the row reading `◐`, and a row still `○` behind a ticket you just finished means an edge is wrong.
 
+When the redraw comes back with **every** row `✓`, say so and offer to close the set out — `/cppcho:to-tickets` archives it once the PRs have merged. Offer rather than do: this slice's PR is almost certainly still open, and a set archived before review comes back has to be dragged out again. But make the offer here, because this is the last moment the set's being finished is in front of anyone; miss it and it lingers in every later sweep, competing with live work.
+
 Close with the outcome first: what landed, what you left out, where you diverged from the plan, and the ticket the graph points at next.
