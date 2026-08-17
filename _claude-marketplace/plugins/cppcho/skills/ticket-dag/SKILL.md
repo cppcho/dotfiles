@@ -14,12 +14,14 @@ The point is to answer three questions in a single glance — **what can I start
 
 Every path depends on the slug, so settle it before reading anything. Take the first of these that lands:
 
-1. An argument — either a bare slug, or any path inside `.scratch/<slug>/`.
+1. An argument — either a bare slug, or any path inside `.scratch/<slug>/`. A bare slug resolves against `.scratch/<slug>/` first and `.scratch/_archive/<slug>/` only when nothing is live under that name.
 2. The conversation — a spec or ticket already in play names its slug in its path. This is the common case when the graph is asked for right after a ticketing session.
 3. A single `.scratch/*/issues/` directory on disk.
 4. Several exist → list them and ask which. Don't guess between sibling features; drawing the wrong graph wastes the glance the user came for.
 
 **A cancelled set.** A set whose `issues/README.md` opens with a `**Cancelled:** <reason>` line is retired whole. It is out of the running for rules 3 and 4 — never the set you draw by default, never an option in the list you ask about. Reached deliberately through rule 1 or 2 it still draws, since looking at what was killed is a fair thing to want; name the cancellation and its reason in the footer so the graph is never mistaken for live work. This line is the one thing in `README.md` that step 2's "read the tickets, not the index" does not govern: it is a fact about the set, not a claim about any ticket's status, so no ticket can contradict it.
+
+**An archived set.** A set that shipped has been moved to `.scratch/_archive/<slug>/`, a level deeper than rules 3 and 4 glob, so it is out of the running for both without needing a rule of its own. Reached deliberately through rule 1 it draws normally — looking at how a shipped feature was sliced is a fair thing to want, and usually the reason someone types the slug. Carry its `README.md` `**Shipped:**` line into the footer, so a column of `✓` is never read as work sitting finished-but-unretired.
 
 **A set that isn't written yet.** `/cppcho:to-tickets` draws the graph during its approval quiz, while the tickets are still a proposal in the conversation and no file exists. Take those rows from the proposal and skip the disk read for them — you don't need a slug to draw what you were handed. When the proposal revises a set that partly exists, read the written tickets as usual and fold the proposed ones in beside them: how the new work lands against tickets already in flight is the thing the reader is checking.
 
@@ -113,7 +115,7 @@ Then a footer, only with lines that have something to say:
 
 **The `Branches:` line** gathers every ticket carrying a `**Branch:**` line into one run, in-flight rows first, then done ones. Keep it to one line however many there are — a block of one line per branch crowds out the footer's warnings, which are what the reader actually needs to see. It belongs in the footer rather than on the rows because a row already carries title, summary and size and is near the terminal's width; and it belongs on the diagram at all because deciding what to pick up is exactly when you need to know whether a blocker's code is on a branch you should stack on.
 
-Only the glyph legend and the summary line are always there. Everything below them is conditional — a cancellation and its reason, where the work went, off-graph blocking and its cause, a done-before-blocker contradiction, index or spec drift, collapsed transitive edges, `[L]` tickets that look splittable, a numbering gap with no superseded ticket behind it. Include a line when there is something to say and leave it out otherwise; a footer padded with "no drift detected" trains the reader to skip the part that matters. Prune the legend to the glyphs actually used, too — a set with nothing retired doesn't need `⊘` explained.
+Only the glyph legend and the summary line are always there. Everything below them is conditional — a cancellation and its reason, a shipped set's close-out line, where the work went, off-graph blocking and its cause, a done-before-blocker contradiction, index or spec drift, collapsed transitive edges, `[L]` tickets that look splittable, a numbering gap with no superseded ticket behind it. Include a line when there is something to say and leave it out otherwise; a footer padded with "no drift detected" trains the reader to skip the part that matters. Prune the legend to the glyphs actually used, too — a set with nothing retired doesn't need `⊘` explained.
 
 **When rails won't lay out cleanly**, don't force them. A set with several cross edges between middle layers produces rails that weave and a diagram nobody can read — which defeats the purpose. Fall back to layered blocks: a heading per depth, tickets listed under it, and each ticket's blockers named in its line. Losing the drawn edges costs less than losing legibility, and it's worth saying which you chose and why.
 

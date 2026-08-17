@@ -1,6 +1,6 @@
 ---
 name: to-tickets
-description: Breaks a plan or spec into tracer-bullet tickets under `.scratch/`, each a vertical slice declaring what blocks it.
+description: Breaks a plan or spec into tracer-bullet tickets under `.scratch/`, each a vertical slice declaring what blocks it. Also owns the set afterwards — reshaping it, cancelling it, and archiving it once it ships.
 argument-hint: "[spec-path|issue-number|issue-url]"
 disable-model-invocation: true
 ---
@@ -14,6 +14,8 @@ Break a plan, spec, or conversation into a set of **tickets** — tracer-bullet 
 Work from whatever is already in the conversation context. If the user passes a reference (a spec path such as `.scratch/<feature-slug>/spec.md`, an issue number or URL) as an argument, fetch it and read its full body and comments.
 
 Settle the **feature slug** early, since every path below depends on it. A spec path hands it to you. Otherwise reuse an existing `.scratch/<slug>/` that already covers this work rather than opening a sibling beside it, and only coin a new short kebab-case slug when none does — confirming a coined slug as part of the step 4 quiz, not as a question of its own.
+
+A set under `.scratch/_archive/` is not a candidate for reuse. It shipped, and its rows of `✓` are exactly what archiving took out of view. Read it for how the feature was sliced last time, then coin a new slug for the follow-up and leave the archive where it is.
 
 Then read what is already on disk. If `.scratch/<feature-slug>/issues/` exists, read every ticket in it before drafting anything, because tickets in flight are load-bearing: `/cppcho:implement` ticks acceptance criteria in place as it works, so a ticket file is the only record of what is done. Regenerating the set from the conversation would erase that.
 
@@ -133,3 +135,35 @@ The **reason** is the load-bearing part, because a cancellation is the one thing
 Carry the same line into `.scratch/<feature-slug>/spec.md` when the feature has one, under its heading and worded the same way. The spec is the door someone comes in through a year later, and it reads as live intent no matter how dead the tickets beside it are — where a live spec eventually gets corrected by the session that picks the work up, a cancelled one never does, because nobody picks it up. Add the line and touch nothing else in it: a cancelled spec is the record of a plan rather than a plan, and rewriting it into the past tense destroys the only account of what was intended.
 
 Cancel the set only when **all** of its outstanding work is dropped. When part of it survives, that is a reshape: supersede what died, keep what lives, and leave the set in the sweep — a cancelled marker over live tickets hides work that is still owed.
+
+## Archiving a shipped set
+
+When a feature is done and its code has landed, retire the set by **moving** it out of the way. Add one line directly under the heading of `.scratch/<feature-slug>/issues/README.md`:
+
+```markdown
+# <Feature> — tickets
+
+**Shipped:** 2026-08-17 · [#1234](https://github.com/kouzoh/foo/pull/1234), [#1251](https://github.com/kouzoh/foo/pull/1251) — VG exchange live on production
+```
+
+Then move the whole directory, creating the archive on first use:
+
+```bash
+mkdir -p .scratch/_archive && mv .scratch/<feature-slug> .scratch/_archive/<feature-slug>
+```
+
+**Move rather than mark**, because the move is the part that actually works. `cppcho:next-actions` and `cppcho:ticket-dag` find sets by globbing `.scratch/*/issues/`, and an archived set sits a level deeper than that glob reaches — so one `mv` takes the feature out of every default sweep and every "which set did you mean?" list, which is the whole point. A marker with no move leaves a shipped feature competing with live work for attention in every later glance.
+
+**Move rather than delete**, because the set is the only surviving record of how the feature was cut and which PR carried each slice. Git has the diffs and none of the reasoning about ordering; `.scratch` is gitignored, so once these files are gone nothing anywhere holds that.
+
+The **date and the PRs** are the load-bearing part of the line, for the same reason a cancellation needs its reason: ticked checkboxes read identically the day before a merge and a year after, so nothing else in the set says whether it is finished or merely fully written. Reviving the feature is not un-archiving it — see step 1.
+
+Archive only when all of this holds:
+
+- **Every ticket is `✓` or `⊘`.** Draw the set with `cppcho:ticket-dag` and check rather than trusting the conversation; a set gets archived once and read many times.
+- **The code has merged.** All-ticked with PRs still open is not shipped — a review that comes back with changes reopens the last slice, and reopening a slice inside the archive is the one motion nothing here supports. Ask `gh` before archiving; this is the one place in the ticket skills where merge state is worth a network call, because it is a decision rather than a glance.
+- **No worktree is holding the set.** `.scratch` is symlinked into every worktree, so moving the directory out from under a live session breaks every path it holds.
+
+`spec.md` travels with the set — it lives in the directory being moved, and its `**Shipped:**` line is not needed once the whole thing is out of the sweep. `.scratch/context.md` is **not** archived: the domain glossary is one per repo and outlives every feature in it.
+
+Before you move anything, ask what in the spec is still true about the code and would cost the next reader real time to rediscover — a seam, a constraint, a decision the code embodies but doesn't explain. That belongs in the repo, in `CLAUDE.md`, a design doc, or an ADR. Everything under `.scratch` is gitignored and local to one machine, so archiving is the moment the knowledge either gets promoted into the repo or stops existing for anybody else. Say what you'd promote and let the user decide; don't write into their repo unasked.
