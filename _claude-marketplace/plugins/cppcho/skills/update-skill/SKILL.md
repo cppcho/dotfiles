@@ -1,11 +1,11 @@
 ---
-name: improve-skill
+name: update-skill
 description: Reviews and rewrites a SKILL.md against Anthropic's skill-authoring and current-model prompting guidance — cutting what Claude already knows, fixing descriptions that under-trigger, and removing instructions that backfire. Use when writing a new skill, improving or reviewing an existing one, or when a skill isn't triggering or isn't being followed.
 argument-hint: "[skill-md-path|skill-name]"
 disable-model-invocation: true
 ---
 
-# Improve Skill
+# Update Skill
 
 Make a SKILL.md do more with fewer tokens. Applies to a fresh draft as much as to an existing file.
 
@@ -25,7 +25,7 @@ Track progress with this checklist:
 1. **Read the target** — the SKILL.md, its bundled files, and two or three siblings in the same collection, so the edit lands in the house style rather than a generic one. Read them yourself; a subagent hands back a summary when what you need is the wording you are about to edit.
 2. **Diagnose** against the rules below. Note what's missing and, more often, what isn't pulling its weight. Check the two hard limits with `wc -l` and `wc -c` rather than eyeballing them.
 3. **Report, then edit** — one line per finding, then apply them. Where a finding turns on the author's intent, ask rather than guess. Rewrite the target's own sections in place: no new structure it didn't ask for, no splitting into `references/` unless it is over-length, and no edits to the siblings you read for style.
-4. **Reinstall if needed** — a skill installed from a marketplace runs from a cached copy, so edits to the source do nothing until it is reinstalled (in this repo: `make claude`).
+4. **Reinstall if needed** — a skill installed from a marketplace runs from a cached copy, so edits to the source do nothing until it is reinstalled (in this repo: `make claude`, which copies the working tree as-is — no commit required). Session-start auto-update only triggers on a new commit, so an edit left uncommitted reaches no other machine until it is committed. Either way, running sessions keep the old listing; the change appears in sessions started afterwards.
 
 ## Cut first
 
