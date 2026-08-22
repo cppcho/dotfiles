@@ -1,109 +1,40 @@
 #!/usr/bin/env bash
 # herdr-tab-autoname — tmux-style automatic-rename for herdr TABS.
 #
-# A tab running a coding agent is named from the terminal title the agent
-# broadcasts, which Claude Code sets to a description of its current task. The
-# last such title sticks, so a tab stays findable once its session goes quiet.
-# Other tabs are named after their foreground process (nvim, git, lazygit, …),
-# and a tab with nothing running shows its position within the workspace.
-# Workspace labels are left untouched, so herdr-sessionizer's label matching
-# keeps working.
+# Renames each tab to the foreground process running in its active pane
+# (nvim, claude, git, lazygit, …). Bare-shell tabs show their position number
+# within the workspace (gap-free, unlike herdr's own tab number), and a tab
+# reverts to its number when its command exits. Workspace labels are left
+# untouched, so herdr-sessionizer's label matching keeps working.
 #
 # herdr has no hooks, so this polls the socket API. Run it as a background
 # daemon (see ~/Library/LaunchAgents/com.cppcho.herdr-tab-autoname.plist):
 #   herdr-tab-autoname            # poll forever
 #   herdr-tab-autoname --dry      # print proposed renames once, apply nothing
 #   herdr-tab-autoname --once     # one pass, apply
-#   herdr-tab-autoname --adopt    # one pass, claiming tabs named before state
-#                                 # was kept on disk (see below)
 #
 # Manual renames are preserved: once a tab's label differs from both its number
 # and the last name we set, we stop managing it (like tmux allow-rename off).
-# That ownership map is persisted, because holding it only in memory meant a
-# daemon restart made every previously auto-named tab look hand-renamed and
-# froze it for good. --adopt is the one-shot escape for tabs already frozen
-# that way; it also claims genuine manual renames, so use it deliberately.
 #
 # Env:
 #   HERDR_TAB_AUTONAME_INTERVAL   poll seconds (default 2)
-#   HERDR_TAB_AUTONAME_MAX        label character budget (default 36)
-#   HERDR_TAB_AUTONAME_STATE      state file path
 set -uo pipefail
 
 interval="${HERDR_TAB_AUTONAME_INTERVAL:-2}"
-max_len="${HERDR_TAB_AUTONAME_MAX:-36}"
-state_file="${HERDR_TAB_AUTONAME_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/herdr-tab-autoname.state}"
 
 mode="loop"
 case "${1:-}" in
-    --dry)   mode="dry" ;;
-    --once)  mode="once" ;;
-    --adopt) mode="adopt" ;;
+    --dry)  mode="dry" ;;
+    --once) mode="once" ;;
 esac
 
 is_shell_re='^-?(zsh|bash|sh|fish|dash|tcsh|ksh|nu)$'
 
-# Titles that name the agent rather than its work. An agent emits one of these
-# before it has a task to describe, and a bare shell emits its cwd — identical
-# across every tab in a workspace, so useless as a label.
-generic_title_re='^(claude code|claude|codex|copilot|opencode|cursor|aider|amp)$'
-
-declare -A last_set   # tab_id -> last label we assigned
-declare -A sticky     # tab_id -> last work-describing title the tab produced
-declare -A seen       # tab_id -> seen this pass
-
-# Unit-separated, not tab-separated: tab is IFS whitespace, so read would
-# collapse an empty ownership field and shift the sticky title into it.
-load_state() {
-    local tab managed stick
-    [[ -r $state_file ]] || return 0
-    while IFS=$'\037' read -r tab managed stick; do
-        [[ -z $tab ]] && continue
-        [[ -n $managed ]] && last_set[$tab]=$managed
-        [[ -n $stick ]] && sticky[$tab]=$stick
-    done <"$state_file"
-}
-
-# Only tabs seen this pass are written back, which prunes closed ones.
-save_state() {
-    local tmp tab
-    mkdir -p "${state_file%/*}" 2>/dev/null || return 0
-    tmp=$(mktemp "${state_file}.XXXXXX" 2>/dev/null) || return 0
-    for tab in "${!seen[@]}"; do
-        printf '%s\037%s\037%s\n' "$tab" "${last_set[$tab]-}" "${sticky[$tab]-}"
-    done >"$tmp"
-    mv -f "$tmp" "$state_file" 2>/dev/null || rm -f "$tmp"
-}
-
-# Claim a label as ours, or release the claim when the tab is back to its
-# position number. Also called when the label already matches: skipping it there
-# would leave an unclaimed label that the next restart reads as a manual rename.
-claim_label() {
-    local tab=$1 label=$2 pos=$3
-    if [[ $label == "$pos" ]]; then unset 'last_set[$tab]'; else last_set[$tab]=$label; fi
-}
-
-is_meaningful_title() {
-    local t="$1"
-    [[ -z $t ]] && return 1
-    [[ $t == [~/]* ]] && return 1
-    [[ ${t,,} =~ $generic_title_re ]] && return 1
-    return 0
-}
-
-truncate_label() {
-    local s="$1"
-    if (( ${#s} > max_len )); then
-        printf '%s…' "${s:0:max_len-1}"
-    else
-        printf '%s' "$s"
-    fi
-}
-
-# Desired label for a non-agent pane: the command name of the foreground
-# process-group leader. Prefers argv0 over name (some apps set their process
-# name to a version string). Empty for a bare shell or a gone pane.
-pane_command() {
+# Desired label for a pane: the command name of the foreground process-group
+# leader. Prefers argv0 over name (some apps, e.g. claude, set their process
+# name to a version string). Empty for a bare shell (tab keeps its number) or a
+# gone pane.
+pane_label() {
     local pane="$1" info cmd shell_pid tty fg
     info=$(herdr pane process-info --pane "$pane" 2>/dev/null) || return
     [[ -z $info ]] && return
@@ -133,81 +64,57 @@ pane_command() {
     printf '%s' "$cmd"
 }
 
-pass() {
-    local snap tab pos rep agent cur title label
-    seen=()
-    snap=$(herdr api snapshot 2>/dev/null) || return
-    [[ -z $snap ]] && return
+declare -A last_set   # tab_id -> last label we assigned
 
-    # Unit separator, not tab: labels and titles are free-form text and a tab
-    # inside one would shift every field after it.
-    while IFS=$'\037' read -r tab pos rep agent cur title; do
+pass() {
+    local tabs panes tab cur num pane label
+    tabs=$(herdr tab list 2>/dev/null) || return
+    panes=$(herdr pane list 2>/dev/null) || return
+    [[ -z $tabs || -z $panes ]] && return
+
+    # label goes last: tab is a whitespace char in IFS, so an empty label in a
+    # middle field would collapse and shift the columns. As the final field it
+    # just reads as empty.
+    while IFS=$'\t' read -r tab num cur; do
         [[ -z $tab ]] && continue
-        seen[$tab]=1
 
         # Preserve manual renames: only manage tabs still on their default
         # numeric label or on a name we set ourselves.
-        if [[ $mode != adopt && ! $cur =~ ^[0-9]+$ && $cur != "${last_set[$tab]-}" ]]; then
+        if [[ ! $cur =~ ^[0-9]+$ && $cur != "${last_set[$tab]:-}" ]]; then
             continue
         fi
-        [[ -z $rep ]] && continue
 
-        if [[ -n $agent ]]; then
-            if is_meaningful_title "$title"; then
-                sticky[$tab]=$title
-                label=$(truncate_label "$title")
-            else
-                # Between tasks the agent names only itself; hold the last real
-                # description so the tab stays recognisable.
-                label=$(truncate_label "${sticky[$tab]:-$agent}")
-            fi
-        else
-            label=$(pane_command "$rep")
-            if [[ -n $label ]]; then
-                # Something else has taken the pane; the breadcrumb is spent.
-                unset 'sticky[$tab]'
-                label=$(truncate_label "$label")
-            else
-                label=$(truncate_label "${sticky[$tab]-}")
-            fi
-        fi
+        # Representative pane: the tab's focused pane, else its first pane.
+        pane=$(jq -r --arg t "$tab" '
+            [(.result.panes // [])[] | select((.tab_id|tostring)==$t)] as $ps
+            | (($ps[] | select(.focused)) // $ps[0]).pane_id // empty' 2>/dev/null <<<"$panes")
+        [[ -z $pane ]] && continue
 
-        # Nothing to say: show the tab's position within its workspace. Unlike
+        label=$(pane_label "$pane")
+
+        # Bare shell: show the tab's position within its workspace. Unlike
         # herdr's own .number, this is renumbered each pass so it stays
         # gap-free as tabs are created and closed.
-        [[ -z $label ]] && label=$pos
-        if [[ $label == "$cur" ]]; then
-            claim_label "$tab" "$label" "$pos"
-            continue
+        if [[ -z $label ]]; then
+            label=$num
         fi
+        [[ $label == "$cur" ]] && continue
 
         if [[ $mode == "dry" ]]; then
-            printf '%s: %q -> %q (pane %s)\n' "$tab" "$cur" "$label" "$rep"
+            printf '%s: %q -> %q (pane %s)\n' "$tab" "$cur" "$label" "$pane"
         else
             herdr tab rename "$tab" "$label" >/dev/null 2>&1 \
-                && claim_label "$tab" "$label" "$pos"
+                && if [[ $label == "$num" ]]; then unset 'last_set[$tab]'; else last_set[$tab]=$label; fi
         fi
     done < <(jq -r '
-        (.result.snapshot // {}) as $s
-        | ($s.panes // []) as $panes
-        | ($s.tabs // [])
+        (.result.tabs // [])
         | group_by(.workspace_id)                       # stable: preserves tab order
         | map(to_entries | map(.value + {pos: (.key + 1)}))
-        | add // []
-        | .[] as $t
-        | [$panes[] | select(.tab_id == $t.tab_id)] as $ps
-        | [$ps[] | select(.agent != null and .agent != "")] as $ags
-        | (first($ags[] | select(.focused)) // $ags[0]
-           // first($ps[] | select(.focused)) // $ps[0] // {}) as $rep
-        | [$t.tab_id, ($t.pos|tostring), ($rep.pane_id // ""), ($rep.agent // ""),
-           ($t.label // ""), ($rep.terminal_title_stripped // "")]
-        | join("\u001f")' 2>/dev/null <<<"$snap")
-
-    [[ $mode == "dry" ]] || save_state
+        | add
+        | .[] | "\(.tab_id)\t\(.pos)\t\(.label)"' 2>/dev/null <<<"$tabs")
 }
 
-load_state
 case "$mode" in
-    dry|once|adopt) pass ;;
-    loop)           while :; do pass; sleep "$interval"; done ;;
+    dry|once) pass ;;
+    loop)     while :; do pass; sleep "$interval"; done ;;
 esac
