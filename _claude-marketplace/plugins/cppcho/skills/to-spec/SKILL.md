@@ -12,7 +12,7 @@ This skill takes the current conversation context and codebase understanding and
 
 2. Sketch out the seams at which you're going to test the feature. A **seam** is a place where you can substitute behaviour without editing the code under test — the boundary a test plugs into. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-   Check with the user that these seams match their expectations before writing.
+   Check with the user that these seams match their expectations before writing. Phrase that question in plain words: name the concrete boundary ("the repository interface", "the gRPC handler") and what a fake replaces there. "Seam" is this skill's internal shorthand, not shared vocabulary — a question that leans on it gets answered with "what is a seam?".
 
 3. Write the spec using the template below to `.scratch/<feature-slug>/spec.md`, creating the directory if it does not exist.
 
