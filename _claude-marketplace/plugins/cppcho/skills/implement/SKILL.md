@@ -44,7 +44,7 @@ Keep it to a list. Then judge whether the plan is yours or the work's, and act o
 
 **Go ahead without waiting** when every line follows from what's written: the spec or ticket fixed the seams, the criteria are unambiguous, and the touch list falls out of the code you just read. A ticket is already an approved plan — asking the user to re-approve your restatement of it costs a round trip and buys nothing they didn't already decide. Post the plan and start building. Nothing is lost by moving: the user reads as you go, and the first commit is one green slice rather than the whole ticket.
 
-**Stop and ask** when a line is a call you made rather than one the work handed you — a seam the spec left open where the plausible options differ in cost, scope you want to cut or add, a prefactor reaching outside the ticket, or a criterion with two readings that lead to different code. Name the choice and the options; that question is cheap, and work built on the wrong branch of it is what gets thrown away. If you can't tell which case you're in, that uncertainty *is* the ambiguity — ask.
+**Stop and ask** when a line is a call you made rather than one the work handed you — a seam the spec left open where the plausible options differ in cost, scope you want to cut or add, a prefactor reaching outside the ticket, or a criterion with two readings that lead to different code. Name the choice and the options in the work's own terms — concrete modules and behaviours, not skill vocabulary like "seam"; that question is cheap, and work built on the wrong branch of it is what gets thrown away. If you can't tell which case you're in, that uncertainty *is* the ambiguity — ask.
 
 Either way, build that scope and stop there; adjacent fixes and unrequested refactors belong in a follow-up.
 
@@ -69,6 +69,8 @@ At the agreed seams, for each behaviour:
 Skip TDD where it doesn't pay — mechanical refactors, generated code, config, wide renames, a spike whose interface isn't known yet — and say which.
 
 An awkward test is a design signal, not a licence to add a seam mid-flight. A new seam changes what the spec committed to, so agree it with the user first.
+
+Write comments under the same test step 6 will apply: a comment stays only if you can name the specific wrong conclusion a reader draws without it. Narration of what the code does, restated field meanings, guard justifications the error message already states, and failure stories ("which would otherwise…") fail that test — they just feed the step-6 delete pass, so don't write them in the first place.
 
 Do the work yourself: a subagent editing in parallel, or re-checking work you can check with the commands from step 3, costs more than it returns here. The comment pass in step 6 is the one exception, and for a reason care can't substitute for.
 
