@@ -1,7 +1,7 @@
 ---
 name: next-actions
-description: Lists every outstanding ticket across all `.scratch/*/issues/` sets — what's ready to pick up now, what's in flight, and what's blocked and why. Use when the user asks what's outstanding, what to work on next, what's left, or for a status overview; for one set's full dependency graph, reach for `cppcho:ticket-dag` instead.
-argument-hint: "[feature-slug]"
+description: Lists every outstanding ticket across all `.scratch/*/issues/` sets — what's ready to pick up now, what's in flight, and what's blocked and why. Use when the user asks what's outstanding, what to work on next, what's left, whether a ticket's PR is done and merged, or for a status overview; for one set's full dependency graph, reach for `cppcho:ticket-dag` instead.
+argument-hint: "[feature-slug] [--verify]"
 ---
 
 # Next Actions
@@ -24,7 +24,7 @@ Read every `<NN>-*.md` in each set. Status comes from the same rules `cppcho:tic
 - **Edges** from the `**Blocked by:**` line.
 - **Retirement** from a `**Superseded by:**` / `**Superseded:**` line — retired tickets aren't outstanding, skip them.
 - **Off-graph parking** from a `**Status:**` line — a ticket whose blockers are all done but which is parked on an environment or another repo is *blocked*, not ready, and the parking reason is the useful fact.
-- **Where the work went** from a `**Branch:**` line. Read it as written; never ask `gh` whether a PR merged — this is a glance, not an audit.
+- **Where the work went** from a `**Branch:**` line. Read it as written; the default sweep never asks `gh` whether a PR merged — this is a glance, not an audit. The one exception is when merge state *is* the question — the user asks "is it merged?", "did 03 ship?", or passes `--verify`: then, for the sets the question names, run `gh pr view <url> --json state` once per PR on a Branch line and annotate those rows (`#1234 merged`/`open`/`closed`) instead of inferring state from the ticks.
 
 **Ready** means what it means to `/cppcho:implement`: nothing ticked, every blocker fully done, nothing outside the graph parking it. That definition is the whole value — the list tells the user exactly what that skill would offer them.
 
