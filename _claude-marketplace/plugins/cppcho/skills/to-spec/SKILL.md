@@ -1,7 +1,6 @@
 ---
 name: to-spec
 description: Synthesizes the current conversation into a spec under `.scratch/` — writes, doesn't ask.
-disable-model-invocation: true
 ---
 
 This skill takes the current conversation context and codebase understanding and produces a spec. Don't gather new requirements — synthesize only what the conversation and the code already tell you. If something essential is genuinely missing, ask that one question; don't open a round of discovery.
@@ -14,15 +13,19 @@ This skill takes the current conversation context and codebase understanding and
 
    Check with the user that these seams match their expectations before writing. Phrase that question in plain words: name the concrete boundary ("the repository interface", "the gRPC handler") and what a fake replaces there. "Seam" is this skill's internal shorthand, not shared vocabulary — a question that leans on it gets answered with "what is a seam?".
 
-3. Write the spec using the template below to `.scratch/<feature-slug>/spec.md`, creating the directory if it does not exist.
+3. Write the spec using the template below to `.scratch/<PREFIX>-<slug>/spec.md`, creating the directory if it does not exist. That directory is a **local epic** — the spec and, later, the tickets `/cppcho:to-tickets` cuts from it. Its `<PREFIX>` is the epic's id, so coin one when the directory is new: the initials of the slug's significant words, uppercased, two letters minimum (`promo-credit-exchange` → `PCE`), checked against `ls .scratch/` for a collision and extended until unique. Every ticket id in the epic is built from it.
 
    If `spec.md` already exists, read it first and treat it as established context: carry forward every decision that still holds and revise only what this conversation changed. Regenerating from the conversation alone silently drops the decisions nobody revisited this session. Write the file as a snapshot of the current state — no change notes, no revision history, no "previously X" asides.
 
+   Two lines under the H1 belong to other skills — a `**Reconciled:**` stamp from `/cppcho:reconcile` and a `**Cancelled:**` marker from `/cppcho:to-tickets`. Carry them through a rewrite untouched; a reconciliation stamp that survives an edit it didn't cover is the one thing here that can mislead a later reader into skipping a check.
+
 Match each section's length to what it carries. The user stories are deliberately exhaustive; everything else covers its substance and stops. Leave out filler sections, restated summaries, and boilerplate.
 
-Stop once the spec is written — don't start implementing it. `/cppcho:to-tickets` breaks it into tickets when the user is ready.
+Stop once the spec is written — don't start implementing it. `/cppcho:to-tickets` breaks it into tickets when the user is ready, and owns reconciling them when a later session revises a decision they were cut from.
 
 <spec-template>
+
+# <PREFIX> — <Feature>
 
 ## Problem Statement
 

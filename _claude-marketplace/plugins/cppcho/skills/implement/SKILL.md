@@ -1,8 +1,7 @@
 ---
 name: implement
 description: Implements the work a spec or ticket describes, TDD at agreed seams, runs the repo's gate, has a fresh pair of eyes tighten the comments, and commits to the current branch. Use when building work that has already been specced or ticketed.
-argument-hint: "[spec-or-ticket-path|ticket-number]"
-disable-model-invocation: true
+argument-hint: "[spec-or-ticket-path|ticket-id]"
 ---
 
 # Implement
@@ -12,7 +11,7 @@ Build what a spec or ticket describes. Plan before touching code, check the plan
 Track progress with this checklist:
 
 ```
-- [ ] Read the work
+- [ ] Read the work — and check the ticket is still true of the code
 - [ ] Plan it — post the plan, stop only if a call in it is yours
 - [ ] Find the commands
 - [ ] Build it red-green
@@ -23,9 +22,11 @@ Track progress with this checklist:
 
 ## 1. Read the work
 
-If the user passed a reference — `.scratch/<feature-slug>/spec.md`, `.scratch/<feature-slug>/issues/03-*.md`, a ticket number, an issue URL — read its full body.
+If the user passed a reference — `.scratch/<PREFIX>-<slug>/spec.md`, a ticket id like `PCE-03`, an issue URL — read its full body.
 
-With no argument, draw the ticket set with the `cppcho:ticket-dag` skill and take the **frontier** from it: a `●` row — blockers all done, no **Superseded** line retiring it, nothing outside the graph parking it. Drawing beats scanning the directory yourself because `●` is this frontier rule applied to every ticket at once, so the pick becomes visible to the user instead of a choice made silently in your head. It's also stricter than counting checkboxes: a ticket whose blockers are all `✓` but which is parked on an environment or another repo draws `○`, and picking it up would cost a planning round before discovering it can't start. If several rows are `●`, show the graph and ask which — the sizes and the chain depth behind each are what make that an informed answer rather than a coin toss. With no ticket set at all, work from the conversation.
+With no argument, draw the local epic with the `cppcho:ticket-dag` skill and take the **frontier** from it: a 🟢 row — blockers all done, no **Superseded** line retiring it, nothing outside the graph parking it. Drawing beats scanning the directory yourself because 🟢 is this frontier rule applied to every ticket at once, so the pick becomes visible to the user instead of a choice made silently in your head. It's also stricter than counting checkboxes: a ticket whose blockers are all ✅ but which is parked on an environment or another repo draws 🔴, and picking it up would cost a planning round before discovering it can't start. If several rows are 🟢, show the graph and ask which — the sizes and the chain depth behind each are what make that an informed answer rather than a coin toss. With no epic at all, work from the conversation.
+
+Then check the ticket is still true before planning against it: `/cppcho:reconcile <ticket-id>`. A ticket is a claim about the codebase made on the day it was cut, and parallel epics land code underneath it — the expensive failure is planning and building a slice another epic already delivered. Anything but a `fresh` verdict stops here: report it and hand the reshaping to `/cppcho:to-tickets` rather than building against a ticket you now know is stale. One ticket's worth of checking, at the one moment it pays for itself.
 
 Read `.scratch/context.md` if it exists and use its vocabulary in code, tests, and commit messages.
 
@@ -111,18 +112,18 @@ Then record where the work went, as the ticket's last header line — below **Sp
 **Branch:** `feat/pc-exchange` [#1234](https://github.com/acme/billing-api/pull/1234)
 ```
 
-`.scratch` is symlinked into every worktree, so one shared ticket set is read from every branch and nothing in it otherwise says which branch a slice's code is sitting on. That's the line's job: the next session, handed the ticket downstream of this one, learns whether to stack on this branch or look for merged code.
+`.scratch` is symlinked into every worktree, so one shared epic is read from every branch and nothing in it otherwise says which branch a slice's code is sitting on. That's the line's job: the next session, handed the ticket downstream of this one, learns whether to stack on this branch or look for merged code.
 
 Read the current branch and append it if it isn't already listed. If it is listed but carries no PR, ask `gh pr view <branch> --json number,url` and fill the PR in — that re-check is what lets the line complete itself on a later slice without a separate motion. Then:
 
 - **Append, never rewrite.** Existing entries stay as written and in order, joined with ` · `. A ticket spanning an expand and its migrate batches carries both branches, and the old entry is the record of work that actually happened.
-- **Use `[#1234](url)` — number for reading, URL for clicking.** When the PR sits in a different repo from the ticket set, write `[owner/repo#1234](url)` so the cross-repo hop is visible without following the link.
+- **Use `[#1234](url)` — number for reading, URL for clicking.** When the PR sits in a different repo from the epic, write `[owner/repo#1234](url)` so the cross-repo hop is visible without following the link.
 - **Record identity, never merge state.** A `merged` written once and left is the record that drifts, and it wins arguments it shouldn't; anyone who needs the state asks `gh` when they ask.
 - **Say nothing when there's nothing to say.** No PR yet, `gh` unauthed, no network — record the branch alone and move on. The next close-out fixes it for free, so a warning here is noise on the common path.
 - **Skip the line entirely** on the default branch, where no PR is coming and the branch name tells the reader nothing, and when the work has no ticket file — the close-out prose already names the branch.
 
-Then redraw the set with the `cppcho:ticket-dag` skill. The ticks you just made flip this ticket to `✓` and can release several others to `●`, and what a finished slice unblocks is the one thing the user can't read off the diff. It's also the cheapest check on your own bookkeeping: a criterion the work satisfied but you forgot to tick leaves the row reading `◐`, and a row still `○` behind a ticket you just finished means an edge is wrong.
+Then redraw the epic with the `cppcho:ticket-dag` skill. The ticks you just made flip this ticket to ✅ and can release several others to 🟢, and what a finished slice unblocks is the one thing the user can't read off the diff. It's also the cheapest check on your own bookkeeping: a criterion the work satisfied but you forgot to tick leaves the row reading 🟡, and a row still 🔴 behind a ticket you just finished means an edge is wrong.
 
-When the redraw comes back with **every** row `✓`, say so and offer to close the set out — `/cppcho:to-tickets` archives it once the PRs have merged. Offer rather than do: this slice's PR is almost certainly still open, and a set archived before review comes back has to be dragged out again. But make the offer here, because this is the last moment the set's being finished is in front of anyone; miss it and it lingers in every later sweep, competing with live work.
+When the redraw comes back with **every** row ✅, say so and offer to close the epic out — `/cppcho:to-tickets` archives it once the PRs have merged. Offer rather than do: this slice's PR is almost certainly still open, and an epic archived before review comes back has to be dragged out again. But make the offer here, because this is the last moment the epic's being finished is in front of anyone; miss it and it lingers in every later sweep, competing with live work.
 
 Close with the outcome first: what landed, what you left out, where you diverged from the plan, and the ticket the graph points at next.
