@@ -72,15 +72,13 @@ Close with a single line: which one finding is worth fixing, and why that one.
 
 ### Language
 
-Write everything the reader sees in ASD-STE100 Simplified Technical English — the cards, the closing line, and, if you post, the review summary and the inline comments. File paths, identifiers, command names and error strings are technical names: quote them as they are.
+Write everything the reader sees — the cards, the closing line, and, if you post, the review summary and the inline comments — in plain technical English that a non-native reader can follow:
 
-- One idea per sentence. Maximum 20 words in an instruction, 25 in a description. Split a failure chain into consecutive short sentences rather than one long one.
-- Active voice, simple tenses: "the handler drops the error", not "the error is dropped" and not "the error will have been dropped".
+- One idea per sentence, roughly 20 words or fewer. Split a failure chain into consecutive short sentences rather than one long one.
+- Active voice, simple tenses: "the handler drops the error", not "the error is dropped".
 - Write a fix as a command: "Move the check into the query."
-- Keep the articles, and use one word per thing throughout a report. If the diff calls it a grant, it is a grant in every card.
-- No -ing verb forms unless they belong to a name, no contractions, no idioms ("bites you", "falls over", "silently"), and no more than three nouns in a row.
-- Words instead of symbols: no "→", no "/". Write "then", "and", "or".
-- Spell out an abbreviation on first use unless the repository already uses it as a term.
+- No idioms ("bites you", "falls over") and no symbols as connectives — write "then", "and", "or", not "→" or "/".
+- Domain terms come verbatim from the diff and the repository, even multi-word ones. Never coin a new name for a thing the code already names; use that one term for it in every card. Quote file paths, identifiers, command names and error strings exactly as they are.
 
 The constraint is on the prose, not on the rigour. If a finding needs a mechanism explained, use three short sentences — do not drop the mechanism to stay short.
 
