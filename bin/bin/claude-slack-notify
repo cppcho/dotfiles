@@ -8,11 +8,20 @@
 # An optional first arg labels the event ("stop" for the Stop hook); without it
 # the script assumes a permission/question request.
 #
-# The Slack DM needs these two values. Hooks run in a non-interactive shell that
+# Every notification from one Claude session lands in a single Slack thread,
+# keyed by session_id (state under ~/.claude/slack-threads), so parallel
+# sessions stay untangled. Replies are broadcast back to the channel so the
+# timeline still shows each event. Long bodies are split across several
+# threaded messages rather than truncated.
+#
+# The Slack DM needs these values. Hooks run in a non-interactive shell that
 # does NOT source ~/.zshrc, so we self-load them from ~/.zshrc_private when they
 # aren't already exported. Slack stays a no-op if they can't be found.
 #   SLACK_BOT_TOKEN        Slack bot token (xoxb-...)
 #   CLAUDE_SLACK_DM_TARGET Slack member ID (U...) of the DM recipient (you).
+#   CLAUDE_SLACK_CHANNEL   Optional channel ID (C...) to post to instead of the
+#                          DM. Needed for reading replies back: a bot can only
+#                          read history where it has channels:/groups:history.
 #
 # To wire this into a fresh machine, paste this prompt into Claude Code:
 #   "In ~/.claude/settings.json, add hooks that run ~/bin/claude-slack-notify:
@@ -23,32 +32,38 @@ set -uo pipefail
 event="${1:-}"
 input=$(cat)
 
-# Pull the Slack creds from ~/.zshrc_private (grep just the two exports so we
-# don't run the rest of the file). They're static literals, so this is cheap.
+# Pull the Slack creds from ~/.zshrc_private (grep just the exports we need so
+# we don't run the rest of the file). They're static literals, so this is cheap.
 if [ -z "${SLACK_BOT_TOKEN:-}" ] && [ -f "$HOME/.zshrc_private" ]; then
-  eval "$(grep -E '^export (SLACK_BOT_TOKEN|CLAUDE_SLACK_DM_TARGET)=' "$HOME/.zshrc_private" 2>/dev/null)"
+  eval "$(grep -E '^export (SLACK_BOT_TOKEN|CLAUDE_SLACK_DM_TARGET|CLAUDE_SLACK_CHANNEL)=' "$HOME/.zshrc_private" 2>/dev/null)"
 fi
 
-tool=$(printf '%s' "$input" | jq -r '.tool_name // "tool"')
-cwd=$(printf '%s' "$input" | jq -r '.cwd // ""')
+jqi() { printf '%s' "$input" | jq -r "$1"; }
+
+tool=$(jqi '.tool_name // "tool"')
+sid=$(jqi '.session_id // ""')
+cwd=$(jqi '.cwd // ""')
 proj="${cwd:-$PWD}"
 proj="${proj/#$HOME/\~}"  # collapse home to ~ (e.g. ~/dev/zp-cppcho)
 
 # Session title: a /rename custom title wins, else the auto topic title, else
 # the last user prompt. Lets the ping say which session it came from.
-transcript=$(printf '%s' "$input" | jq -r '.transcript_path // ""')
+transcript=$(jqi '.transcript_path // ""')
 session=""
-last_msg=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   last_of() { grep -hE "\"type\":\"$1\"" "$transcript" 2>/dev/null | tail -1 | jq -r ".$2 // empty" 2>/dev/null; }
   session=$(last_of custom-title customTitle)
   [ -n "$session" ] || session=$(last_of ai-title aiTitle)
   [ -n "$session" ] || session=$(last_of last-prompt lastPrompt)
-  # The last thing Claude actually said (its final text, skipping tool calls),
-  # capped so a long final message doesn't make a giant notification.
+fi
+
+# What Claude actually said last. The Stop payload carries it directly; the
+# transcript is the fallback and can lag behind the turn.
+last_msg=$(jqi '.last_assistant_message // ""')
+if [ -z "$last_msg" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
   last_msg=$(jq -rs '
     [.[] | select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text]
-    | map(select(. != "")) | (last // "") | .[0:1500]' "$transcript" 2>/dev/null)
+    | map(select(. != "")) | (last // "")' "$transcript" 2>/dev/null)
 fi
 
 # Human-readable detail describing what Claude is waiting on:
@@ -56,7 +71,7 @@ fi
 #   AskUserQuestion -> the question(s) being asked
 #   file tools      -> the file path
 #   fallback        -> the notification message, else empty
-detail=$(printf '%s' "$input" | jq -r '
+detail=$(jqi '
   if .tool_name == "Bash" then
     (.tool_input.command // "")
     + (if (.tool_input.description // "") != "" then "\n— " + .tool_input.description else "" end)
@@ -71,71 +86,168 @@ detail=$(printf '%s' "$input" | jq -r '
   end
 ')
 
-# context = what Claude last said (only for Stop, to recap the finished turn);
-# action  = the command / question Claude wants to run (permission & question);
-# body    = the one-liner for the macOS banner.
-context=""
-action=""
+# body = the one long thing worth reading: what Claude last said (Stop), or the
+# command / question it wants approved. icon/title frame it for the header.
 if [ "$event" = "stop" ]; then
   icon=":white_check_mark:"
   title="Claude finished"
-  context="${last_msg:-Turn complete — back to you}"
-  body="$context"
+  body="${last_msg:-Turn complete — back to you}"
 elif [ "$tool" = "AskUserQuestion" ]; then
   icon=":question:"
   title="Claude is asking"
-  action="${detail:-$tool}"
-  body="$action"
+  body="${detail:-$tool}"
 else
   icon=":warning:"
   title="Claude needs permission: ${tool}"
-  action="${detail:-$tool}"
-  body="$action"
+  body="${detail:-$tool}"
 fi
 
 # tmux pane bell
 ~/bin/tmux-bell 2>/dev/null || true
 
 # macOS banner (subtitle carries the session title + project for context;
-# collapse newlines in the body so it stays on one tidy line)
+# collapse newlines and clip so it stays a tidy one-liner)
 if command -v terminal-notifier >/dev/null 2>&1; then
   sub="$proj"
   [ -n "$session" ] && sub="$session · $proj"
-  banner=$(printf '%s' "$body" | tr '\n' ' ')
+  banner=$(printf '%s' "${body:0:300}" | tr '\n' ' ')
   terminal-notifier -title "$title" -subtitle "$sub" \
     -message "$banner" -sound Glass -activate com.mitchellh.ghostty 2>/dev/null || true
 fi
 
-# Slack DM (fire-and-forget so a slow/offline network never blocks Claude's turn)
-if [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${CLAUDE_SLACK_DM_TARGET:-}" ]; then
-  header=$(printf '%s [%s] *%s*' "$icon" "$(date '+%H:%M')" "$title")
-  if [ -n "$session" ]; then
-    header=$(printf '%s in "_%s_" (`%s`)' "$header" "$session" "$proj")
-  else
-    header=$(printf '%s in `%s`' "$header" "$proj")
+slack_target="${CLAUDE_SLACK_CHANNEL:-${CLAUDE_SLACK_DM_TARGET:-}}"
+if [ -z "${SLACK_BOT_TOKEN:-}" ] || [ -z "$slack_target" ]; then
+  exit 0
+fi
+
+header=$(printf '%s [%s] *%s*' "$icon" "$(date '+%H:%M')" "$title")
+if [ -n "$session" ]; then
+  header=$(printf '%s in "_%s_" (`%s`)' "$header" "$session" "$proj")
+else
+  header=$(printf '%s in `%s`' "$header" "$proj")
+fi
+
+# A rich_text_preformatted block caps out around 3000 chars, so the body is cut
+# into chunks under that and posted as consecutive messages in the thread.
+# jq does the slicing because it counts codepoints — bash substring expansion
+# would split multibyte characters in a C-locale hook shell and produce invalid
+# UTF-8. Chunks prefer a newline boundary in the back half of the window.
+CHUNK_LIMIT=2600
+MAX_PARTS=20
+
+split_chunks() {
+  jq -rn --arg s "$1" --argjson lim "$CHUNK_LIMIT" --argjson max "$MAX_PARTS" '
+    def cut($t):
+      if ($t | length) <= $lim then [$t]
+      else
+        ($t[0:$lim]) as $c
+        | (($c | rindex("\n")) // -1) as $i
+        | (if $i > ($lim / 2) then $i else $lim end) as $at
+        | [$t[0:$at]] + cut($t[$at:] | sub("^\n"; ""))
+      end;
+    (if ($s | length) == 0 then [] else cut($s) end)
+    | (if (length > $max)
+        then .[0:$max] + ["… truncated, \(length - $max) more part(s) in the terminal"]
+        else . end)
+    | .[] | @base64'
+}
+
+b64d() { jq -rn --arg b "$1" '$b | @base64d'; }
+
+pre_block() { jq -n --arg t "$1" '{type:"rich_text", elements:[{type:"rich_text_preformatted", elements:[{type:"text", text:$t}]}]}'; }
+
+# $1=blocks array json  $2=fallback text  $3=thread_ts ("" for a root post)
+# $4=true|false broadcast a threaded reply back to the channel
+slack_post() {
+  local payload
+  payload=$(jq -n --arg c "$slack_target" --arg t "$2" --argjson b "$1" \
+    --arg tts "$3" --argjson bc "$4" '
+    {channel: $c, text: $t, blocks: $b}
+    + (if $tts != "" then {thread_ts: $tts, reply_broadcast: $bc} else {} end)')
+  curl -sS --max-time 15 -X POST https://slack.com/api/chat.postMessage \
+    -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+    -H 'Content-Type: application/json; charset=utf-8' \
+    --data "$payload"
+}
+
+# One thread per session. The first notification of a session is the thread
+# root; every later one is a reply to it, so the DM groups by session instead of
+# interleaving every session's pings.
+state_dir="$HOME/.claude/slack-threads"
+state="$state_dir/${sid:-nosession}.json"
+lock="$state_dir/${sid:-nosession}.lock"
+
+slack_send() {
+  mkdir -p "$state_dir" 2>/dev/null
+
+  # Serialize concurrent events in one session so they can't each create a root.
+  [ -d "$lock" ] && [ -z "$(find "$lock" -maxdepth 0 -mmin -2 2>/dev/null)" ] && rmdir "$lock" 2>/dev/null
+  local waited=0
+  while ! mkdir "$lock" 2>/dev/null; do
+    waited=$((waited + 1))
+    [ "$waited" -gt 50 ] && break
+    sleep 0.2
+  done
+  trap 'rmdir "$lock" 2>/dev/null' EXIT
+
+  # A day-old thread is stale; a resumed session starts a fresh one.
+  local thread_ts=""
+  if [ -n "$sid" ] && [ -f "$state" ] && [ -n "$(find "$state" -maxdepth 0 -mmin -720 2>/dev/null)" ]; then
+    thread_ts=$(jq -r '.ts // ""' "$state" 2>/dev/null)
+    local ch
+    ch=$(jq -r '.channel // ""' "$state" 2>/dev/null)
+    [ -n "$ch" ] && slack_target="$ch"
   fi
 
-  # Build the payload with jq so all JSON escaping is handled. The context (last
-  # message) and action (command / question) each go in a rich_text_preformatted
-  # block, which renders literally — so backticks, quotes, or newlines can never
-  # break the formatting. Blocks are only added when their text is non-empty.
-  payload=$(jq -n \
-    --arg c "$CLAUDE_SLACK_DM_TARGET" --arg h "$header" \
-    --arg ctx "$context" --arg act "$action" '
-    def pre($t): {type: "rich_text", elements: [
-      {type: "rich_text_preformatted", elements: [{type: "text", text: $t}]}
-    ]};
-    {
-      channel: $c, text: $h,
-      blocks: ([{type: "section", text: {type: "mrkdwn", text: $h}}]
-        + (if $ctx != "" then [pre($ctx)] else [] end)
-        + (if $act != "" then [pre($act)] else [] end))
-    }')
+  local chunks=() line
+  while IFS= read -r line; do chunks+=("$line"); done < <(split_chunks "$body")
+  [ "${#chunks[@]}" -gt 0 ] || chunks=("$(printf '%s' "" | jq -Rr @base64)")
+  local total=${#chunks[@]}
 
-  ( curl -sS -X POST https://slack.com/api/chat.postMessage \
-      -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
-      -H 'Content-Type: application/json; charset=utf-8' \
-      --data "$payload" >/dev/null 2>&1 & )
-fi
+  local hdr="$header"
+  [ "$total" -gt 1 ] && hdr="$header — part 1/$total"
+  local first blocks resp
+  first=$(b64d "${chunks[0]}")
+  blocks=$(jq -n --arg h "$hdr" --argjson p "$(pre_block "$first")" \
+    '[{type:"section", text:{type:"mrkdwn", text:$h}}] + (if ($p.elements[0].elements[0].text) != "" then [$p] else [] end)')
+
+  if [ -n "$thread_ts" ]; then
+    resp=$(slack_post "$blocks" "$header" "$thread_ts" true)
+    # A deleted or expired root would otherwise swallow every later ping in the
+    # session, so fall back to starting a fresh thread.
+    if [ "$(printf '%s' "$resp" | jq -r '.ok // false' 2>/dev/null)" != "true" ]; then
+      thread_ts=""
+    fi
+  fi
+  if [ -z "$thread_ts" ]; then
+    resp=$(slack_post "$blocks" "$header" "" false)
+    thread_ts=$(printf '%s' "$resp" | jq -r '.ts // ""' 2>/dev/null)
+    local newch
+    newch=$(printf '%s' "$resp" | jq -r '.channel // ""' 2>/dev/null)
+    [ -n "$newch" ] && slack_target="$newch"
+    if [ -n "$thread_ts" ] && [ -n "$sid" ]; then
+      jq -n --arg s "$sid" --arg ts "$thread_ts" --arg ch "$slack_target" \
+        '{session: $s, ts: $ts, channel: $ch}' > "$state"
+    fi
+  fi
+
+  # Remaining chunks continue the thread quietly — no broadcast, and a small
+  # gap because chat.postMessage is rate-limited to roughly one per second.
+  local i=1
+  while [ "$i" -lt "$total" ] && [ -n "$thread_ts" ]; do
+    sleep 0.4
+    local part
+    part=$(b64d "${chunks[$i]}")
+    blocks=$(jq -n --argjson p "$(pre_block "$part")" --arg l "part $((i + 1))/$total" \
+      '[$p, {type:"context", elements:[{type:"mrkdwn", text:$l}]}]')
+    slack_post "$blocks" "part $((i + 1))/$total" "$thread_ts" false >/dev/null
+    i=$((i + 1))
+  done
+}
+
+# Fire-and-forget: the posts are sequential (the root's ts gates the replies),
+# so the whole routine is detached rather than each curl, and a slow or offline
+# network never holds up Claude's turn.
+( slack_send >/dev/null 2>&1 & )
 
 exit 0
