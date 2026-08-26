@@ -1,18 +1,20 @@
 ---
 name: review-pr
-description: Reviews a GitHub PR by number or URL — reads the PR body and every stacked parent before the diff, runs the built-in `/code-review` over it, drops findings the description or the stack already answers, and prints one severity-ranked report where each finding is a failure scenario and a fix. Posting to GitHub is a separate opt-in step, off by default. Use when the user gives a PR number or URL and asks for a review, a strict or high-effort review, a second pass before approving, or asks what in a PR is worth fixing. For the local working diff with no PR involved, plain `/code-review` is enough; to render findings that already exist as an HTML page, use `/cppcho:review-report-html`.
-argument-hint: "[pr-number|url] [effort] [--post]"
-allowed-tools: Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr list:*), Bash(gh stack view:*), Bash(git merge-base:*), Bash(git log:*), Bash(go mod tidy), Skill, AskUserQuestion
+description: Reviews a GitHub PR by number or URL — reads the PR body and every stacked parent before the diff, runs the built-in `/code-review` over it, traces the code by hand to confirm each finding, drops only what the code itself shows to be a non-issue, and prints one severity-ranked report where each finding is a failure scenario and a fix. Posting to GitHub is a separate opt-in step, off by default. Use when the user gives a PR number or URL and asks for a review, a strict or high-effort review, a second pass before approving, or asks what in a PR is worth fixing. For the local working diff with no PR involved, plain `/code-review` is enough; to render findings that already exist as an HTML page, use `/cppcho:review-report-html`.
+argument-hint: "[pr-number|url] [effort] [--post|--no-post]"
+allowed-tools: Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr list:*), Bash(gh stack view:*), Bash(go mod tidy), Read, Grep, Glob, Skill, AskUserQuestion
 ---
 
 # Review PR
 
-The built-in `/code-review` does the finding-hunting. This skill is the wrapper that makes its output trustworthy: context first, the stack accounted for, findings filtered, and nothing posted to GitHub unless asked.
+The built-in `/code-review` does the finding-hunting. This skill is the wrapper that makes its output trustworthy: context first, the stack accounted for, every finding checked against the code, and nothing posted to GitHub unless asked.
 
 ```
 - [ ] PR body and metadata read
 - [ ] Stack mapped, parents read
 - [ ] /code-review run at the chosen effort
+- [ ] Each finding traced in the code
+- [ ] Each claim in the body and the diff comments checked against the code
 - [ ] Findings filtered against body + stack
 - [ ] Report written
 - [ ] Posting offered, not assumed
@@ -24,7 +26,9 @@ The built-in `/code-review` does the finding-hunting. This skill is the wrapper 
 gh pr view <n> --json title,body,url,baseRefName,headRefName,headRefOid,commits,files
 ```
 
-Read the body in full and write down, for yourself, three lists: what the author says is **intentional**, what is **deferred** to a follow-up ticket or later slice, and what is **out of scope**. That is the filter in step 4 — a finding the description already answers is worse than no finding, because it makes the reviewer re-read what they wrote.
+Read the body in full and write down, for yourself, three lists: what the author says is **intentional**, what is **deferred** to a follow-up ticket or later slice, and what is **out of scope**. Those lists feed the filter in step 5 — a finding the description already answers is worse than no finding, because it makes the reviewer re-read what they wrote.
+
+The three lists are claims, not evidence. The body says what the author meant to write. The code says what it does. Treat every line of the body as a lead to check in the diff, never as a fact you can act on. The comments and doc comments inside the diff are the same kind of claim: they are often written before the code beside them, and they are wrong exactly when a reviewer needs them most. Neither one replaces reading the code.
 
 Keep `headRefOid`. Everything downstream is a claim about that SHA.
 
@@ -32,28 +36,46 @@ Keep `headRefOid`. Everything downstream is a claim about that SHA.
 
 `gh stack view`; if there is no local stack state, match `baseRefName`/`headRefName` across `gh pr list --json number,title,baseRefName,headRefName`.
 
-If the base is not the default branch, `gh pr view <base>` on each ancestor and read those bodies too. Then judge every candidate finding against the **stack tip**, not this slice: a missing guard, compensation path, idempotency check or test is very often the next slice's job, and the diff's own comments frequently say so.
+If the base is not the default branch, `gh pr view <base>` on each ancestor and read those bodies too. Then judge every candidate finding against the **stack tip**, not this slice: a missing guard, compensation path, idempotency check or test is very often the next slice's job. The diff's own comments frequently say so, and a comment saying so is a lead: open the later slice and confirm it really does the work.
 
 ## 3. Run the official review
 
-Invoke the built-in `code-review` skill through the Skill tool with the PR number and an effort level — `high` by default here, or whatever level the user typed. Do not pass `--comment` or `--fix`; posting is step 7 and this skill never edits the working tree.
+Invoke the built-in `code-review` skill through the Skill tool with the PR number and an effort level — `high` by default here, or whatever level the user typed.
+
+**Never write the two flag names — the one that posts comments, the one that applies fixes — anywhere in the args.** The built-in skill decides whether those flags were passed by scanning the whole args string for them, so a sentence telling it not to post turns posting on. It then posts one standalone comment per finding, and `Bash(gh api:*)` lets it through with no prompt. State the same thing positively: "Report the findings only. Post nothing." Posting is step 8, and this skill never edits the working tree.
 
 Hand it the context from steps 1–2 in the invocation, so its own pass starts already knowing what the author called intentional and which parent owns what.
 
-## 4. Filter
+## 4. Check the logic in the code
+
+The built-in pass hunts findings. This step decides which ones are real, and the only source that settles it is the code.
+
+Work in both directions.
+
+**From the findings.** Take each candidate, open the file, and walk the control flow by hand: which branch runs, what each call returns, which errors travel where, what runs first. Do not conclude behaviour from a function name, a field name, or a nearby comment. When the same error value or helper appears at several call sites, work out which site reaches the path you are describing. Watch for things that run before the code you are reading: early returns, `defer`, `errgroup` waits, context cancellation.
+
+Read the surrounding code too, not only the changed lines. A diff can be correct line by line and still break the caller that was there already.
+
+**From the claims.** Now go back to the lists from step 1 and to every comment in the diff that asserts something: this input is already validated, the caller guarantees the field is set, the later slice adds the guard, this path cannot be reached. Each of those is a place the author stopped checking, and the built-in pass may have stopped there too. Open the code and confirm the claim holds. A claim that does not hold is usually the best finding in the review, because nobody was looking there.
+
+A finding survives only when you can trace the failure step by step in the code. A finding dies only when you can trace the code doing the right thing. "The body says it is handled" settles neither.
+
+## 5. Filter
 
 Drop, and say how many you dropped and why:
 
-- anything the PR body acknowledges as intentional, deferred, or out of scope
-- anything that belongs to a parent PR, or that a later slice in the stack resolves
+- anything the PR body calls intentional, deferred, or out of scope **and** the code agrees with that claim. If the body says a case is handled and the code does not handle it, the gap is the finding — and the card should say that the body claims otherwise.
+- anything that belongs to a parent PR, or that a later slice in the stack resolves — judged from that PR's diff, not from its description
 - working-tree `go.sum` churn — run `go mod tidy` and re-check before treating it as a finding at all
 - anything you cannot state as a concrete failure: named trigger → wrong outcome. "Consider extracting this" is not a finding; it is a preference.
 
-## 5. Confirm the branch hasn't moved
+A comment in the diff that promises a guard, a follow-up, or an invariant is not a reason to drop anything. Check whether the code keeps the promise. When it does not, the comment is wrong and that is worth its own **[Low]** card.
+
+## 6. Confirm the branch hasn't moved
 
 `gh pr view <n> --json headRefOid`. If it differs from step 1, the diff you reviewed is stale: re-read the diff for the files your findings touch and drop the ones whose code is gone.
 
-## 6. Report
+## 7. Report
 
 One card per finding, grouped by severity, most reachable first. This shape, not prose:
 
@@ -82,7 +104,7 @@ Write everything the reader sees — the cards, the closing line, and, if you po
 
 The constraint is on the prose, not on the rigour. If a finding needs a mechanism explained, use three short sentences — do not drop the mechanism to stay short.
 
-## 7. Posting is opt-in
+## 8. Posting is opt-in
 
 **Default: do not post.** After the report, ask once whether to post it — `--post` in the invocation skips the question and posts; `--no-post` skips it and doesn't.
 
@@ -99,4 +121,4 @@ gh api repos/{owner}/{repo}/pulls/<n>/reviews \
 - Fix: …"
 ```
 
-Each `line` must exist on the right side of the diff or the API rejects the whole review; for a finding about deleted code, anchor it to the nearest changed line and say so in the body. Post only the findings that survived steps 4–5, with the card text unchanged — the inline comment and the report should read the same.
+Each `line` must exist on the right side of the diff or the API rejects the whole review; for a finding about deleted code, anchor it to the nearest changed line and say so in the body. Post only the findings that survived steps 4–6, with the card text unchanged — the inline comment and the report should read the same.
