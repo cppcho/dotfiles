@@ -77,17 +77,32 @@ Say which side moved when you can tell: the code diverging from a still-good dec
 
 One block per epic, findings only — a clean epic gets a line saying so, not a table of ✅. Keep the whole report to what fits on a screen; the verdicts carry citations, so anyone who wants the detail has a path to it.
 
-```
-PCB · promo-credit-wallet-scoped-balances    reconciled 2026-08-01 · 3 findings
+Open every finding with a glyph. A verdict is a word buried in a column of words, and the reader is scanning for the one row that needs them — the same job colour does in `cppcho:ticket-dag`, which is why the glyphs are that skill's, not a second scheme to learn:
 
-  PCB-04  already satisfied  — zero-balance routing landed in PCG-05 (grant.go:212, grant_test.go:88)
-  PCB-07  invalidated        — statement rows now key on balance id (PCS-02), so the
-                               per-wallet filter this describes has no column to read
-  spec    stale              — "balances never lapse once contracted" was dropped in PCA-03
+| glyph | verdict |
+| --- | --- |
+| 🟢 | `fresh` — still describes a path through the current code |
+| ✅ | `already satisfied` — every criterion cited elsewhere |
+| 🟡 | `partly satisfied` — some criteria cited, name which |
+| 🚫 | `invalidated` — cannot be done as written |
+| ❓ | `unclear` — needs a human |
+| ⚠️ | drift that is not a ticket verdict — a bookkeeping contradiction, a stale spec decision |
 
-Route: PCB-04 and PCB-07 → /cppcho:to-tickets (supersede PCB-07, close PCB-04 out)
-       spec decision       → /cppcho:to-spec
+❓ and ⚠️ are the two additions, and both earn their place: they mark the rows nobody can act on from the report alone. Keep ❓ visually loud for the reason step 3 fails closed — an `unclear` that reads like a clean row is an `already satisfied` in disguise.
+
 ```
+🔎 PCB · promo-credit-wallet-scoped-balances    reconciled 2026-08-01 · 3 findings
+
+  ✅ PCB-04  already satisfied  — zero-balance routing landed in PCG-05 (grant.go:212, grant_test.go:88)
+  🚫 PCB-07  invalidated        — statement rows now key on balance id (PCS-02), so the
+                                  per-wallet filter this describes has no column to read
+  ⚠️ spec    stale              — "balances never lapse once contracted" was dropped in PCA-03
+
+Route: ➡️ PCB-04 and PCB-07 → /cppcho:to-tickets (supersede PCB-07, close PCB-04 out)
+       ➡️ spec decision       → /cppcho:to-spec
+```
+
+A clean epic is one line: `🟢 PCB · promo-credit-wallet-scoped-balances — nothing drifted`. A sweep over ten epics is then nine of those and the one block worth reading, which is the shape that makes the no-argument mode worth running.
 
 **Reconcile edits nothing on its own.** Every finding names the skill that owns the fix — `/cppcho:to-tickets` for anything touching a ticket, an edge, or the index; `/cppcho:to-spec` for a decision. Keeping diagnosis and surgery apart is what lets an audit be run freely: it cannot make the epic worse. Act on the routed list in the same session if the user says go, by invoking those skills.
 
