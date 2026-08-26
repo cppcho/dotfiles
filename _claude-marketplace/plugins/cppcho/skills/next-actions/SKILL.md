@@ -1,18 +1,18 @@
 ---
 name: next-actions
-description: Lists every outstanding ticket across all the local epics under `.scratch/` — what's ready to pick up now, what's in flight, and what's blocked and why. Use when the user asks what's outstanding, what to work on next, what's left, whether a ticket's PR is done and merged, or for a status overview; for one epic's full dependency graph reach for `cppcho:ticket-dag`, and to check an epic's tickets against the code reach for `cppcho:reconcile`.
+description: Lists every outstanding ticket across all the local epics under `.scratch/epics/` — what's ready to pick up now, what's in flight, and what's blocked and why. Use when the user asks what's outstanding, what to work on next, what's left, whether a ticket's PR is done and merged, or for a status overview; for one epic's full dependency graph reach for `cppcho:ticket-dag`, and to check an epic's tickets against the code reach for `cppcho:reconcile`.
 argument-hint: "[epic-prefix] [--verify]"
 ---
 
 # Next Actions
 
-Answer one question: **what can I work on right now, across everything in flight?** Where `cppcho:ticket-dag` draws one epic's edges in depth, this skill sweeps every **local epic** — the ticket directories under `.scratch/`, never Jira or Linear — and returns a flat, prioritised list: the view you want at the start of a session, before you know which epic you're picking up.
+Answer one question: **what can I work on right now, across everything in flight?** Where `cppcho:ticket-dag` draws one epic's edges in depth, this skill sweeps every **local epic** — the ticket directories under `.scratch/epics/`, never Jira or Linear — and returns a flat, prioritised list: the view you want at the start of a session, before you know which epic you're picking up.
 
 ## 1. Find the epics
 
-List every `.scratch/[A-Z]*-*/tickets/` directory in the current repo — the prefix in the directory name is the epic's id, and it's what keeps other scratch material out of the sweep. An argument narrows it to that prefix or slug; otherwise take them all. No epics on disk → say so and stop — don't go hunting in other repos or inventing work from the conversation.
+List every `.scratch/epics/[A-Z]*-*/tickets/` directory in the current repo — the prefix in the directory name is the epic's id, and the `epics/` subdirectory is what keeps other scratch material out of the sweep. An argument narrows it to that prefix or slug; otherwise take them all. No epics on disk → say so and stop — don't go hunting in other repos or inventing work from the conversation.
 
-Shipped epics live at `.scratch/_archive/<PREFIX>-<slug>/`, which that glob cannot reach, so they are already out of the sweep — don't widen it to find them. An argument naming an archived slug gets its `**Shipped:**` line and nothing else: it has no outstanding work, and a screen of ✅ rows answers a question nobody asked.
+Shipped epics live at `.scratch/epics/_archive/<PREFIX>-<slug>/`, which that glob cannot reach, so they are already out of the sweep — don't widen it to find them. An argument naming an archived slug gets its `**Shipped:**` line and nothing else: it has no outstanding work, and a screen of ✅ rows answers a question nobody asked.
 
 An epic whose `tickets/README.md` opens with a `**Cancelled:** <reason>` line is retired whole and leaves the sweep — it has no outstanding work by definition. An argument naming a cancelled slug gets the reason and nothing else, rather than a list of tickets nobody is going to pick up. That line is the one thing in `README.md` that step 2's "read the tickets, not the index" does not govern: it is a fact about the epic, not a claim about any ticket's status, so no ticket can contradict it.
 

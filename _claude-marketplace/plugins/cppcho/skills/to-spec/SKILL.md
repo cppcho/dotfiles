@@ -1,6 +1,6 @@
 ---
 name: to-spec
-description: Synthesizes the current conversation into a spec under `.scratch/` — writes, doesn't ask.
+description: Synthesizes the current conversation into a spec under `.scratch/epics/` — writes, doesn't ask.
 ---
 
 This skill takes the current conversation context and codebase understanding and produces a spec. Don't gather new requirements — synthesize only what the conversation and the code already tell you. If something essential is genuinely missing, ask that one question; don't open a round of discovery.
@@ -11,9 +11,9 @@ This skill takes the current conversation context and codebase understanding and
 
 2. Sketch out the seams at which you're going to test the feature. A **seam** is a place where you can substitute behaviour without editing the code under test — the boundary a test plugs into. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-   Check with the user that these seams match their expectations before writing. Phrase that question in plain words: name the concrete boundary ("the repository interface", "the gRPC handler") and what a fake replaces there. "Seam" is this skill's internal shorthand, not shared vocabulary — a question that leans on it gets answered with "what is a seam?".
+   Name these seams in the spec's Implementation Decisions, in plain words: the concrete boundary ("the repository interface", "the gRPC handler") and what a fake replaces there. "Seam" is this skill's internal shorthand, not shared vocabulary — prose that leans on it reads as jargon. Do not stop to confirm them. Write the spec, then say in one line which boundary you chose, so it can be redirected before `/cppcho:to-tickets` cuts tickets from it.
 
-3. Write the spec using the template below to `.scratch/<PREFIX>-<slug>/spec.md`, creating the directory if it does not exist. That directory is a **local epic** — the spec and, later, the tickets `/cppcho:to-tickets` cuts from it. Its `<PREFIX>` is the epic's id, so coin one when the directory is new: the initials of the slug's significant words, uppercased, two letters minimum (`promo-credit-exchange` → `PCE`), checked against `ls .scratch/` for a collision and extended until unique. Every ticket id in the epic is built from it.
+3. Write the spec using the template below to `.scratch/epics/<PREFIX>-<slug>/spec.md`, creating the directory if it does not exist. That directory is a **local epic** — the spec and, later, the tickets `/cppcho:to-tickets` cuts from it. Its `<PREFIX>` is the epic's id, so coin one when the directory is new: the initials of the slug's significant words, uppercased, two letters minimum (`promo-credit-exchange` → `PCE`), checked against `ls .scratch/epics/` for a collision and extended until unique. Every ticket id in the epic is built from it.
 
    If `spec.md` already exists, read it first and treat it as established context: carry forward every decision that still holds and revise only what this conversation changed. Regenerating from the conversation alone silently drops the decisions nobody revisited this session. Write the file as a snapshot of the current state — no change notes, no revision history, no "previously X" asides.
 

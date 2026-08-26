@@ -22,7 +22,7 @@ Track progress with this checklist:
 
 ## 1. Read the work
 
-If the user passed a reference — `.scratch/<PREFIX>-<slug>/spec.md`, a ticket id like `PCE-03`, an issue URL — read its full body.
+If the user passed a reference — `.scratch/epics/<PREFIX>-<slug>/spec.md`, a ticket id like `PCE-03`, an issue URL — read its full body.
 
 With no argument, draw the local epic with the `cppcho:ticket-dag` skill and take the **frontier** from it: a 🟢 row — blockers all done, no **Superseded** line retiring it, nothing outside the graph parking it. Drawing beats scanning the directory yourself because 🟢 is this frontier rule applied to every ticket at once, so the pick becomes visible to the user instead of a choice made silently in your head. It's also stricter than counting checkboxes: a ticket whose blockers are all ✅ but which is parked on an environment or another repo draws 🔴, and picking it up would cost a planning round before discovering it can't start. If several rows are 🟢, show the graph and ask which — the sizes and the chain depth behind each are what make that an informed answer rather than a coin toss. With no epic at all, work from the conversation.
 

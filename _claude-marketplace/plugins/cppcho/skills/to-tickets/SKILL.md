@@ -1,24 +1,24 @@
 ---
 name: to-tickets
-description: Breaks a plan or spec into tracer-bullet tickets under `.scratch/`, each a vertical slice declaring what blocks it. Also owns the epic afterwards — reshaping it, cancelling it, and archiving it once it ships.
+description: Breaks a plan or spec into tracer-bullet tickets under `.scratch/epics/`, each a vertical slice declaring what blocks it. Also owns the epic afterwards — reshaping it, cancelling it, and archiving it once it ships.
 argument-hint: "[spec-path|issue-number|issue-url]"
 ---
 
 # To Tickets
 
-Break a plan, spec, or conversation into a **local epic** — a directory of **local tickets** under `.scratch/`, each a tracer-bullet vertical slice declaring the tickets that **block** it. Epic and ticket here mean these files on disk, never a Jira or Linear issue. The epic is what `/cppcho:implement` then works through, one ticket per session.
+Break a plan, spec, or conversation into a **local epic** — a directory of **local tickets** under `.scratch/epics/`, each a tracer-bullet vertical slice declaring the tickets that **block** it. Epic and ticket here mean these files on disk, never a Jira or Linear issue. The epic is what `/cppcho:implement` then works through, one ticket per session.
 
 ## 1. Gather context
 
-Work from whatever is already in the conversation context. If the user passes a reference (a spec path such as `.scratch/<PREFIX>-<slug>/spec.md`, an issue number or URL) as an argument, fetch it and read its full body and comments.
+Work from whatever is already in the conversation context. If the user passes a reference (a spec path such as `.scratch/epics/<PREFIX>-<slug>/spec.md`, an issue number or URL) as an argument, fetch it and read its full body and comments.
 
-Settle the epic's **prefix and slug** early, since every path below and every ticket id depends on them. A spec path hands them to you. Otherwise reuse an existing `.scratch/<PREFIX>-<slug>/` that already covers this work rather than opening a sibling beside it, and only coin a new epic when none does — confirming it as part of the step 4 quiz, not as a question of its own.
+Settle the epic's **prefix and slug** early, since every path below and every ticket id depends on them. A spec path hands them to you. Otherwise reuse an existing `.scratch/epics/<PREFIX>-<slug>/` that already covers this work rather than opening a sibling beside it, and only coin a new epic when none does — saying which epic you chose rather than asking.
 
-Coin the **prefix** from the initials of the slug's significant words, dropping `in/the/a/of/and/to/on/for`, uppercased, two letters minimum: `promo-credit-exchange` → `PCE`. One `ls .scratch/` lists every prefix in use, because the prefix lives in the directory name and nowhere else — the filesystem is what keeps it unique. On a collision, extend with the next significant word's initial, or take the letter that actually distinguishes this epic: `promo-credit-wallet-scoped-balances` → `PCB` beats `PCWS`, which misreads as its `promo-credit-wallet-statement-view` neighbour.
+Coin the **prefix** from the initials of the slug's significant words, dropping `in/the/a/of/and/to/on/for`, uppercased, two letters minimum: `promo-credit-exchange` → `PCE`. One `ls .scratch/epics/` lists every prefix in use, because the prefix lives in the directory name and nowhere else — the filesystem is what keeps it unique. On a collision, extend with the next significant word's initial, or take the letter that actually distinguishes this epic: `promo-credit-wallet-scoped-balances` → `PCB` beats `PCWS`, which misreads as its `promo-credit-wallet-statement-view` neighbour.
 
-An epic under `.scratch/_archive/` is not a candidate for reuse. It shipped, and its rows of ✅ are exactly what archiving took out of view. Read it for how the feature was sliced last time, then coin a new prefix and slug for the follow-up and leave the archive where it is.
+An epic under `.scratch/epics/_archive/` is not a candidate for reuse. It shipped, and its rows of ✅ are exactly what archiving took out of view. Read it for how the feature was sliced last time, then coin a new prefix and slug for the follow-up and leave the archive where it is.
 
-Then read what is already on disk. If `.scratch/<PREFIX>-<slug>/tickets/` exists, read every ticket in it before drafting anything, because tickets in flight are load-bearing: `/cppcho:implement` ticks acceptance criteria in place as it works, so a ticket file is the only record of what is done. Regenerating the epic from the conversation would erase that.
+Then read what is already on disk. If `.scratch/epics/<PREFIX>-<slug>/tickets/` exists, read every ticket in it before drafting anything, because tickets in flight are load-bearing: `/cppcho:implement` ticks acceptance criteria in place as it works, so a ticket file is the only record of what is done. Regenerating the epic from the conversation would erase that.
 
 - A ticket with any criterion ticked, or that the conversation says is underway, is **frozen** — leave its text and its number alone. When a change of direction invalidates a frozen ticket, don't edit it — **supersede** it (see "When the plan changes").
 - Revise unstarted tickets freely, but leave a `**Branch:**` line alone if one is there. `/cppcho:implement` writes it to say where a slice's code went, and it is not derivable from anything else once dropped.
@@ -46,23 +46,15 @@ Give each ticket its **blocking edges** — the other tickets that must complete
 
 **Wide refactors are the exception to vertical slicing.** When one mechanical change — renaming a column, retyping a shared symbol — has a **blast radius** fanning across the whole codebase, a single edit breaks thousands of call sites at once and no vertical slice can land green. Sequence it as **expand–contract** instead: one ticket to **expand** (add the new form beside the old, so nothing breaks), then a **migrate** ticket per batch of call sites sized by blast radius (per package, per directory), each blocked by the expand and green on its own because the old form still exists, then a **contract** ticket blocked by every batch to delete the old form. When even the batches can't stay green alone, keep the sequence but let them share an integration branch that all block a final integrate-and-verify ticket — green is promised only there.
 
-## 4. Quiz the user
+## 4. Settle the shape yourself
 
-Draw the proposed epic with the `cppcho:ticket-dag` skill — rails carrying the blocking edges, one row per ticket with its title, the behaviour it delivers in a line, and its size. It handles an epic that isn't on disk yet, and folds in any tickets already written so the new work is visible against work in flight.
+Granularity and edges are yours to decide from the rules above — don't stop to have the breakdown approved. A graph is quicker to read than four files, but only once; a breakdown held for approval costs a round trip every time, and reshaping an epic afterwards is a motion this skill already owns.
 
-Draw it rather than listing it because the edges are what this quiz is really about, and a wrong edge is something you *see* as a rail while a prose "blocked by: PCE-01, PCE-04" reads as plausible either way. The graph also puts the shape in front of the user — a chain five deep where they expected two branches, or a lone ticket gating everything — which is the granularity question answered before it's asked.
-
-Then ask:
-
-- Does the granularity feel right? (too coarse / too fine)
-- Are the blocking edges correct — does each ticket only depend on tickets that genuinely gate it?
-- Should any tickets be merged or split further?
-
-Redraw after each round of changes instead of describing what moved; the diagram is cheap and a described edit is easy to mis-picture. Iterate until the user approves the breakdown.
+Where a call could reasonably have gone the other way — a slice that could be one ticket or two, an edge you chose not to draw — make the call, then name it in one line under the graph that closes step 5, so it can be redirected. Two such lines is plenty; a list of open questions is the approval step coming back in disguise.
 
 ## 5. Write the tickets
 
-Write one file per approved ticket under `.scratch/<PREFIX>-<slug>/tickets/<NN>-<ticket-slug>.md`, using the template below — one ticket per file, never a single combined file.
+Write one file per ticket under `.scratch/epics/<PREFIX>-<slug>/tickets/<NN>-<ticket-slug>.md`, using the template below — one ticket per file, never a single combined file.
 
 A ticket's **id** is `<PREFIX>-<NN>` — the directory supplies the prefix, so filenames keep the bare number and everything written *inside* a file spells the id in full. That is what makes `grep -r PCE-02` find every reference to a ticket from anywhere, including other epics.
 
@@ -91,7 +83,7 @@ Write each **acceptance criterion** as behaviour observable from outside the cod
 
 Avoid specific file paths or code snippets in tickets — they go stale fast. Exception: if a snippet encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it. Trim to the decision-rich parts — not a working demo, just the important bits.
 
-Finally, write `.scratch/<PREFIX>-<slug>/tickets/README.md` holding the blocking graph and nothing else:
+Finally, write `.scratch/epics/<PREFIX>-<slug>/tickets/README.md` holding the blocking graph and nothing else:
 
 ```markdown
 # PCE · <Feature> — tickets
@@ -103,7 +95,9 @@ Finally, write `.scratch/<PREFIX>-<slug>/tickets/README.md` holding the blocking
 
 The graph is worth indexing because it changes only when tickets are added or superseded, while status changes constantly — so status stays in the ticket files, and finding the **frontier** means reading this file for the shape, then checking the checkboxes of only the candidates it points at. Putting status here too would mean two records of the same fact, and the stale one always wins an argument it shouldn't.
 
-Finally, draw the epic again with the `cppcho:ticket-dag` skill. This isn't a repeat of the quiz diagram: that one drew what you meant, this one draws what you wrote, from the files and the README you just indexed. A blocker typed into the wrong ticket, an edge naming a number that doesn't exist, or a README that already disagrees with the tickets surfaces here — otherwise it waits and surfaces as a session that can't start the ticket it was handed.
+Finally, draw the epic with the `cppcho:ticket-dag` skill, from the files and the README you just indexed — what you wrote, not what you meant. A blocker typed into the wrong ticket, an edge naming a number that doesn't exist, or a README that already disagrees with the tickets surfaces here — otherwise it waits and surfaces as a session that can't start the ticket it was handed.
+
+The graph is also the handover: it says the tickets exist and where the frontier is. Close with the judgement calls step 4 set aside, one line each, and stop there.
 
 ## When the plan changes
 
@@ -123,7 +117,7 @@ Superseding is graph surgery, so only this skill does it. `/cppcho:implement` ma
 
 ## Cancelling a whole epic
 
-When the entire feature is dropped — deprioritised for good, or the need went away — cancel the **epic** instead of superseding every ticket in it. Add one line directly under the heading of `.scratch/<PREFIX>-<slug>/tickets/README.md`:
+When the entire feature is dropped — deprioritised for good, or the need went away — cancel the **epic** instead of superseding every ticket in it. Add one line directly under the heading of `.scratch/epics/<PREFIX>-<slug>/tickets/README.md`:
 
 ```markdown
 # PCE · <Feature> — tickets
@@ -135,13 +129,13 @@ Leave the tickets themselves alone, ticked criteria and all. Retiring eight tick
 
 The **reason** is the load-bearing part, because a cancellation is the one thing a later session cannot reconstruct from the files — the tickets read exactly as they did the day before. A bare marker leaves the next reader unable to tell dropped from forgotten. Reviving the feature is deleting the line.
 
-Carry the same line into `.scratch/<PREFIX>-<slug>/spec.md` when the feature has one, under its heading and worded the same way. The spec is the door someone comes in through a year later, and it reads as live intent no matter how dead the tickets beside it are — where a live spec eventually gets corrected by the session that picks the work up, a cancelled one never does, because nobody picks it up. Add the line and touch nothing else in it: a cancelled spec is the record of a plan rather than a plan, and rewriting it into the past tense destroys the only account of what was intended.
+Carry the same line into `.scratch/epics/<PREFIX>-<slug>/spec.md` when the feature has one, under its heading and worded the same way. The spec is the door someone comes in through a year later, and it reads as live intent no matter how dead the tickets beside it are — where a live spec eventually gets corrected by the session that picks the work up, a cancelled one never does, because nobody picks it up. Add the line and touch nothing else in it: a cancelled spec is the record of a plan rather than a plan, and rewriting it into the past tense destroys the only account of what was intended.
 
 Cancel the epic only when **all** of its outstanding work is dropped. When part of it survives, that is a reshape: supersede what died, keep what lives, and leave the epic in the sweep — a cancelled marker over live tickets hides work that is still owed.
 
 ## Archiving a shipped epic
 
-When a feature is done and its code has landed, retire the epic by **moving** it out of the way. Add one line directly under the heading of `.scratch/<PREFIX>-<slug>/tickets/README.md`:
+When a feature is done and its code has landed, retire the epic by **moving** it out of the way. Add one line directly under the heading of `.scratch/epics/<PREFIX>-<slug>/tickets/README.md`:
 
 ```markdown
 # PCE · <Feature> — tickets
@@ -152,10 +146,10 @@ When a feature is done and its code has landed, retire the epic by **moving** it
 Then move the whole directory, creating the archive on first use:
 
 ```bash
-mkdir -p .scratch/_archive && mv .scratch/<PREFIX>-<slug> .scratch/_archive/<PREFIX>-<slug>
+mkdir -p .scratch/epics/_archive && mv .scratch/epics/<PREFIX>-<slug> .scratch/epics/_archive/<PREFIX>-<slug>
 ```
 
-**Move rather than mark**, because the move is the part that actually works. `cppcho:next-actions` and `cppcho:ticket-dag` find epics by globbing `.scratch/[A-Z]*-*/`, and an archived epic sits under `_archive/`, which that glob cannot reach — so one `mv` takes the feature out of every default sweep and every "which epic did you mean?" list, which is the whole point. A marker with no move leaves a shipped feature competing with live work for attention in every later glance.
+**Move rather than mark**, because the move is the part that actually works. `cppcho:next-actions` and `cppcho:ticket-dag` find epics by globbing `.scratch/epics/[A-Z]*-*/`, and an archived epic sits under `_archive/`, which that glob cannot reach — so one `mv` takes the feature out of every default sweep and every "which epic did you mean?" list, which is the whole point. A marker with no move leaves a shipped feature competing with live work for attention in every later glance.
 
 **Move rather than delete**, because the epic is the only surviving record of how the feature was cut and which PR carried each slice. Git has the diffs and none of the reasoning about ordering; `.scratch` is gitignored, so once these files are gone nothing anywhere holds that.
 

@@ -1,12 +1,12 @@
 ---
 name: ticket-dag
-description: Draws a local epic's tickets under `.scratch/` as an emoji dependency graph — one line per ticket with its size, status and blocking rails — so the frontier and the critical path are visible at a glance. Use whenever the user asks to see the ticket graph, the DAG, the dependency tree, what's blocking what, what to work on next, or where a feature's tickets stand; also reach for it after `/cppcho:to-tickets` writes or reshapes an epic, since the graph is the fastest way to check the edges came out right.
+description: Draws a local epic's tickets under `.scratch/epics/` as an emoji dependency graph — one line per ticket with its size, status and blocking rails — so the frontier and the critical path are visible at a glance. Use whenever the user asks to see the ticket graph, the DAG, the dependency tree, what's blocking what, what to work on next, or where a feature's tickets stand; also reach for it after `/cppcho:to-tickets` writes or reshapes an epic, since the graph is the fastest way to check the edges came out right.
 argument-hint: "[epic-prefix|tickets-path]"
 ---
 
 # Ticket DAG
 
-Render a local epic — `.scratch/<PREFIX>-<slug>/tickets/` — as one diagram: rails on the left carrying the blocking edges, one line per ticket carrying its id, title, a one-line summary and a size estimate. Epic and ticket here mean these files on disk, never a Jira or Linear issue.
+Render a local epic — `.scratch/epics/<PREFIX>-<slug>/tickets/` — as one diagram: rails on the left carrying the blocking edges, one line per ticket carrying its id, title, a one-line summary and a size estimate. Epic and ticket here mean these files on disk, never a Jira or Linear issue.
 
 The point is to answer three questions in a single glance — **what can I start now**, **how deep is the longest chain**, and **did the edges come out the way I meant**. A wall of ticket files answers none of those; a graph answers all three.
 
@@ -14,14 +14,14 @@ The point is to answer three questions in a single glance — **what can I start
 
 Every path depends on which epic you're drawing, so settle it before reading anything. Take the first of these that lands:
 
-1. An argument — a prefix (`PCE`), a slug, or any path inside the epic's directory. A prefix or slug resolves against `.scratch/<PREFIX>-<slug>/` first and `.scratch/_archive/` only when nothing is live under that name.
+1. An argument — a prefix (`PCE`), a slug, or any path inside the epic's directory. A prefix or slug resolves against `.scratch/epics/<PREFIX>-<slug>/` first and `.scratch/epics/_archive/` only when nothing is live under that name.
 2. The conversation — a spec or ticket already in play names its epic in its path. This is the common case when the graph is asked for right after a ticketing session.
-3. A single `.scratch/[A-Z]*-*/` directory on disk.
+3. A single `.scratch/epics/[A-Z]*-*/` directory on disk.
 4. Several exist → list them by prefix and ask which. Don't guess between sibling epics; drawing the wrong graph wastes the glance the user came for.
 
 **A cancelled epic.** An epic whose `tickets/README.md` opens with a `**Cancelled:** <reason>` line is retired whole. It is out of the running for rules 3 and 4 — never the epic you draw by default, never an option in the list you ask about. Reached deliberately through rule 1 or 2 it still draws, since looking at what was killed is a fair thing to want; name the cancellation and its reason in the footer so the graph is never mistaken for live work. This line is the one thing in `README.md` that step 2's "read the tickets, not the index" does not govern: it is a fact about the epic, not a claim about any ticket's status, so no ticket can contradict it.
 
-**An archived epic.** An epic that shipped has been moved to `.scratch/_archive/<PREFIX>-<slug>/`, which rules 3 and 4 cannot glob, so it is out of the running for both without needing a rule of its own. Reached deliberately through rule 1 it draws normally — looking at how a shipped feature was sliced is a fair thing to want, and usually the reason someone types the slug. Carry its `README.md` `**Shipped:**` line into the footer, so a column of ✅ is never read as work sitting finished-but-unretired.
+**An archived epic.** An epic that shipped has been moved to `.scratch/epics/_archive/<PREFIX>-<slug>/`, which rules 3 and 4 cannot glob, so it is out of the running for both without needing a rule of its own. Reached deliberately through rule 1 it draws normally — looking at how a shipped feature was sliced is a fair thing to want, and usually the reason someone types the slug. Carry its `README.md` `**Shipped:**` line into the footer, so a column of ✅ is never read as work sitting finished-but-unretired.
 
 **An epic that isn't written yet.** `/cppcho:to-tickets` draws the graph during its approval quiz, while the tickets are still a proposal in the conversation and no file exists. Take those rows from the proposal and skip the disk read for them — you don't need a slug to draw what you were handed. When the proposal revises an epic that partly exists, read the written tickets as usual and fold the proposed ones in beside them: how the new work lands against tickets already in flight is the thing the reader is checking.
 
@@ -29,7 +29,7 @@ This needs no notation of its own. A proposed ticket is unstarted by definition,
 
 ## 2. Read the tickets, not the index
 
-Read every `.scratch/<PREFIX>-<slug>/tickets/<NN>-*.md`. From each ticket take:
+Read every `.scratch/epics/<PREFIX>-<slug>/tickets/<NN>-*.md`. From each ticket take:
 
 - **Id and title** from the `# <PREFIX>-<NN> — <title>` heading.
 - **Edges** from the `**Blocked by:**` line — the ids it names, or none.

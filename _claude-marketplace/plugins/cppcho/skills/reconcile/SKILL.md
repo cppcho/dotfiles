@@ -8,7 +8,7 @@ argument-hint: "[epic-prefix|ticket-id]"
 
 Answer one question: **is this local epic still true?** Tickets are written once and read for weeks while parallel epics land code underneath them, so an outstanding ticket is a claim about the codebase that nothing has re-checked since the day it was cut.
 
-Epic and ticket here mean the files under `.scratch/<PREFIX>-<slug>/` — never a Jira or Linear issue.
+Epic and ticket here mean the files under `.scratch/epics/<PREFIX>-<slug>/` — never a Jira or Linear issue.
 
 ## Modes
 
