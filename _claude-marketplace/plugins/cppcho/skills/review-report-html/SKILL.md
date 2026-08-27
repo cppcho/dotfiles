@@ -121,14 +121,36 @@ Each card uses this shape (see the template for exact markup):
   example specific (real-looking HTML, values, filenames), not abstract.
 - **Current code** (`pre.bad`, red): quote the actual offending line(s). Add a
   short `<span class="c">// why</span>` comment.
-- **Fix sketch** (`pre.good`, green): the smallest change that addresses it,
-  with added lines wrapped in `<span class="add">`. Label it as illustrative —
-  it's a sketch, not a final patch. When the honest fix is large or a judgment
+- **Fix sketch** (`pre.good`, green): only the lines that change, wrapped in
+  `<span class="add">`, with `…` where you cut the unchanged body. It's a
+  sketch, not a final patch — and when the honest fix is large or a judgment
   call, say so instead of pretending a one-liner solves it.
 - **Note** (optional): reachability, caveats, how it was verified, or links to
   related findings.
 
 Cleanup cards usually need only the problem + a fix sketch (no walkthrough).
+
+### Keep it skimmable
+
+The page is read by someone scanning ten findings, not studying one. A block
+of prose gets skipped, and a skipped finding may as well not be in the report.
+
+- **The problem**: one or two short sentences, ~40 words. More than that turns
+  into bullets — never a paragraph.
+- **Walkthrough steps**: one line each. The story lives in the sequence of
+  steps, so a step that runs to three lines is hiding the sequence.
+- **Notes**: a single line. If the caveat needs a paragraph, it's a finding of
+  its own or it doesn't belong.
+- Nothing on the page should exceed ~250 characters of unbroken prose. Use
+  `<ul>` inside a `.row` when a point has parts.
+- **The fix sketch shows the difference, not the function.** Quote only the
+  lines that change plus the minimum anchor around them, and elide the rest
+  with `…`. When the green block reads like the red block, the reader has to
+  diff them by eye and the sketch has taught them nothing.
+
+`scripts/check_report.py` enforces both — it errors on paragraphs over 400
+characters and warns when a fix sketch is ≥70% the same text as the code above
+it.
 
 ### Writing style
 

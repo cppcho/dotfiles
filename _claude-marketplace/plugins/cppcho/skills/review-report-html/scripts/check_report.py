@@ -3,15 +3,24 @@
 
 Catches the failures that are invisible in the source but wreck the rendered
 page: code swallowed by unescaped tags inside <pre>, template scaffolding left
-behind, TOC links pointing at cards that don't exist, and anything the
-Artifact CSP would block.
+behind, TOC links pointing at cards that don't exist, anything the Artifact
+CSP would block, walls of prose nobody reads, and fix sketches that just
+re-quote the buggy code.
 
 Usage: python3 check_report.py <report.html>
 Exit 0 = clean (warnings only), 1 = errors found.
 """
 
+import difflib
+import html
 import re
 import sys
+
+# A reviewer scans a page of findings. Past roughly 250 characters a block stops
+# being read; past 400 it may as well not be there.
+PROSE_WARN = 250
+PROSE_ERROR = 400
+STEP_ERROR = 200
 
 PLACEHOLDERS = ("__TITLE__", "__SUBTITLE__", "__FOOTER__")
 
@@ -21,8 +30,9 @@ SCAFFOLD = (
     "path/to/file.ext",
     "Short title of finding",
     "Duplicated / redundant thing",
-    "Starting state (the input",
-    "One or two plain-English sentences",
+    "Starting state, in concrete terms",
+    "What goes wrong, in one sentence",
+    "Optional: a part of the problem",
 )
 
 WRAPPER = re.compile(r"<!doctype|<html\b|</html>|<head\b|</head>|<body\b|</body>", re.I)
@@ -32,6 +42,11 @@ ALLOWED_IN_PRE = re.compile(r"</?span\b[^>]*>")
 
 def line_of(text, offset):
     return text.count("\n", 0, offset) + 1
+
+
+def plain(fragment):
+    """Rendered text of an HTML fragment, whitespace collapsed."""
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", fragment))).strip()
 
 
 def check(path):
@@ -78,6 +93,34 @@ def check(path):
     ):
         for m in re.finditer(pat, text, re.I):
             err(m.start(), f"{what} — the artifact CSP blocks it; inline it instead")
+
+    # Walls of prose. The report's whole job is to be skimmable, so an
+    # unbroken block is a defect even though it renders fine.
+    for m in re.finditer(r'<div class="row"[^>]*>(.*?)</div>', text, re.S):
+        n = len(plain(m.group(1)))
+        if n > PROSE_ERROR:
+            err(m.start(1), f"{n}-character paragraph — split it into short bullets (<{PROSE_WARN})")
+        elif n > PROSE_WARN:
+            warn(m.start(1), f"{n}-character paragraph — tighten it or break it into bullets")
+
+    for m in re.finditer(r"<li[^>]*>(.*?)</li>", text, re.S):
+        n = len(plain(m.group(1)))
+        if n > STEP_ERROR:
+            err(m.start(1), f"{n}-character list item — a walkthrough step should read in one line")
+
+    # A fix sketch that re-quotes the buggy code teaches the reader nothing:
+    # they have to diff two near-identical blocks by eye to find the change.
+    for m in re.finditer(
+        r'<pre class="bad">(.*?)</pre>.*?<pre class="good">(.*?)</pre>', text, re.S
+    ):
+        bad, good = plain(m.group(1)), plain(m.group(2))
+        ratio = difflib.SequenceMatcher(None, bad, good).ratio()
+        if ratio >= 0.7 and len(good) > 60:
+            warn(
+                m.start(2),
+                f"fix sketch is {int(ratio * 100)}% the same text as the current code — "
+                "show only the lines that change, eliding the rest with …",
+            )
 
     ids = {m.group(1) for m in re.finditer(r'\bid\s*=\s*"([^"]+)"', text)}
     for m in re.finditer(r'href\s*=\s*"#([^"]+)"', text):

@@ -45,6 +45,9 @@
   .b-ok   { color: var(--ok);   background: var(--ok-bg); }
   .row { margin: 10px 0; }
   .row > b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+  .row ul { margin: 4px 0 0; padding-left: 18px; }
+  .row li { margin: 2px 0; }
+  pre .ell { color: var(--muted); }
   code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--codebg); color: var(--code); padding: 1px 5px; border-radius: 5px; }
   .walk { margin: 12px 0; padding: 12px 14px 12px 16px; background: var(--walkbg); border-radius: 8px; }
   .walk .cap { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
@@ -95,11 +98,19 @@
     <!-- Reviewing a PR? Link the location to the blob permalink at the head SHA
          so the line numbers still match when the branch moves on. -->
     <div class="loc"><a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/file.ext#L123">path/to/file.ext:123</a></div>
-    <div class="row"><b>The problem</b>One or two plain-English sentences: what goes wrong and why. No jargon dumps.</div>
+    <!-- One or two short sentences, ~40 words. If the point has parts, use the
+         <ul> form below instead — never a paragraph. -->
+    <div class="row"><b>The problem</b>What goes wrong, in one sentence. Why it matters, in the second.
+      <ul>
+        <li>Optional: a part of the problem, one line.</li>
+        <li>Optional: another part, one line.</li>
+      </ul>
+    </div>
+    <!-- Steps read in one line each — the story is the sequence, not any one step. -->
     <div class="walk"><div class="cap">Walkthrough</div>
       <ol>
-        <li>Starting state (the input / page / app state), in concrete terms.</li>
-        <li>What the user (or a forged message) does, step by step.</li>
+        <li>Starting state, in concrete terms.</li>
+        <li>What the user (or a forged message) does.</li>
         <li>What the code does with it.</li>
         <li class="res">❌ Result: the wrong output / crash / silent loss.</li>
         <li class="exp">✓ Expected: what should have happened (optional).</li>
@@ -107,9 +118,13 @@
     </div>
     <div class="snip"><div class="cap bad">Current — quote the real buggy line(s)</div>
 <pre class="bad">someCall(x)  <span class="c">// comment on why this is wrong</span></pre></div>
+    <!-- Only the lines that change, with … where the unchanged body is cut. A
+         green block that reads like the red one leaves the reader diffing by eye. -->
     <div class="snip"><div class="cap good">Fix sketch — illustrative, not a final patch</div>
-<pre class="good"><span class="add">guard(x); someCall(x)</span>  <span class="c">// the smallest change that addresses it</span></pre></div>
-    <div class="row note">Optional: caveats, reachability, how it was verified, links to related findings.</div>
+<pre class="good"><span class="ell">…</span>
+<span class="add">guard(x)</span>
+someCall(x)  <span class="c">// unchanged, kept for anchoring</span></pre></div>
+    <div class="row note">One line: caveat, reachability, how it was verified, or a link to a related finding.</div>
   </div>
 
   <h2>Cleanup / maintainability</h2>
