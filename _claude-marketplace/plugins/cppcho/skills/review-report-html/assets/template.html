@@ -1,8 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Artifact page body: no doctype/html/head/body wrapper — the publisher adds it. -->
 <title>__TITLE__</title>
 <style>
   :root {
@@ -12,14 +8,23 @@
     --low: #4a6b7c; --low-bg: #eef4f7; --ok: #1e7e46; --ok-bg: #e7f6ec;
     --badc: #c0392b; --goodc: #1e7e46; --walkbg: #eef3f6;
   }
+  /* Dark palette twice on purpose: once for the viewer's system setting, once
+     for an explicit theme toggle, which must win over the media query. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #0b141a; --card: #10202a; --ink: #e9f2f6; --muted: #8ba2ae;
       --line: #223540; --code: #cfe3ee; --codebg: #0a1620;
       --high: #ff6b5e; --high-bg: #2a1512; --med: #ffb84d; --med-bg: #2a2410;
       --low: #7fb2cc; --low-bg: #12222b; --ok: #57d68d; --ok-bg: #10241a;
       --badc: #ff6b5e; --goodc: #57d68d; --walkbg: #0d1c25;
     }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b141a; --card: #10202a; --ink: #e9f2f6; --muted: #8ba2ae;
+    --line: #223540; --code: #cfe3ee; --codebg: #0a1620;
+    --high: #ff6b5e; --high-bg: #2a1512; --med: #ffb84d; --med-bg: #2a2410;
+    --low: #7fb2cc; --low-bg: #12222b; --ok: #57d68d; --ok-bg: #10241a;
+    --badc: #ff6b5e; --goodc: #57d68d; --walkbg: #0d1c25;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -31,6 +36,7 @@
   .card h3 { margin: 0 0 4px; font-size: 18px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .num { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; }
   .loc { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--muted); margin: 2px 0 12px; word-break: break-all; }
+  .loc a { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
   .badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
   .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
   .b-high { color: var(--high); background: var(--high-bg); }
@@ -60,8 +66,7 @@
   .toc a { color: var(--ink); text-decoration: none; } .toc a:hover { text-decoration: underline; }
   .note { font-size: 13.5px; color: var(--muted); }
 </style>
-</head>
-<body>
+
 <div class="wrap">
   <h1>__TITLE__</h1>
   <p class="lede">__SUBTITLE__ Each finding has the <b>problem</b>, a <b>walkthrough</b> (steps that trigger the failure), the <span style="color:var(--badc);font-weight:600">current code</span>, and a <span style="color:var(--goodc);font-weight:600">fix sketch</span>. "Verified" = reproduced by running the code or tracing the path.</p>
@@ -87,7 +92,9 @@
        Delete rows that don't apply (e.g. no fix sketch for a purely-observational note). -->
   <div class="card" id="f1">
     <h3><span class="num">1.</span> One-line title of the bug <span class="badges"><span class="badge b-high">High</span><span class="badge b-ok">Verified</span></span></h3>
-    <div class="loc">path/to/file.ext:123</div>
+    <!-- Reviewing a PR? Link the location to the blob permalink at the head SHA
+         so the line numbers still match when the branch moves on. -->
+    <div class="loc"><a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/file.ext#L123">path/to/file.ext:123</a></div>
     <div class="row"><b>The problem</b>One or two plain-English sentences: what goes wrong and why. No jargon dumps.</div>
     <div class="walk"><div class="cap">Walkthrough</div>
       <ol>
@@ -118,5 +125,3 @@
 
   <p class="note" style="margin-top:40px">__FOOTER__</p>
 </div>
-</body>
-</html>
