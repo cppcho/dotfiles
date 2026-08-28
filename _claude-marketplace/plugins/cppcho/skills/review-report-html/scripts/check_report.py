@@ -7,6 +7,10 @@ behind, TOC links pointing at cards that don't exist, anything the Artifact
 CSP would block, walls of prose nobody reads, and fix sketches that just
 re-quote the buggy code.
 
+It also holds the page to its audience — a reader who never opened the code:
+a missing orientation block, file references the reader can't click through to
+GitHub, and identifiers used in prose that the glossary never defines.
+
 Usage: python3 check_report.py <report.html>
 Exit 0 = clean (warnings only), 1 = errors found.
 """
@@ -33,15 +37,38 @@ SCAFFOLD = (
     "Starting state, in concrete terms",
     "What goes wrong, in one sentence",
     "Optional: a part of the problem",
+    "The feature in plain terms",
+    "The intent of the diff under review",
+    "What it holds, in plain words",
+    "Who calls it, and what it answers",
 )
 
 WRAPPER = re.compile(r"<!doctype|<html\b|</html>|<head\b|</head>|<body\b|</body>", re.I)
 # Inline colour helpers are the only markup that belongs inside a snippet.
 ALLOWED_IN_PRE = re.compile(r"</?span\b[^>]*>")
 
+# `foo/bar.ext:123`, `bar.ext:120–128` — what a reader wants to click.
+FILE_REF = re.compile(r"\b[\w.\-/]+\.[A-Za-z][\w]{0,7}:\d+(?:\s*[–-]\s*\d+)?")
+# Identifiers that read as code, not English: snake_case, CamelCase, dotted.
+JARGON = re.compile(r"^[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*$")
+JARGON_LIST = 8
+
+
+COMMENT = re.compile(r"<!--.*?-->", re.S)
+PRE = re.compile(r"<pre\b.*?</pre>", re.S)
+STYLE = re.compile(r"<style\b.*?</style>", re.S)
+ANCHOR = re.compile(r"<a\b[^>]*>.*?</a>", re.S)
+LISTS = re.compile(r"<(ul|ol|dl)\b.*?</\1>", re.S)
+WIPE = re.compile(r"[^\n]")
+
 
 def line_of(text, offset):
     return text.count("\n", 0, offset) + 1
+
+
+def blank(text, pattern):
+    """Blank out matches, leaving every offset and line number intact."""
+    return pattern.sub(lambda m: WIPE.sub(" ", m.group(0)), text)
 
 
 def plain(fragment):
@@ -95,9 +122,11 @@ def check(path):
             err(m.start(), f"{what} — the artifact CSP blocks it; inline it instead")
 
     # Walls of prose. The report's whole job is to be skimmable, so an
-    # unbroken block is a defect even though it renders fine.
+    # unbroken block is a defect even though it renders fine. Lists don't count
+    # toward it — breaking a point into bullets is the remedy, and each <li> is
+    # capped on its own below.
     for m in re.finditer(r'<div class="row"[^>]*>(.*?)</div>', text, re.S):
-        n = len(plain(m.group(1)))
+        n = len(plain(LISTS.sub(" ", m.group(1))))
         if n > PROSE_ERROR:
             err(m.start(1), f"{n}-character paragraph — split it into short bullets (<{PROSE_WARN})")
         elif n > PROSE_WARN:
@@ -129,8 +158,57 @@ def check(path):
 
     linked = {m.group(1) for m in re.finditer(r'href\s*=\s*"#([^"]+)"', text)}
     for m in re.finditer(r'<div class="card" id="([^"]+)"', text):
-        if m.group(1) not in linked:
+        if m.group(1) not in linked and m.group(1) != "orientation":
             warn(m.start(), f"card #{m.group(1)} is missing from the contents list")
+
+    # Everything below is about the audience: a reader who never opened the code.
+    prose = blank(blank(blank(text, COMMENT), PRE), STYLE)
+
+    orient = text.find('id="orientation"')
+    if orient == -1:
+        errors.append(
+            f"{path}: no orientation block — the reader has not read the code. Say what "
+            "it does, what the change does, and define the terms the findings use."
+        )
+        glossary, elsewhere = "", prose
+    else:
+        # Bound the block to the next heading or card. Running to end-of-file
+        # would make the whole page count as "defined" and silently disable the
+        # jargon check below.
+        after = [p for p in (text.find("<h2", orient), text.find('<div class="card"', orient)) if p != -1]
+        end = min(after) if after else orient
+        glossary = plain(text[orient:end])
+        elsewhere = prose[:orient] + WIPE.sub(" ", prose[orient:end]) + prose[end:]
+
+    # A file reference the reader can't click is a dead end for anyone without a
+    # checkout. Once one permalink resolved, the rest are oversights.
+    has_base = re.search(r'href\s*=\s*"https://github\.com/[^"]+/blob/', text)
+    for m in FILE_REF.finditer(blank(prose, ANCHOR)):
+        report = err if has_base else warn
+        report(
+            m.start(),
+            f"file reference {m.group(0)!r} isn't a link — point it at the GitHub "
+            "permalink for the SHA you reviewed",
+        )
+
+    # Jargon the page uses but never explains: the reader meets it cold.
+    undefined = {}
+    for m in re.finditer(r"<code>(.*?)</code>", elsewhere, re.S):
+        term = plain(m.group(1))
+        if FILE_REF.search(term) or not JARGON.match(term):
+            continue
+        if "_" not in term and "." not in term and not re.search(r"[a-z][A-Z]", term):
+            continue
+        if term not in glossary:
+            undefined.setdefault(term, m.start(1))
+    if undefined:
+        terms = sorted(undefined)
+        shown = ", ".join(terms[:JARGON_LIST]) + (" …" if len(terms) > JARGON_LIST else "")
+        warn(
+            min(undefined.values()),
+            f"{len(terms)} identifier(s) used in prose that the orientation glossary "
+            f"never defines: {shown}",
+        )
 
     nums = [(m.start(), m.group(1)) for m in re.finditer(r'<span class="num">(\d+)\.', text)]
     for pos, (offset, n) in enumerate(nums, start=1):

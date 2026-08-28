@@ -2,11 +2,13 @@
 name: review-report-html
 description: >-
   Write code-review findings up as a polished self-contained HTML report and
-  publish it as a private Claude Artifact link: severity-grouped cards
+  publish it as a private Claude Artifact link: an orientation block that
+  explains the code to a reader who never opened it, severity-grouped cards
   (High/Medium/Low/Cleanup), each with a plain-English problem, a numbered
   walkthrough (steps → failure), a red "current code" snippet and a green "fix
-  sketch", severity + "Verified" badges, a clickable table of contents, and
-  inline light/dark CSS with zero external dependencies. Use this whenever
+  sketch", every file reference linked to its GitHub permalink, severity +
+  "Verified" badges, a clickable table of contents, and inline light/dark CSS
+  with zero external dependencies. Use this whenever
   findings, bugs, or a review should become something a person reads rather
   than terminal output — "make an HTML review doc", "write these findings up
   as HTML", "turn the review into a shareable page", a report to hand to the
@@ -20,8 +22,11 @@ description: >-
 
 - Turn code-review findings into one page a reviewer understands **without
   reading the code**.
-- Clarity is the whole value: plain-language problem, a concrete step-by-step
-  walkthrough of the failure, the real buggy code, and a fix sketch.
+- Clarity is the whole value: an orientation block so the page reads cold, a
+  plain-language problem, a concrete step-by-step walkthrough of the failure,
+  the real buggy code, and a fix sketch.
+- Every file reference links to GitHub, so a reader with no checkout can still
+  reach the line under discussion.
 
 ## When there are no findings yet
 
@@ -50,8 +55,9 @@ description: >-
 ### Publish and open
 
 1. `Skill(artifact-design)` before writing the file — the Artifact contract
-   requires it. The template already settles this report's design, so read it
-   for calibration and don't redesign the page.
+   requires it of every publish. Read it for calibration only: the template has
+   already made this report's design decisions, so nothing there should change
+   the page.
 2. Lint the finished file: `python3 <this skill dir>/scripts/check_report.py
    <file>`. It catches
    the failures that look fine in the source and are only visible once
@@ -78,8 +84,8 @@ description: >-
 - Start from `assets/template.html` — full CSS, page shell, legend, TOC
   scaffold, and two example cards (one full correctness finding, one cleanup).
 - Copy it to the output path, fill the `__TITLE__` / `__SUBTITLE__` /
-  `__FOOTER__` placeholders, then replace the example cards and TOC with the
-  real findings.
+  `__FOOTER__` placeholders, write the orientation card, then replace the
+  example cards and TOC with the real findings.
 - Keep `__TITLE__` a short, specific noun phrase — "Auth Handler Review", not
   "Code review of the authentication handler in PR #1234". It also names the
   browser tab and the artifact gallery card, where a sentence truncates to
@@ -92,6 +98,63 @@ description: >-
   `[data-theme="dark"]` block — so it follows the viewer's theme. Keep it
   that way.
 
+### Write for someone who has not read the code
+
+The reader knows the product but has never opened these files. They are reading
+this page **instead of** the diff — a finding they can't follow without a
+checkout is a finding they skip.
+
+- **Orientation block, always** — the template has it, right after the legend:
+  what this code does, what the change under review does, and a glossary of
+  the identifiers the findings lean on. Three or four entries, one line each,
+  covering only terms that actually appear below.
+- **Define jargon on first use.** A field, RPC, or framework name used in prose
+  is either in the glossary or explained in a clause where it appears.
+- **State the rule the finding turns on.** When a bug depends on behaviour the
+  reader has no reason to know — CEL reads an unset message as empty,
+  grpc-federation returns a zero value for an ignored call, this driver retries
+  on a nil error — put that rule in the card in one line. Without it the
+  walkthrough is an assertion, not an argument.
+- **Say what the code is meant to do before what goes wrong.** The problem's
+  first clause is the intent; the second is the break.
+- **Land the symptom in the reader's world**: a wrong number on a screen, a
+  rejected request, a row silently dropped — not "the guard passes".
+- No unexplained shorthand: ticket ids, team nicknames, config keys (`if:`,
+  `by:`) without a word on what they are.
+
+### Link every file reference to GitHub
+
+A reader with no checkout can't act on `entity.proto:750`. Every file reference
+on the page is a link — the `.loc` line, and every mention inside a problem,
+walkthrough step, snippet caption, or note.
+
+1. Resolve the base once, before writing any card:
+   - repo — `git remote get-url origin`, normalised to `<owner>/<repo>`
+     (`git@github.com:acme/api.git` → `acme/api`); `gh repo view --json
+     nameWithOwner -q .nameWithOwner` also works when the network is up
+   - SHA — `gh pr view <n> --json headRefOid -q .headRefOid` for a PR,
+     otherwise `git rev-parse HEAD`
+   - base — `https://github.com/<owner>/<repo>/blob/<sha>/`
+   - paths are repo-relative: check with `git rev-parse --show-prefix` if you
+     are working below the repo root
+2. Shape: `<a href="<base>path/to/file.ext#L123">path/to/file.ext:123</a>`, and
+   `#L120-L128` for a range. Always pin the SHA — `blob/main` drifts and the
+   line numbers stop matching the code you reviewed.
+3. Inline mentions get the same treatment, keeping the monospace:
+   `<a href="<base>…#L2252"><code>billing.proto:2252</code></a>`.
+4. A path outside the repo under review — a vendored dependency, a code
+   generator's template — links to *its* repo at the version you read, and
+   names that version in the text.
+5. Never link inside a `<pre>`; the location line above the snippet carries it.
+6. No permalink is possible when the commit isn't pushed (`git branch -r
+   --contains HEAD` comes back empty). Then link `blob/<branch>/path#L123` if
+   the branch is on the remote, and if nothing is pushed leave the references
+   as plain text and say so once in the footer. Never invent a SHA.
+
+`scripts/check_report.py` flags any `path.ext:123` in prose that isn't inside a
+link, and errors on it once the page contains at least one GitHub blob link —
+if one reference resolved, the rest are oversights.
+
 ### Order and grouping
 
 - Severity headings in this order: **High**, **Medium**, **Low**, **Cleanup**.
@@ -100,20 +163,26 @@ description: >-
 - Omit a heading whose group is empty.
 - Number findings continuously (1, 2, 3 …) across groups so the TOC and the
   card numbers line up.
+- Severity order wins over the order the findings arrived in — the page is for
+  a reader triaging, not a transcript of the review. The exception is numbers
+  that have already been discussed: if the findings came in numbered and the
+  user has been talking about "finding 3", keep their numbers, reorder the
+  cards around them, and say so in the lede.
 
 ### Anatomy of a finding card
 
 Each card uses this shape (see the template for exact markup):
 
 - **Heading**: `N. one-line title` + badges. Severity badge (`b-high` /
-  `b-med` / `b-low` / `b-ok` for cleanup) and, only when you actually
-  reproduced or traced it, a `b-ok` "Verified" badge. Don't claim Verified for
-  something you reasoned about but didn't check.
-- **Location**: `path/to/file.ext:line` in the `.loc` line. For PR findings,
-  link it to the blob permalink at the head SHA (`blob/<sha>/path#L123`) — a
-  reviewer without a checkout can then jump to the real line, and pinning the
-  SHA keeps the link pointing at the code you reviewed.
-- **The problem**: one or two jargon-free sentences — what goes wrong and why.
+  `b-med` / `b-low` / `b-ok` for cleanup) and a `b-ok` "Verified" badge when
+  the claim is settled rather than argued — you ran it, or the files in front
+  of you prove it outright. A finding resting on how a framework or runtime
+  behaves is not Verified until you checked that behaviour; leave the badge off
+  and say in the note what would settle it.
+- **Location**: `path/to/file.ext:line` in the `.loc` line, always a GitHub
+  permalink — see *Link every file reference to GitHub* above.
+- **The problem**: one or two jargon-free sentences — what the code is meant to
+  do, then what goes wrong and why it matters.
 - **Walkthrough**: a numbered `<ol>` telling the concrete story: starting
   state → what the user (or a forged input) does → what the code does → the
   failure. End with a red `❌ Result:` line, and optionally a green
@@ -124,7 +193,9 @@ Each card uses this shape (see the template for exact markup):
 - **Fix sketch** (`pre.good`, green): only the lines that change, wrapped in
   `<span class="add">`, with `…` where you cut the unchanged body. It's a
   sketch, not a final patch — and when the honest fix is large or a judgment
-  call, say so instead of pretending a one-liner solves it.
+  call, say so instead of pretending a one-liner solves it. If the language
+  can't express the fix (no `sum` in this CEL build, no such API yet), write
+  labelled pseudo-code rather than valid-looking code that wouldn't compile.
 - **Note** (optional): reachability, caveats, how it was verified, or links to
   related findings.
 
@@ -154,8 +225,7 @@ it.
 
 ### Writing style
 
-- Explain for a reader who trusts you but may not know this codebase. Prefer a
-  concrete example over a general description.
+- Prefer a concrete example over a general description.
 - Be honest about severity and confidence. If a finding is contrived, low
   impact, or a judgment call, say so in the note rather than dressing it up.
 - If some incoming findings are wrong or overlap, correct/merge them and note

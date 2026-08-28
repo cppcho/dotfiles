@@ -1,0 +1,21 @@
+{
+  "skill_name": "review-report-html",
+  "evals": [
+    {
+      "id": 1,
+      "name": "handed-findings-to-page",
+      "prompt": "I reviewed the last commit in FIXTURE_REPO and found two problems. Write them up as an HTML doc I can send to the team.\n\n1. internal/ledger/summary.federation.yaml:5 — the `next_lapsing` guard's second clause `grants[0].expiry_date != null` never fails, because CEL returns an empty message when you select an unset message field, and an empty message is not null. So for a contracted holder whose grants never lapse, the summary still fills in expiring_minor and lapses_on, and the balance screen draws \"0 lapsing on 0000-00-00\".\n\n2. internal/ledger/summary.federation.yaml:8 — expiring_minor takes only grants[0].remaining_minor. That was the whole lapsing amount back when grants were merged per expiry date, but this commit splits them per wallet, so two wallets expiring the same day now give two rows and only the first one is counted.",
+      "expected_output": "A self-contained HTML review report with an orientation block, two severity-grouped finding cards, and every file reference linked to a github.com/acme/billing-api blob permalink at the fixture SHA.",
+      "files": ["fixture-repo"],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "review-then-page",
+      "prompt": "take a look at the last commit in FIXTURE_REPO — the LedgerSummary resolver. i'm pretty sure the expiry handling is broken. can you review it and give me a page i can send round to the team?",
+      "expected_output": "Same as eval 1, but the agent finds the bugs itself first — so the risk is that it writes the report assuming the reader shares the understanding it just built.",
+      "files": ["fixture-repo"],
+      "assertions": []
+    }
+  ]
+}

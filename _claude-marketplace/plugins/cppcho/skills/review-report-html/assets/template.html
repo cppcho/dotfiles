@@ -68,6 +68,13 @@
   .toc li { margin: 0 0 4px; break-inside: avoid; }
   .toc a { color: var(--ink); text-decoration: none; } .toc a:hover { text-decoration: underline; }
   .note { font-size: 13.5px; color: var(--muted); }
+  /* Every file reference is a GitHub permalink, so links appear mid-sentence
+     constantly — keep them quiet but unmistakable. */
+  .row a, .walk a, .gloss a, .snip .cap a { color: var(--low); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+  a code { color: inherit; }
+  .gloss { margin: 0; padding: 0; font-size: 14px; }
+  .gloss dt { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--code); margin-top: 7px; }
+  .gloss dd { margin: 1px 0 0 14px; color: var(--muted); }
 </style>
 
 <div class="wrap">
@@ -79,6 +86,22 @@
     <span><i class="dot" style="background:var(--med)"></i> Medium — breaks / misleads</span>
     <span><i class="dot" style="background:var(--low)"></i> Low — edge / polish</span>
     <span><i class="dot" style="background:var(--ok)"></i> Cleanup</span>
+  </div>
+
+  <!-- ORIENTATION — required. The reader has not opened these files; they are
+       reading this page instead of the diff. This block is the ground every
+       finding stands on. A few lines each, and only terms the findings use. -->
+  <h2>Orientation</h2>
+  <div class="card" id="orientation">
+    <div class="row"><b>What this code does</b>The feature in plain terms — who calls it, what it answers, what a user ends up seeing.</div>
+    <div class="row"><b>What this change does</b>The intent of the diff under review, in a sentence or two.</div>
+    <!-- The glossary is a sibling of its label, not nested in the row: it grows
+         with the findings and shouldn't count against a row's prose budget. -->
+    <div class="row"><b>Terms used below</b></div>
+    <dl class="gloss">
+      <dt>identifier_name</dt><dd>What it holds, in plain words — not its type.</dd>
+      <dt>SomeRpcName</dt><dd>Who calls it, and what it answers.</dd>
+    </dl>
   </div>
 
   <h2>Contents</h2>
@@ -95,8 +118,8 @@
        Delete rows that don't apply (e.g. no fix sketch for a purely-observational note). -->
   <div class="card" id="f1">
     <h3><span class="num">1.</span> One-line title of the bug <span class="badges"><span class="badge b-high">High</span><span class="badge b-ok">Verified</span></span></h3>
-    <!-- Reviewing a PR? Link the location to the blob permalink at the head SHA
-         so the line numbers still match when the branch moves on. -->
+    <!-- Every file reference on the page is a GitHub permalink pinned to the SHA
+         you reviewed, so a reader with no checkout can open the real line. -->
     <div class="loc"><a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/file.ext#L123">path/to/file.ext:123</a></div>
     <!-- One or two short sentences, ~40 words. If the point has parts, use the
          <ul> form below instead — never a paragraph. -->
@@ -111,7 +134,8 @@
       <ol>
         <li>Starting state, in concrete terms.</li>
         <li>What the user (or a forged message) does.</li>
-        <li>What the code does with it.</li>
+        <!-- A file named mid-step is a link too, not bare <code>. -->
+        <li>What the code does with it, per <a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/other.ext#L88"><code>other.ext:88</code></a>.</li>
         <li class="res">❌ Result: the wrong output / crash / silent loss.</li>
         <li class="exp">✓ Expected: what should have happened (optional).</li>
       </ol>
@@ -132,7 +156,7 @@ someCall(x)  <span class="c">// unchanged, kept for anchoring</span></pre></div>
   <!-- EXAMPLE CARD — a cleanup finding (no walkthrough needed; often just current + fix). -->
   <div class="card" id="f2">
     <h3><span class="num">2.</span> Duplicated / redundant thing <span class="badges"><span class="badge b-ok">Cleanup</span></span></h3>
-    <div class="loc">path/to/file.ext:45</div>
+    <div class="loc"><a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/file.ext#L45">path/to/file.ext:45</a></div>
     <div class="row"><b>The problem</b>What is duplicated / wasted / hard to maintain, and the concrete cost.</div>
     <div class="snip"><div class="cap good">Fix sketch</div>
 <pre class="good"><span class="c">// the simpler / shared form</span></pre></div>
