@@ -15,7 +15,7 @@ Most of the frontier does not deserve the user's attention, and their attention 
 
 **Questions** — decisions where you can name what would concretely be built differently under each answer, or that turn on the user's taste, priorities, or context you have no way to look up. Taste counts for more than it sounds like: where the toggle sits in their own header is theirs to pick, not a convention to look up. Ask these.
 
-**Defaults** — everything else: an obvious convention, cheap to reverse later, or you'd genuinely shrug at either answer. Don't ask. Decide it yourself and write it down in the ledger.
+**Defaults** — everything else: an obvious convention, cheap to reverse later, or you'd genuinely shrug at either answer. Don't ask. Decide it yourself and write it down where the user can see it. Those written-down defaults, accumulated across every round, are the **ledger**.
 
 The test that separates them: try to state the consequence out loud. "If we key it by user instead of by account, the migration has to backfill and the API breaks" is a question. "If we name it `handler` instead of `controller`" is not — that's a default, and asking about it spends the user's patience on nothing.
 
@@ -26,7 +26,17 @@ Two things pull a decision back into the questions pile however settled the conv
 
 Three questions in a round is about the ceiling of what someone answers carefully. If more than three survive the filter, ask the highest-consequence three and leave the rest for a later round — don't demote a real question to a default just to fit the cap. Most rounds should come in well under three; if yours keep hitting the ceiling, the filter is too loose.
 
+## Go find the facts
+
 Deciding on someone's behalf raises the bar on groundedness rather than lowering it: finding _facts_ is your job, never the user's. When a decision needs a fact from the environment (filesystem, tools, docs), dispatch a sub-agent — don't ask for anything you could look up. Don't block on it: a running exploration is an unsettled prerequisite, so only the decisions downstream of it wait for the report. Take the rest of the frontier now.
+
+Be strict about which decisions those are. If a pending report could reshape a question, narrow it, or delete it outright, the question is not on the frontier — hold it, and don't hedge it into the round with a caveat about the agent still being out. A question asked on a fact you're still fetching is worse than unasked: the user spends their attention on a premise that changes underneath them.
+
+Sometimes that leaves nothing to ask, and an empty frontier with reports still out is a fine place to be: say in one line what you're waiting on, and wait. A round exists to spend the user's attention well, so there is no such thing as owing them one — manufacturing a round to fill the silence is how you end up asking the same question twice.
+
+## One round at a time
+
+A round is open until the user replies to it. While one is open, a returning sub-agent buys you facts, not a turn: write them into your notes and fold them into the next round. Never post a correction, an amendment, or another question against a round the user hasn't answered yet — and if the facts gut the round entirely, say only that in one line and wait. A round that mutates while someone is reading it teaches them that answering carefully is wasted work, and the next thing they say is "re-ask everything" — which costs you the round you were trying to save.
 
 ## Format of a round
 
