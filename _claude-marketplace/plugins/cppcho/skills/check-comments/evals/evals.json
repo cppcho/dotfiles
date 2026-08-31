@@ -1,0 +1,60 @@
+{
+  "skill_name": "check-comments",
+  "evals": [
+    {
+      "id": 1,
+      "name": "regression-imaginary-hazard-kept",
+      "prompt": "/cppcho:check-comments (no argument). Base branch: integration/promo-credit.",
+      "fixture": "FIXTURE_REPO worktree detached at 73da4f551 — the exact state the skill saw in session cde6e31c",
+      "expected_output": "Deletes the services-fixture eligibility field comment (imaginary hazard) rather than rewording it; keeps the two comments that defend a deliberate choice a reader would otherwise undo.",
+      "ground_truth_note": "The four contested calls were adjudicated by hand after iteration 1, when two skill versions disagreed on them.",
+      "assertions": [
+        "DELETE the `promoCreditEligibility` field comment in usecases_test.go — rebuilding the service would have broken nothing, so it guarded nothing",
+        "DELETE the newPromoCreditEligibilityService doc comment in usecases_test.go",
+        "DELETE the subtest signpost (\"The two cases that consult the treatment group for real\") — the call site names groupedPromoCreditService, whose own doc says it",
+        "KEEP the Grant doc's asked-once clause — the destination is resolved twice and membership once, so a reader reads the missing re-check as a race",
+        "KEEP the newPromoCreditService lock clause — replacing the nil handle breaks every truncating test",
+        "KEEP the skip-log comment's account_id-omission sentence, DROP its \"not a failure\" sentence (already said by `return nil`, the log line's text, and the doc twelve lines up)",
+        "Keeps the promoCreditTestProgrammeStart doc comment and both cfg.FreeTierEnabled comments",
+        "Report states the range reviewed and, per edit, file:line, before, after, and which rule failed",
+        "Edits left uncommitted — HEAD still 73da4f551"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "accepted-state-no-over-deletion",
+      "prompt": "/cppcho:check-comments (no argument). Base branch: integration/promo-credit.",
+      "fixture": "same repo detached at a36ebf9a0 — the post-cleanup state the user accepted",
+      "expected_output": "Near-zero edits. The comments here already survived a pass plus the user's own review, so a sweep that keeps deleting is over-firing.",
+      "assertions": [
+        "Does not delete the Grant doc comment on promo_credit_service.go",
+        "Keeps the grant skip-log comment",
+        "Keeps the promoCreditTestProgrammeStart doc comment",
+        "Keeps the substance of both paragraphs of newPromoCreditService (tightening allowed, deletion not)",
+        "Deletes at most two comments in total"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "planted-keepers-and-junk",
+      "prompt": "/cppcho:check-comments (no argument). Base branch: main.",
+      "fixture": "synthetic Go quota package, branch feat/quota-comments — four comments planted to fail rule 1 (one of them an imaginary hazard mirroring eval 1), three planted to earn their place, plus a //nolint directive and two godoc summary lines",
+      "expected_output": "Exactly the four planted failures deleted; the three keepers, the directive and the godoc summaries left in place.",
+      "assertions": [
+        "Deletes the \"Both the truncation below and the exhaustion check above read the same Limits value\" comment (imaginary hazard)",
+        "Deletes \"Refuse the reservation when the cap is already exhausted\" (guard restating its own error message)",
+        "Deletes \"Return the amount claimed and no error.\" (restatement)",
+        "Deletes \"Subtract what has been used from the monthly cap.\" (restatement)",
+        "Keeps the defaultMaxPayloadBytes external-constraint comment",
+        "Keeps the best-effort refresh comment",
+        "Keeps the clamp / negative-balance comment",
+        "Keeps the //nolint:errcheck directive",
+        "Keeps the Reserve godoc summary line",
+        "quota.go still parses and is gofmt-clean"
+      ],
+      "files": []
+    }
+  ]
+}
