@@ -45,7 +45,7 @@ PCE · promo-credit-exchange
   🟢 PCE-03 Count exchanged credits in the monthly quota [S]
         Read side only: fold exchange rows into the existing quota sum.
   🟡 PCE-04 Exchange promo credits on an owned wallet — 3/5 · feat/pc-exchange #1234
-        Usecase + carrier adapter: spend the ledger, deliver from the pool.
+        Usecase + provider adapter: spend the ledger, deliver from the pool.
   🔴 PCE-08 parked on the dev database · 4 more waiting on tickets above
 
 HA · herdr-auth

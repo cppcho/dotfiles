@@ -82,7 +82,7 @@ One card per finding, grouped by severity, most reachable first. This shape, not
 ```
 ### [High] internal/credits/store.go:118 — the query returns expired grants
 
-- Failure: The batch job runs after the expiry time. `ListLive` returns the expired row. The account gets a second grant.
+- Failure: The batch job runs after the expiry time. `ListLive` returns the expired row. The wallet gets a second grant.
 - Fix: Filter on `expires_at IS NULL OR expires_at > @now` in the query. Do not filter in the caller.
 ```
 

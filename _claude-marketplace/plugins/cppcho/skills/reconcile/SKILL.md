@@ -91,7 +91,7 @@ Open every finding with a glyph. A verdict is a word buried in a column of words
 ❓ and ⚠️ are the two additions, and both earn their place: they mark the rows nobody can act on from the report alone. Keep ❓ visually loud for the reason step 3 fails closed — an `unclear` that reads like a clean row is an `already satisfied` in disguise.
 
 ```
-🔎 PCB · promo-credit-wallet-scoped-balances    reconciled 2026-08-01 · 3 findings
+🔎 PCB · promo-credit-wallet-scoped-balances  reconciled 2026-08-01 · 3 findings
 
   ✅ PCB-04  already satisfied  — zero-balance routing landed in PCG-05 (grant.go:212, grant_test.go:88)
   🚫 PCB-07  invalidated        — statement rows now key on balance id (PCS-02), so the
