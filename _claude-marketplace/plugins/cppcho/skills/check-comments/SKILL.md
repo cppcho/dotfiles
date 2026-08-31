@@ -18,6 +18,19 @@ And one check that overrides tightening: if a comment is flat-out wrong — an i
 
 The comments that fail rule 1 are author state leaking onto the page: written right after reasoning about the tricky case, so they record the reasoning rather than what a reader lacks. Expect them to feel load-bearing to the author — that feeling is not evidence. If you wrote this code yourself, you are that author, and the comments will read as necessary to you for the same reason they got written. The test is the named wrong conclusion and its consequence, nothing softer.
 
+## What a doc comment may say
+
+Rule 1 lets the contract of an exported function earn its place, and that licence gets over-read. The contract is the semantics of the signature — what the parameters mean, what the return value is, what the function guarantees. It is not the call graph: a doc comment does not name its callers, explain why a caller would reach for it over a sibling, or narrate what the caller does with the answer. Those facts are true of today's callers only, they go stale the moment a second one appears, and the reader who needs them is at the call site, not here.
+
+The two shapes side by side, on the same function:
+
+- Call-graph narration, cut it: `// IsLineActiveAndNonCancelled reports whether the line passes the same gate the spend paths apply through GetActiveNonCancelledLineByID. A read path that has to render the state of a spend control uses this rather than that resolver, whose refusal is an error.`
+- The contract, keep it: `// IsLineActiveAndNonCancelled reports whether the line is Active, within its cancel time and free of a completed or MNP-waiting cancellation.`
+
+Same for a parameter: `// canSpend is whether a spend would be accepted on the line at all; false leaves IsSpendable false whatever the line holds` describes the effect on the return value and stays. A second sentence on how a line out of service still shows its balance is the caller's story and goes.
+
+This is usually a trim rather than a deletion — the summary line and the contract clause survive, the caller sentence comes off. That makes it the one place where rule 2's pen is the right tool before rule 1 has finished, so judge the clauses separately: the contract half is a keeper even when the call-graph half is not.
+
 ## Scope
 
 With an argument, take it as given — a range or a path. With none, review the branch: `git diff $(git merge-base HEAD <base-branch>)`, which covers the branch's commits plus uncommitted work. Also check `git status --porcelain` for untracked files and read those in full — new files are where fresh comments are densest, and `git diff` won't show them.

@@ -7,14 +7,15 @@
       "prompt": "/cppcho:check-comments (no argument). Base branch: integration/promo-credit.",
       "fixture": "FIXTURE_REPO worktree detached at 73da4f551 — the exact state the skill saw in session cde6e31c",
       "expected_output": "Deletes the services-fixture eligibility field comment (imaginary hazard) rather than rewording it; keeps the two comments that defend a deliberate choice a reader would otherwise undo.",
-      "ground_truth_note": "The four contested calls were adjudicated by hand after iteration 1, when two skill versions disagreed on them.",
+      "ground_truth_note": "The four contested calls were adjudicated by hand after iteration 1, when two skill versions disagreed on them. The skip-log call was re-adjudicated on 2026-08-31: the earlier note had it backwards. The 'not a failure' sentence is the keeper — it defends `return nil` against a reader who would make a non-participant an error — and the account_id-omission sentence goes, being a note the author wrote to themselves about a field that is not in scope until after the block.",
       "assertions": [
         "DELETE the `promoCreditEligibility` field comment in usecases_test.go — rebuilding the service would have broken nothing, so it guarded nothing",
         "DELETE the newPromoCreditEligibilityService doc comment in usecases_test.go",
         "DELETE the subtest signpost (\"The two cases that consult the treatment group for real\") — the call site names groupedPromoCreditService, whose own doc says it",
         "KEEP the Grant doc's asked-once clause — the destination is resolved twice and membership once, so a reader reads the missing re-check as a race",
         "KEEP the newPromoCreditService lock clause — replacing the nil handle breaks every truncating test",
-        "KEEP the skip-log comment's account_id-omission sentence, DROP its \"not a failure\" sentence (already said by `return nil`, the log line's text, and the doc twelve lines up)",
+        "KEEP the skip-log comment's \"not a failure\" sentence — it defends `return nil` against a reader who would turn a non-participant into an error",
+        "DROP the skip-log comment's account_id-omission sentence — knownAccountID is not declared until after the block, so it explains an absence the reader cannot act on here",
         "Keeps the promoCreditTestProgrammeStart doc comment and both cfg.FreeTierEnabled comments",
         "Report states the range reviewed and, per edit, file:line, before, after, and which rule failed",
         "Edits left uncommitted — HEAD still 73da4f551"
@@ -40,7 +41,7 @@
       "id": 3,
       "name": "planted-keepers-and-junk",
       "prompt": "/cppcho:check-comments (no argument). Base branch: main.",
-      "fixture": "synthetic Go quota package, branch feat/quota-comments — four comments planted to fail rule 1 (one of them an imaginary hazard mirroring eval 1), three planted to earn their place, plus a //nolint directive and two godoc summary lines",
+      "fixture": "fixtures/setup.sh quota feat/quota-comments <dest> — synthetic Go quota package: four comments planted to fail rule 1 (one an imaginary hazard mirroring eval 1), three planted to earn their place, plus a //nolint directive and two godoc summary lines",
       "expected_output": "Exactly the four planted failures deleted; the three keepers, the directive and the godoc summaries left in place.",
       "assertions": [
         "Deletes the \"Both the truncation below and the exhaustion check above read the same Limits value\" comment (imaginary hazard)",
@@ -48,11 +49,32 @@
         "Deletes \"Return the amount claimed and no error.\" (restatement)",
         "Deletes \"Subtract what has been used from the monthly cap.\" (restatement)",
         "Keeps the defaultMaxPayloadBytes external-constraint comment",
-        "Keeps the best-effort refresh comment",
-        "Keeps the clamp / negative-balance comment",
+        "Keeps the best-effort refresh comment on Sync",
+        "Keeps the clamp / negative-balance comment on Balance",
         "Keeps the //nolint:errcheck directive",
-        "Keeps the Reserve godoc summary line",
+        "Keeps the Reserve and Balance godoc summary lines",
         "quota.go still parses and is gofmt-clean"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "doc-comment-call-graph-narration",
+      "prompt": "/cppcho:check-comments (no argument). Base branch: main.",
+      "fixture": "fixtures/setup.sh settle feat/settle-statement <dest> — synthetic Go settle package: two doc comments whose second sentence narrates the call graph, against three keepers a naive reading of the rule would also cut (a caller obligation, a pure-contract doc, and a call-site comment)",
+      "ground_truth_note": "From session db3e5456, where the user rejected two doc comments for saying how the method would be used and accepted the contract-only rewrites. The keepers are the over-firing guard: 'don't mention callers' must not take out an obligation placed ON the caller, or a comment that already lives at the call site.",
+      "expected_output": "Both call-graph sentences trimmed off, the contract half of each comment kept; the three keepers untouched.",
+      "assertions": [
+        "Trims IsSettleable's second sentence (\"A read path that has to render the state of a settle control calls this rather than that resolver...\") — call-graph narration",
+        "Keeps IsSettleable documented: a contract sentence naming what it reports survives, so this is a trim and not a whole-comment deletion",
+        "Trims NewStatement's caller story (\"A line out of service or on its way out still shows its balance on the home screen...\")",
+        "Keeps NewStatement's canSettle clause describing the effect on the return value (\"false leaves IsSettleable false whatever the line holds\")",
+        "Keeps PendingEntries' aliasing warning in full — an obligation placed on the caller is contract, not call-graph narration",
+        "Keeps withinGracePeriod's doc comment (pure contract, no caller named)",
+        "Keeps the call-site comment in Summarize explaining why the grace period is read there rather than inside IsSettleable",
+        "Deletes no godoc summary line",
+        "settle.go still parses and is gofmt-clean",
+        "Report names the rule each edit failed; edits left uncommitted"
       ],
       "files": []
     }
