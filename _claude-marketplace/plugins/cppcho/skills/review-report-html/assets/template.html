@@ -34,7 +34,10 @@
   h2 { font-size: 15px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin: 40px 0 18px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin: 0 0 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
   .card h3 { margin: 0 0 4px; font-size: 18px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-  .num { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; }
+  /* The number doubles as the hit target for the finding's tick box, so a
+     reader can triage by clicking anywhere on "3." */
+  .num { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; margin-top: 3px; cursor: pointer; }
+  .pickbox { width: 16px; height: 16px; margin: 0; flex: none; accent-color: var(--low); cursor: pointer; }
   .loc { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--muted); margin: 2px 0 12px; word-break: break-all; }
   .loc a { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
   .badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -75,11 +78,31 @@
   .gloss { margin: 0; padding: 0; font-size: 14px; }
   .gloss dt { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--code); margin-top: 7px; }
   .gloss dd { margin: 1px 0 0 14px; color: var(--muted); }
+  /* Triage bar. The reader's decision — which findings to fix — is worth
+     nothing unless it leaves the page, so the bar turns the ticked cards into
+     a prompt they can paste straight into a coding agent. */
+  .card.picked { border-color: var(--low); box-shadow: 0 0 0 1px var(--low), 0 1px 2px rgba(0,0,0,.04); }
+  .fixbar { position: sticky; bottom: 0; z-index: 5; background: var(--card); border-top: 1px solid var(--line); box-shadow: 0 -2px 10px rgba(0,0,0,.07); }
+  .fixbar-in { max-width: 940px; margin: 0 auto; padding: 10px 20px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .fixbar-msg { font-size: 13.5px; color: var(--muted); }
+  .fixbar-msg b { color: var(--ink); }
+  .fixbar-btns { display: inline-flex; gap: 8px; }
+  .btn { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+  .btn:hover { border-color: var(--low); }
+  .btn.primary { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); font-weight: 600; }
+  .btn[disabled] { opacity: .45; cursor: default; border-color: var(--line); }
+  /* Shown only when the clipboard API is unavailable — a sandboxed viewer must
+     still be able to get the prompt out by hand. The [hidden] rule is not
+     redundant: an explicit display would otherwise beat the attribute when the
+     page is opened as a local file rather than through the artifact host. */
+  .fixta { display: block; width: calc(100% - 40px); height: 150px; margin: 0 20px 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--codebg); color: var(--code); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .fixta[hidden] { display: none; }
+  @media print { .fixbar, .pickbox { display: none; } }
 </style>
 
 <div class="wrap">
   <h1>__TITLE__</h1>
-  <p class="lede">__SUBTITLE__ Each finding has the <b>problem</b>, a <b>walkthrough</b> (steps that trigger the failure), the <span style="color:var(--badc);font-weight:600">current code</span>, and a <span style="color:var(--goodc);font-weight:600">fix sketch</span>. "Verified" = reproduced by running the code or tracing the path.</p>
+  <p class="lede">__SUBTITLE__ Each finding has the <b>problem</b>, a <b>walkthrough</b> (steps that trigger the failure), the <span style="color:var(--badc);font-weight:600">current code</span>, and a <span style="color:var(--goodc);font-weight:600">fix sketch</span>. "Verified" = reproduced by running the code or tracing the path. Tick the findings you want fixed and use <b>Copy fix prompt</b> at the bottom to hand them to a coding agent.</p>
 
   <div class="legend">
     <span><i class="dot" style="background:var(--high)"></i> High — data loss / severe</span>
@@ -117,7 +140,10 @@
   <!-- EXAMPLE CARD — a correctness finding with every section. Copy this shape per finding.
        Delete rows that don't apply (e.g. no fix sketch for a purely-observational note). -->
   <div class="card" id="f1">
-    <h3><span class="num">1.</span> One-line title of the bug <span class="badges"><span class="badge b-high">High</span><span class="badge b-ok">Verified</span></span></h3>
+    <!-- The tick box lives in the number label; the bar at the foot of the page
+         builds a fix prompt from whichever cards are ticked, so every finding
+         card needs one. -->
+    <h3><label class="num"><input type="checkbox" class="pickbox" aria-label="Select this finding to fix">1.</label> One-line title of the bug <span class="badges"><span class="badge b-high">High</span><span class="badge b-ok">Verified</span></span></h3>
     <!-- Every file reference on the page is a GitHub permalink pinned to the SHA
          you reviewed, so a reader with no checkout can open the real line. -->
     <div class="loc"><a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/file.ext#L123">path/to/file.ext:123</a></div>
@@ -155,7 +181,7 @@ someCall(x)  <span class="c">// unchanged, kept for anchoring</span></pre></div>
 
   <!-- EXAMPLE CARD — a cleanup finding (no walkthrough needed; often just current + fix). -->
   <div class="card" id="f2">
-    <h3><span class="num">2.</span> Duplicated / redundant thing <span class="badges"><span class="badge b-ok">Cleanup</span></span></h3>
+    <h3><label class="num"><input type="checkbox" class="pickbox" aria-label="Select this finding to fix">2.</label> Duplicated / redundant thing <span class="badges"><span class="badge b-ok">Cleanup</span></span></h3>
     <div class="loc"><a href="https://github.com/org/repo/blob/&lt;sha&gt;/path/to/file.ext#L45">path/to/file.ext:45</a></div>
     <div class="row"><b>The problem</b>What is duplicated / wasted / hard to maintain, and the concrete cost.</div>
     <div class="snip"><div class="cap good">Fix sketch</div>
@@ -164,3 +190,215 @@ someCall(x)  <span class="c">// unchanged, kept for anchoring</span></pre></div>
 
   <p class="note" style="margin-top:40px">__FOOTER__</p>
 </div>
+
+<!-- ============ Triage bar — leave it as it is ============
+     It reads the ticked cards straight out of the page, so the prompt an agent
+     receives is exactly what the reader saw. Nothing here is per-report: don't
+     duplicate finding text into data attributes or hand-write a prompt. -->
+<div class="fixbar" id="fixbar">
+  <div class="fixbar-in">
+    <span class="fixbar-msg" id="fixmsg"></span>
+    <span class="fixbar-btns">
+      <button type="button" class="btn" id="fixall">Select all</button>
+      <button type="button" class="btn primary" id="fixcopy">Copy fix prompt</button>
+    </span>
+  </div>
+  <textarea class="fixta" id="fixta" readonly hidden aria-label="Fix prompt"></textarea>
+</div>
+
+<script>
+(function () {
+  var cards = [].slice.call(document.querySelectorAll('.card[id]')).filter(function (c) { return c.id !== 'orientation'; });
+  var bar = document.getElementById('fixbar');
+  var msg = document.getElementById('fixmsg');
+  var copyBtn = document.getElementById('fixcopy');
+  var allBtn = document.getElementById('fixall');
+  var ta = document.getElementById('fixta');
+  if (!bar) return;
+  // A report with nothing to tick shouldn't grow a bar that does nothing.
+  if (!cards.length || !cards.some(box)) { bar.hidden = true; return; }
+
+  // Per-viewer, so a reader can triage over two sittings; each reader keeps
+  // their own picks and nothing leaves their browser.
+  var KEY = 'fixpicks:' + (document.title || 'review');
+  var FENCE = '```';
+
+  function box(card) { return card.querySelector('.pickbox'); }
+  function picked() { return cards.filter(function (c) { var b = box(c); return b && b.checked; }); }
+  function flat(el) { return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; }
+
+  function without(el, sel) {
+    var clone = el.cloneNode(true);
+    [].forEach.call(clone.querySelectorAll(sel), function (e) { e.parentNode.removeChild(e); });
+    return clone;
+  }
+
+  // A row is "Label: text", with any <ul> flattened to dashes so the prompt
+  // keeps the shape the reader read it in.
+  function row(el) {
+    var b = el.querySelector('b');
+    var label = b ? flat(b) : 'Note';
+    var parts = [];
+    [].forEach.call(el.childNodes, function (n) {
+      if (n === b) return;
+      if (n.nodeType === 1 && (n.tagName === 'UL' || n.tagName === 'OL')) {
+        [].forEach.call(n.children, function (li) { parts.push('- ' + flat(li)); });
+      } else {
+        var t = (n.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t) parts.push(t);
+      }
+    });
+    return parts.length ? label + ': ' + parts.join('\n') : '';
+  }
+
+  function rowsOf(card, wantNote) {
+    var out = [];
+    [].forEach.call(card.children, function (el) {
+      if (!el.classList || !el.classList.contains('row')) return;
+      var isNote = el.classList.contains('note');
+      if (isNote !== !!wantNote) return;
+      var t = row(el);
+      if (t) out.push(t);
+    });
+    return out;
+  }
+
+  function walkOf(card) {
+    var ol = card.querySelector('.walk ol');
+    if (!ol) return '';
+    var lines = [], n = 0;
+    [].forEach.call(ol.children, function (li) {
+      var t = flat(li);
+      if (!t) return;
+      // The result/expected lines carry their own marker and aren't steps.
+      lines.push(/^[❌✓]/.test(t) ? t : (++n) + '. ' + t);
+    });
+    return lines.length ? 'How it fails:\n' + lines.join('\n') : '';
+  }
+
+  function snipOf(card, cls, label) {
+    var pre = card.querySelector('pre.' + cls);
+    if (!pre) return '';
+    return label + ':\n' + FENCE + '\n' + pre.textContent.replace(/^\n+|\n+$/g, '') + '\n' + FENCE;
+  }
+
+  function blockOf(card) {
+    var name = flat(without(card.querySelector('h3'), '.num, .badges'));
+    var sev = flat(card.querySelector('.badge'));
+    var loc = flat(card.querySelector('.loc'));
+    var out = ['## ' + flat(card.querySelector('.num')) + ' ' + name + (sev ? '  [' + sev + ']' : '')];
+    if (loc) out.push('File: ' + loc);
+    out = out.concat(rowsOf(card, false));
+    [walkOf(card),
+     snipOf(card, 'bad', 'Current code'),
+     snipOf(card, 'good', 'Fix sketch from the reviewer (illustrative, not a patch)')
+    ].forEach(function (s) { if (s) out.push(s); });
+    return out.concat(rowsOf(card, true)).join('\n\n');
+  }
+
+  // The orientation block is the context the findings were written against, so
+  // an agent starting cold gets it too.
+  function background() {
+    var o = document.getElementById('orientation');
+    if (!o) return '';
+    var lines = rowsOf(o, false);
+    var dl = o.querySelector('.gloss');
+    if (dl) {
+      var terms = [];
+      [].forEach.call(dl.children, function (e) {
+        if (e.tagName === 'DT') terms.push('- ' + flat(e));
+        else if (e.tagName === 'DD' && terms.length) terms[terms.length - 1] += ' — ' + flat(e);
+      });
+      if (terms.length) lines.push('Terms:\n' + terms.join('\n'));
+    }
+    return lines.length ? '# Background\n\n' + lines.join('\n\n') : '';
+  }
+
+  function source() {
+    var a = document.querySelector('a[href*="/blob/"]');
+    var m = a && a.getAttribute('href').match(/github\.com\/([^/]+\/[^/]+)\/blob\/([^/]+)\//);
+    return m ? 'Repository: ' + m[1] + ' at ' + m[2] : '';
+  }
+
+  function buildPrompt() {
+    var sel = picked();
+    var head = [sel.length === 1
+      ? 'A code review turned up the finding below. Please fix it.'
+      : 'A code review turned up the ' + sel.length + ' findings below. Please fix them.'];
+    var src = source();
+    if (src) head.push(src);
+    head.push('For each one: open the referenced code, confirm the failure described, then fix it. '
+      + 'The fix sketch is the reviewer’s suggestion, not a patch — check it against the real code and adapt it. '
+      + 'If a finding looks wrong, or the fix needs a decision rather than an edit, say so instead of guessing.');
+    var out = [head.join('\n\n')];
+    var bg = background();
+    if (bg) out.push(bg);
+    out.push('# Findings\n\n' + sel.map(blockOf).join('\n\n---\n\n'));
+    return out.join('\n\n') + '\n';
+  }
+
+  function sync() {
+    cards.forEach(function (c) { var b = box(c); if (b) c.classList.toggle('picked', b.checked); });
+    var n = picked().length;
+    copyBtn.disabled = !n;
+    allBtn.textContent = n && n === cards.length ? 'Clear' : 'Select all';
+    msg.textContent = '';
+    if (n) {
+      msg.appendChild(document.createElement('b')).textContent = n;
+      msg.appendChild(document.createTextNode(' of ' + cards.length + ' selected'));
+    } else {
+      msg.textContent = 'Tick the findings you want fixed, then copy a prompt for your coding agent.';
+    }
+    ta.hidden = true;
+    try { localStorage.setItem(KEY, JSON.stringify(picked().map(function (c) { return c.id; }))); } catch (e) {}
+  }
+
+  // Clipboard access can be denied outright in a sandboxed viewer, so fall
+  // back to execCommand and finally to a textarea the reader can copy by hand.
+  function manual(text) {
+    ta.hidden = false;
+    ta.value = text;
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (ok) ta.hidden = true;
+    return ok;
+  }
+
+  function report(ok, text) {
+    if (ok) { msg.textContent = 'Copied — paste it to your coding agent.'; return; }
+    msg.textContent = 'Clipboard blocked here — the prompt is below, select it and copy.';
+    ta.hidden = false;
+    ta.value = text;
+    ta.focus();
+    ta.select();
+  }
+
+  copyBtn.addEventListener('click', function () {
+    var text = buildPrompt();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { report(true, text); },
+        function () { report(manual(text), text); });
+    } else {
+      report(manual(text), text);
+    }
+  });
+
+  allBtn.addEventListener('click', function () {
+    var all = picked().length === cards.length;
+    cards.forEach(function (c) { var b = box(c); if (b) b.checked = !all; });
+    sync();
+  });
+
+  cards.forEach(function (c) { var b = box(c); if (b) b.addEventListener('change', sync); });
+
+  try {
+    JSON.parse(localStorage.getItem(KEY) || '[]').forEach(function (id) {
+      var c = document.getElementById(id), b = c && box(c);
+      if (b) b.checked = true;
+    });
+  } catch (e) {}
+  sync();
+})();
+</script>

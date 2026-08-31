@@ -4,8 +4,9 @@
 Catches the failures that are invisible in the source but wreck the rendered
 page: code swallowed by unescaped tags inside <pre>, template scaffolding left
 behind, TOC links pointing at cards that don't exist, anything the Artifact
-CSP would block, walls of prose nobody reads, and fix sketches that just
-re-quote the buggy code.
+CSP would block, walls of prose nobody reads, fix sketches that just re-quote
+the buggy code, and findings that lost the tick box the fix-prompt bar
+selects them with.
 
 It also holds the page to its audience — a reader who never opened the code:
 a missing orientation block, file references the reader can't click through to
@@ -57,6 +58,7 @@ JARGON_LIST = 8
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 PRE = re.compile(r"<pre\b.*?</pre>", re.S)
 STYLE = re.compile(r"<style\b.*?</style>", re.S)
+SCRIPT = re.compile(r"<script\b.*?</script>", re.S)
 ANCHOR = re.compile(r"<a\b[^>]*>.*?</a>", re.S)
 LISTS = re.compile(r"<(ul|ol|dl)\b.*?</\1>", re.S)
 WIPE = re.compile(r"[^\n]")
@@ -112,9 +114,11 @@ def check(path):
             err(block.start(1), f"unescaped '<' inside <pre> — escape it as &lt;, near: {near!r}")
 
     # The CSP blocks external requests, so a remote asset just doesn't load.
+    # Inline <script> is fine and the triage bar needs it — only a fetched one
+    # is a problem.
     for pat, what in (
         (r"<link\b", "external <link> stylesheet"),
-        (r"<script\b", "<script> tag"),
+        (r"<script\b[^>]*\bsrc\s*=", "<script src=…>"),
         (r"url\(\s*['\"]?https?:", "CSS url() to a remote host"),
         (r"<(?:img|iframe|video|audio|source)\b[^>]*\bsrc\s*=\s*['\"](?:https?:|//)", "remote asset"),
     ):
@@ -161,8 +165,31 @@ def check(path):
         if m.group(1) not in linked and m.group(1) != "orientation":
             warn(m.start(), f"card #{m.group(1)} is missing from the contents list")
 
+    # Triage → hand-off. The tick boxes and the bar are what let a reader say
+    # which findings to fix and paste them into a coding agent; a card that
+    # lost its box just silently can't be picked.
+    if 'id="fixbar"' not in text:
+        errors.append(
+            f"{path}: no triage bar — keep the template's #fixbar block and the "
+            "<script> under it, that's how a reader hands findings to a coding agent"
+        )
+    elif not SCRIPT.search(text):
+        errors.append(
+            f"{path}: the triage bar's inline <script> is gone — the tick boxes and "
+            "the Copy fix prompt button do nothing without it"
+        )
+    for m in re.finditer(
+        r'<div class="card" id="([^"]+)"(.*?)(?=<div class="card"|<h2\b|\Z)', text, re.S
+    ):
+        if m.group(1) != "orientation" and 'class="pickbox"' not in m.group(2):
+            err(
+                m.start(),
+                f'card #{m.group(1)} has no tick box — copy the <label class="num"> '
+                "heading from the template so it can be selected for a fix prompt",
+            )
+
     # Everything below is about the audience: a reader who never opened the code.
-    prose = blank(blank(blank(text, COMMENT), PRE), STYLE)
+    prose = blank(blank(blank(blank(text, COMMENT), PRE), STYLE), SCRIPT)
 
     orient = text.find('id="orientation"')
     if orient == -1:
@@ -210,7 +237,12 @@ def check(path):
             f"never defines: {shown}",
         )
 
-    nums = [(m.start(), m.group(1)) for m in re.finditer(r'<span class="num">(\d+)\.', text)]
+    # The number sits inside a <label> with the tick box, so skip any tags
+    # between the class and the digits.
+    nums = [
+        (m.start(), m.group(1))
+        for m in re.finditer(r'class="num"[^>]*>(?:\s*<[^>]+>)*\s*(\d+)\.', text)
+    ]
     for pos, (offset, n) in enumerate(nums, start=1):
         if int(n) != pos:
             warn(offset, f"finding numbered {n} where {pos} was expected — TOC and cards will disagree")

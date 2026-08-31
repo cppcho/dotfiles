@@ -7,7 +7,9 @@ description: >-
   (High/Medium/Low/Cleanup), each with a plain-English problem, a numbered
   walkthrough (steps → failure), a red "current code" snippet and a green "fix
   sketch", every file reference linked to its GitHub permalink, severity +
-  "Verified" badges, a clickable table of contents, and inline light/dark CSS
+  "Verified" badges, a clickable table of contents, a tick box on every finding
+  plus a "Copy fix prompt" button that turns the ones the reader picked into a
+  prompt to paste into a coding agent, and inline light/dark CSS
   with zero external dependencies. Use this whenever
   findings, bugs, or a review should become something a person reads rather
   than terminal output — "make an HTML review doc", "write these findings up
@@ -21,12 +23,15 @@ description: >-
 # Review report → HTML
 
 - Turn code-review findings into one page a reviewer understands **without
-  reading the code**.
+  reading the code**, and can act on without retyping any of it.
 - Clarity is the whole value: an orientation block so the page reads cold, a
   plain-language problem, a concrete step-by-step walkthrough of the failure,
   the real buggy code, and a fix sketch.
 - Every file reference links to GitHub, so a reader with no checkout can still
   reach the line under discussion.
+- Reading ends in a decision: the reader ticks the findings worth fixing and
+  copies a prompt for a coding agent, so the page is a triage tool, not just a
+  document.
 
 ## When there are no findings yet
 
@@ -43,9 +48,10 @@ description: >-
   and re-publish after edits.
 - File location: the session scratchpad with an obvious name (e.g.
   `<area>-code-review.html`), or the user's path if they named one.
-- Keep the page self-contained — inline `<style>`, no external
-  CSS/JS/fonts/CDN, no network requests. The artifact host's CSP blocks
-  external requests, so anything remote silently doesn't load.
+- Keep the page self-contained — inline `<style>` and the template's inline
+  `<script>`, no external CSS/JS/fonts/CDN, no network requests. The artifact
+  host's CSP blocks external requests, so anything remote silently doesn't
+  load; inline script runs fine, and the triage bar needs it.
 - Publish only through the `Artifact` tool, never to a public file host (org
   policy forbids those).
 - No `Artifact` tool in this session? Don't stall — leave the file on disk,
@@ -97,6 +103,30 @@ description: >-
   light on `:root`, a `prefers-color-scheme` dark block, a
   `[data-theme="dark"]` block — so it follows the viewer's theme. Keep it
   that way.
+
+### Triage and hand-off
+
+Reading a report is not the point — deciding what to fix is. The template gives
+every finding card a tick box in its number, and a sticky bar at the foot of the
+page turns whatever the reader ticked into a prompt they paste into a coding
+agent. It is the shortest path from "these three are worth fixing" to the fix.
+
+- The bar's `<script>` builds the prompt by **reading the cards out of the
+  page** at click time. So there is nothing to author: no per-finding prompt
+  text, no JSON blob, no `data-` attributes duplicating the card. Copy the
+  `#fixbar` block and its script across unchanged and leave them alone.
+- Because the prompt *is* the card, a thin card makes a thin prompt. The
+  location, the problem, the walkthrough, the real code, the fix sketch and the
+  note all land in it, and so does the orientation block — that's the context an
+  agent starting cold needs. A card that reads well is a prompt that works.
+- Every finding card needs the tick box, or it can't be picked and quietly
+  drops out of the hand-off. `scripts/check_report.py` errors on a card that
+  lost it, and on a missing bar or script.
+- Tick state is remembered per reader in `localStorage`, so triage can span two
+  sittings and each reader keeps their own picks.
+- The clipboard can be blocked in a sandboxed viewer; the script falls back to
+  showing the prompt in a text box the reader copies by hand. Don't strip that
+  path — on some viewers it's the only one that works.
 
 ### Write for someone who has not read the code
 
@@ -173,7 +203,9 @@ if one reference resolved, the rest are oversights.
 
 Each card uses this shape (see the template for exact markup):
 
-- **Heading**: `N. one-line title` + badges. Severity badge (`b-high` /
+- **Heading**: `N. one-line title` + badges, with the number a
+  `<label class="num">` wrapping the triage tick box — keep that shape so the
+  finding can be selected for a fix prompt. Severity badge (`b-high` /
   `b-med` / `b-low` / `b-ok` for cleanup) and a `b-ok` "Verified" badge when
   the claim is settled rather than argued — you ran it, or the files in front
   of you prove it outright. A finding resting on how a framework or runtime
@@ -253,6 +285,8 @@ can send to the team."
   cards.
 - Each card: the problem, a walkthrough ("1. A user logs in with email
   `A@x.com`… 2. … ❌ the session is issued for the wrong account"), the real
-  buggy line in red, a green fix sketch.
+  buggy line in red, a green fix sketch, and a tick box in its number.
+- A bar at the foot: tick findings 1 and 3, hit **Copy fix prompt**, paste into
+  a coding agent to get those two fixed.
 - Published as an Artifact and opened in the browser.
 - Reported back in one line: the URL, private until they share it.
