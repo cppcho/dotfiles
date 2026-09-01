@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Jump to the editor: focus this workspace's nvim pane, or open nvim in a new
+# tab when the workspace has none. Bound to prefix+e as a herdr custom command.
+#
+# Only the current workspace is searched. Workspaces are used as projects here
+# (see ~/.config/herdr/config.toml), so an nvim sitting in another project is
+# never the one this key means.
+set -euo pipefail
+
+ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
+sock="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
+
+# The tmux is_vim set (see ~/.tmux.conf), matched against each foreground
+# process's argv0/name rather than the raw JSON, so a pane whose cwd happens to
+# be ~/dotfiles/nvim cannot pass for a running editor.
+vim_re='^-?g?\.?(view|l?n?vim?x?)(diff)?(-wrapped)?$'
+
+for pane in $(herdr pane list --workspace "$ws" | jq -r '.result.panes[].pane_id'); do
+    if herdr pane process-info --pane "$pane" | jq -e --arg re "$vim_re" '
+            [(.result.process_info.foreground_processes // [])[]
+             | (.argv0 // ""), (.name // "") | sub(".*/"; "")]
+            | any(test($re))' >/dev/null; then
+        # pane.focus takes an absolute pane id and pulls the workspace and tab
+        # along with it; the CLI's `pane focus` only moves by direction.
+        printf '%s\n' "{\"id\":\"1\",\"method\":\"pane.focus\",\"params\":{\"pane_id\":\"$pane\"}}" \
+            | nc -U "$sock" >/dev/null
+        exit 0
+    fi
+done
+
+# No editor here yet. A tab created without --cwd inherits the workspace cwd,
+# which is the project root we want nvim rooted at.
+pane=$(herdr tab create --workspace "$ws" --focus | jq -r '.result.root_pane.pane_id')
+herdr pane run "$pane" nvim >/dev/null

@@ -47,6 +47,12 @@ type = "pane"
 command = "~/bin/herdr-sessionizer"
 description = "sessionizer (open project as space)"
 
+[[keys.command]]
+key = "prefix+v"
+type = "shell"
+command = "~/bin/herdr-nvim"
+description = "nvim (focus this space's editor, else new tab)"
+
 # gwt worktree switching, ported from tmux prefix g / G.
 [[keys.command]]
 key = "prefix+g"
