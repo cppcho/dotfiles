@@ -23,6 +23,7 @@ previous_agent = "ctrl+;"
 next_agent = "ctrl+'"
 close_pane = "prefix+x"
 close_workspace = "prefix+shift+q"
+last_pane = "prefix+."
 
 new_tab = "prefix+c"
 previous_tab = "ctrl+["
