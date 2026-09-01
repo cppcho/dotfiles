@@ -67,9 +67,6 @@ return {
       { "<leader>gs", "<cmd>topleft 12split | 0Git<CR>", desc = "Git status" },
       { "<leader>gd", "<cmd>Gdiffsplit<CR>",             desc = "Git diff (vs index)" },
       { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
-      { "<leader>gv", "<cmd>PRReview<CR>",               desc = "PR review: pick an open PR" },
-      { "<leader>gi", ":PRReview ",                      desc = "PR review: enter PR/branch/URL" },
-      { "<leader>gV", "<cmd>PRReviewDone<CR>",           desc = "PR review: finish & tear down worktree" },
       -- Shadows the global <leader>q (close buffer): in a diff, land on the
       -- working-tree file and close the diff instead
       {
@@ -93,94 +90,6 @@ return {
       },
     },
     config = function()
-      -- Run a gwt subcommand from this nvim's cwd, surfacing stderr on failure.
-      -- gwt drives tmux (switching/killing sessions) itself, so we just fire it.
-      local function run_gwt(args, label)
-        local err = {}
-        vim.fn.jobstart(vim.list_extend({ "gwt" }, args), {
-          cwd = vim.fn.getcwd(),
-          on_stderr = function(_, data)
-            vim.list_extend(err, data)
-          end,
-          on_exit = function(_, code)
-            if code ~= 0 then
-              vim.schedule(function()
-                vim.notify(label .. " failed: " .. vim.trim(table.concat(err, "\n")), vim.log.levels.ERROR)
-              end)
-            end
-          end,
-        })
-      end
-
-      -- Review a PR in its own gwt-managed worktree + tmux session (rather than
-      -- re-rooting this nvim): hand off to `gwt review`, which creates the
-      -- worktree, surfaces the PR as one unstaged diff, and switches the tmux
-      -- client into a fresh nvim there.
-      local function pr_review(target)
-        run_gwt({ "review", target }, "gwt review")
-      end
-
-      -- :PRReview [number|url|branch] — with no args, pick from open PRs.
-      vim.api.nvim_create_user_command("PRReview", function(opts)
-        if opts.args ~= "" then
-          return pr_review(opts.args)
-        end
-        -- Custom picker instead of Snacks.picker.gh_pr: that one requests
-        -- expensive fields (mergeStateStatus etc.) making gh take ~10s.
-        Snacks.picker.pick({
-          title = "Review PR",
-          layout = { preset = "select", layout = { width = 0.7 } },
-          finder = function(opts, ctx)
-            return require("snacks.picker.source.proc").proc(
-              ctx:opts({
-                cmd = "gh",
-                args = {
-                  "pr", "list", "--limit", "100",
-                  "--json", "number,title,headRefName,author,isDraft",
-                  "--jq", [[.[] | "\(.number)\t\(.isDraft)\t\(.author.login)\t\(.headRefName)\t\(.title)"]],
-                },
-                transform = function(item)
-                  local number, draft, author, branch, title = item.text:match("^(%d+)\t(%S+)\t(.-)\t(.-)\t(.*)$")
-                  if not number then
-                    return false
-                  end
-                  item.number = tonumber(number)
-                  item.draft = draft == "true"
-                  item.author = author
-                  item.branch = branch
-                  item.title = title
-                end,
-              }),
-              ctx
-            )
-          end,
-          format = function(item)
-            local ret = {}
-            ret[#ret + 1] = { ("#%-6d "):format(item.number), "Number" }
-            if item.draft then
-              ret[#ret + 1] = { "[draft] ", "Comment" }
-            end
-            ret[#ret + 1] = { item.title }
-            ret[#ret + 1] = { "  " .. item.branch, "Comment" }
-            ret[#ret + 1] = { "  @" .. item.author, "Special" }
-            return ret
-          end,
-          confirm = function(picker, item)
-            picker:close()
-            if item and item.number then
-              vim.schedule(function() pr_review(tostring(item.number)) end)
-            end
-          end,
-        })
-      end, { nargs = "?", desc = "Review a PR: base checked out, PR changes unstaged" })
-
-      -- :PRReviewDone — tear down the review worktree this nvim sits in (remove
-      -- worktree + branch, kill the tmux session, switch back to the main repo
-      -- session). gwt refuses unless we're in a review/pr-* worktree.
-      vim.api.nvim_create_user_command("PRReviewDone", function()
-        run_gwt({ "review-done" }, "gwt review-done")
-      end, { desc = "Finish a PR review: tear down its worktree + tmux session" })
-
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "fugitive",
         callback = function()

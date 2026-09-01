@@ -25,8 +25,8 @@ close_pane = "prefix+x"
 close_workspace = "prefix+shift+q"
 
 new_tab = "prefix+c"
-previous_tab = ""
-next_tab = ""
+previous_tab = "ctrl+["
+next_tab = "ctrl+]"
 close_tab = ""
 
 split_vertical = "prefix+%"

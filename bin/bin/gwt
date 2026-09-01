@@ -61,6 +61,38 @@ find_worktree_for_branch() {
     '
 }
 
+# Branch a worktree directory is named for: the one whose slug ('/' → '-', the
+# same flattening cmd_switch applies) equals the directory's basename. Echoes
+# nothing when no local branch matches or the name is ambiguous.
+branch_for_worktree_dir() {
+    local want
+    want=$(basename "$1")
+    git for-each-ref --format='%(refname:short)' refs/heads | awk -v want="$want" '
+        { slug = $0; gsub(/\//, "-", slug); if (slug == want) { n++; found = $0 } }
+        END { if (n == 1) print found }
+    '
+}
+
+# Move <dir> off <branch> and back onto the branch its name says it holds, so
+# <branch> is free to get a worktree of its own. Returns non-zero, leaving the
+# tree untouched, when the owning branch can't be identified, when tracked
+# changes would ride along, or when the checkout fails (e.g. the owning branch
+# is checked out in a third tree).
+reclaim_stray_checkout() {
+    local dir="$1" branch="$2" own
+    own=$(branch_for_worktree_dir "$dir")
+    if [[ -z "$own" || "$own" == "$branch" ]]; then
+        echo "Note: $branch is checked out in $dir; cannot tell which branch that tree belongs to." >&2
+        return 1
+    fi
+    if [[ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]]; then
+        echo "Note: $branch is checked out in $dir, which belongs to $own, but that tree has uncommitted changes." >&2
+        return 1
+    fi
+    echo "Restoring $dir to $own"
+    git -C "$dir" checkout --quiet "$own" || return 1
+}
+
 # Clear a lock on a worktree if one is set. gwt-created worktrees can be locked
 # by external tooling (e.g. a Claude Code session tags the tree with its PID);
 # when that process dies the lock is left stale and blocks `git worktree remove`.
@@ -375,9 +407,28 @@ cmd_switch() {
     local repo
     repo=$(basename "$main_worktree")
 
+    # Worktree path: nested under a per-repo dir, with '/' in the branch flattened
+    # so "feat/foo" → "<repo>/feat-foo" (one dir per branch, not deeper nesting).
+    local branch_slug="${branch//\//-}"
+    local wt_root
+    wt_root=$(worktrees_dir)
+    local wt_path="${wt_root}/${repo}/${branch_slug}"
+
     # Check if a worktree already exists for this branch
     local existing_wt
     existing_wt=$(find_worktree_for_branch "$branch")
+
+    # A branch checked out in some other tree's directory (someone ran git
+    # checkout in there) is a hijacked tree, not this branch's worktree: hand
+    # that directory back to its own branch so the switch below can create the
+    # worktree the branch should have had. Reclaiming can decline, in which case
+    # we fall back to opening the tree where the branch actually sits.
+    if [[ -n "$existing_wt" && "$existing_wt" != "$main_worktree" \
+          && "$(basename "$existing_wt")" != "$branch_slug" ]]; then
+        if reclaim_stray_checkout "$existing_wt" "$branch"; then
+            existing_wt=""
+        fi
+    fi
 
     if [[ -n "$existing_wt" ]]; then
         # Worktree exists — open it in a tmux session
@@ -385,13 +436,6 @@ cmd_switch() {
         open_session "$branch" "$existing_wt"
         return
     fi
-
-    # Worktree path: nested under a per-repo dir, with '/' in the branch flattened
-    # so "feat/foo" → "<repo>/feat-foo" (one dir per branch, not deeper nesting).
-    local branch_slug="${branch//\//-}"
-    local wt_root
-    wt_root=$(worktrees_dir)
-    local wt_path="${wt_root}/${repo}/${branch_slug}"
 
     # Path already exists on disk (e.g. stale/deregistered worktree) — just open it
     if [[ -d "$wt_path" ]]; then
