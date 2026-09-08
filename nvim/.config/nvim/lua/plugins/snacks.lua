@@ -16,7 +16,33 @@ return {
   lazy = false,
   ---@type snacks.Config
   opts = {
+    explorer = { enabled = true },
     picker = {
+      sources = {
+        explorer = {
+          hidden = true,
+          win = {
+            -- Tree navigation is only bound on the list window, but <c-h> lands
+            -- the cursor in the input prompt whenever it enters the sidebar near
+            -- the top. Bind h/l there too, normal mode only so filtering still
+            -- types them.
+            input = {
+              keys = {
+                ["h"] = { "explorer_close", mode = "n" },
+                ["l"] = { "confirm", mode = "n" },
+                -- The sidebar is long-lived, so <Esc> only leaves the filter
+                -- prompt instead of tearing it down. `q` still closes it.
+                ["<Esc>"] = false,
+              },
+            },
+            list = {
+              keys = {
+                ["<Esc>"] = false,
+              },
+            },
+          },
+        },
+      },
       win = {
         input = {
           keys = {
@@ -28,6 +54,17 @@ return {
     },
   },
   keys = {
+    -- Explorer (sidebar file tree)
+    {
+      "<leader>e",
+      function() Snacks.explorer() end,
+      desc = "File Explorer",
+    },
+    {
+      "<leader>E",
+      function() Snacks.explorer.reveal() end,
+      desc = "File Explorer (reveal current file)",
+    },
     -- Top Pickers
     {
       "<C-p>",

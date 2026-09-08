@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Print the Claude Code session id for the current herdr pane, fzf-picking when
+# the space runs several agents. Backs the `csid` shell function.
+#
+# herdr is the source of truth: Claude reports its session id to the pane it runs
+# in, so herdr always has the live value. ~/.claude/sessions/<pid>.json also
+# carries a sessionId, but it goes stale after /clear or a resume (see
+# ~/bin/tmux-claude-sessions, which has to work around exactly that).
+set -euo pipefail
+
+if [[ ${HERDR_ENV:-} == 1 ]]; then
+    # Claude shelling out inside its own pane: that pane is the answer, no
+    # guessing and no picker.
+    own=$(herdr pane current --current | jq -r '.result.pane.agent_session.value // empty')
+    if [[ -n $own ]]; then
+        printf '%s\n' "$own"
+        exit 0
+    fi
+
+    # Called from a shell pane: the agents sharing this space are the candidates.
+    rows=()
+    while IFS= read -r row; do rows+=("$row"); done < <(
+        herdr pane list --workspace "${HERDR_WORKSPACE_ID:?}" | jq -r '
+            .result.panes[] | select(.agent_session.value)
+            | [.agent_session.value, (.terminal_title_stripped // .agent)] | @tsv')
+
+    if [[ ${#rows[@]} -eq 0 ]]; then
+        echo "claude-session-id: no agent session in this space" >&2
+        exit 1
+    fi
+    if [[ ${#rows[@]} -gt 1 ]]; then
+        row=$(printf '%s\n' "${rows[@]}" \
+            | fzf --delimiter='\t' --with-nth=2.. --prompt='Session > ')
+    else
+        row="${rows[0]}"
+    fi
+    printf '%s\n' "${row%%$'\t'*}"
+    exit 0
+fi
+
+# Outside herdr: the newest transcript for this directory. A guess — it is the
+# most recent session started here, not necessarily the one you are looking at.
+proj="$HOME/.claude/projects/${PWD//[\/.]/-}"
+# No match makes ls fail, which pipefail would turn into a silent exit before
+# the message below.
+newest=$(ls -t "$proj"/*.jsonl 2>/dev/null | head -1 || true)
+[[ -n $newest ]] || { echo "claude-session-id: no transcript under $proj" >&2; exit 1; }
+newest=${newest##*/}
+printf '%s\n' "${newest%.jsonl}"

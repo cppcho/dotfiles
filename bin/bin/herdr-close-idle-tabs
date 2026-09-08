@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Close every tab in the current herdr workspace whose panes are all sitting at
+# a bare shell prompt. Bound to prefix+shift+i.
+#
+# The focused tab is always kept, so the workspace can never vanish underfoot.
+set -euo pipefail
+
+ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
+cur="${HERDR_ACTIVE_TAB_ID:?not run from a herdr keybinding}"
+
+# A pane counts as busy when its foreground process group is something other
+# than the shell herdr started it with (nvim, claude, a build, ...). Panes whose
+# state can't be read are treated as busy so nothing is closed on a bad reading.
+busy=""
+while read -r pane tab; do
+  if info=$(herdr pane process-info --pane "$pane" 2>/dev/null); then
+    read -r fg shell < <(
+      jq -r '.result.process_info
+             | "\(.foreground_process_group_id) \(.shell_pid)"' <<<"$info"
+    )
+    [ "$fg" = "$shell" ] && continue
+  fi
+  busy="$busy $tab"
+done < <(
+  herdr pane list --workspace "$ws" \
+    | jq -r '.result.panes[] | "\(.pane_id) \(.tab_id)"'
+)
+
+herdr tab list --workspace "$ws" \
+  | jq -r '.result.tabs[].tab_id' \
+  | while read -r tab; do
+      [ "$tab" = "$cur" ] && continue
+      case " $busy " in *" $tab "*) continue ;; esac
+      herdr tab close "$tab" >/dev/null
+    done

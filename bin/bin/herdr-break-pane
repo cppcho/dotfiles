@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Move the focused pane out of its tab and into a new tab of the same
+# workspace (tmux break-pane). Bound to prefix+!.
+set -euo pipefail
+
+ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
+tab="${HERDR_ACTIVE_TAB_ID:?not run from a herdr keybinding}"
+pane="${HERDR_ACTIVE_PANE_ID:?not run from a herdr keybinding}"
+
+# A lone pane has nothing to break out of: moving it would only leave the
+# source tab empty behind it.
+count=$(
+  herdr pane list --workspace "$ws" \
+    | jq -r --arg t "$tab" '[.result.panes[] | select(.tab_id == $t)] | length'
+)
+[ "$count" -le 1 ] && exit 0
+
+herdr pane move "$pane" --new-tab --focus >/dev/null

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# herdr-join-pane — pull a pane from another tab of this workspace into the
+# current tab (tmux join-pane). Bound to prefix+shift+j with type = "pane",
+# since fzf needs a tty.
+set -euo pipefail
+
+cur=$(herdr pane current)
+# The picker itself runs in a pane of the destination tab, so it has to be
+# excluded from both the candidate list and the split target.
+self=$(jq -r '.result.pane.pane_id' <<<"$cur")
+dest="${HERDR_ACTIVE_TAB_ID:-$(jq -r '.result.pane.tab_id' <<<"$cur")}"
+ws="${HERDR_ACTIVE_WORKSPACE_ID:-$(jq -r '.result.pane.workspace_id' <<<"$cur")}"
+
+panes=$(herdr pane list --workspace "$ws")
+rows=$(
+  jq -rn --argjson P "$panes" \
+    --argjson T "$(herdr tab list --workspace "$ws")" \
+    --arg dest "$dest" --arg self "$self" '
+    ($T.result.tabs | map({key: .tab_id, value: .label}) | from_entries) as $tab |
+    def tilde: if startswith($ENV.HOME) then "~" + .[($ENV.HOME | length):] else . end;
+    $P.result.panes
+    | map(select(.tab_id != $dest and .pane_id != $self))
+    | sort_by(.tab_id)
+    | .[]
+    | [ .pane_id,
+        "\($tab[.tab_id] // .tab_id) · \(.terminal_title_stripped // "") · \(.cwd | tilde)"
+      ]
+    | @tsv'
+)
+
+if [[ -z "$rows" ]]; then
+  # This pane closes the moment the script exits, so hold the message.
+  echo "no other panes in this workspace to join"
+  sleep 1.2
+  exit 0
+fi
+
+pick=$(
+  fzf --delimiter=$'\t' --with-nth=2.. --prompt='join pane > ' \
+    --preview='herdr pane read --lines 40 {1}' --preview-window=right,60% \
+    <<<"$rows"
+) || exit 0
+src=${pick%%$'\t'*}
+
+# Split the destination tab's biggest real pane, along its longer axis
+# (terminal cells run about twice as tall as they are wide).
+anchor=$(jq -r --arg d "$dest" 'first(.result.panes[] | select(.tab_id == $d) | .pane_id)' <<<"$panes")
+layout=$(herdr pane layout --pane "$anchor" | jq '.result.layout')
+if [[ $(jq -r '.zoomed' <<<"$layout") == true ]]; then
+  herdr pane zoom --pane "$anchor" --off >/dev/null
+  layout=$(herdr pane layout --pane "$anchor" | jq '.result.layout')
+fi
+
+read -r target dir < <(
+  jq -r --arg self "$self" '
+    (([.panes[] | select(.pane_id != $self)] | select(length > 0)) // .panes)
+    | max_by(.rect.width * .rect.height)
+    | "\(.pane_id) \(if (.rect.width / 2) > .rect.height then "right" else "down" end)"' <<<"$layout"
+)
+
+herdr pane move "$src" --tab "$dest" --target-pane "$target" --split "$dir" --focus >/dev/null

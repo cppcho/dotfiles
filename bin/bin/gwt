@@ -8,6 +8,7 @@
 #   gwt switch [branch|#N|pr-url]  Switch to a worktree (fzf picker if no arg, create if needed)
 #   gwt delete [--force]            Pick a worktree with fzf and remove it
 #   gwt purge                      Remove worktrees whose branches are merged
+#   gwt reclaim                    Put this worktree back on the branch it is named for
 #   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
 #   gwt links [--apply]            Open .gwt-links with $EDITOR (--apply: link here now)
 #
@@ -73,6 +74,37 @@ branch_for_worktree_dir() {
     '
 }
 
+# File holding the branch a worktree was created for. It lives in the tree's own
+# git dir, which sits outside the working tree, so git never reports it.
+owning_branch_file() {
+    local gitdir
+    gitdir=$(git -C "$1" rev-parse --absolute-git-dir 2>/dev/null) || return 1
+    printf '%s\n' "$gitdir/gwt-owning-branch"
+}
+
+record_owning_branch() {
+    local f
+    f=$(owning_branch_file "$1") || return 0
+    printf '%s\n' "$2" >"$f" 2>/dev/null || true
+}
+
+# The branch a worktree belongs to: what gwt recorded when it created the tree,
+# else the branch its directory is named for. The record is what makes this work
+# on a tree whose directory name and branch have drifted apart; the name rule
+# covers trees created before the record existed, or by hand. Echoes nothing
+# when neither answers.
+owning_branch() {
+    local f own
+    if f=$(owning_branch_file "$1") && [[ -r "$f" ]]; then
+        own=$(<"$f")
+        if [[ -n "$own" ]] && git -C "$1" show-ref --verify --quiet "refs/heads/${own}"; then
+            printf '%s\n' "$own"
+            return 0
+        fi
+    fi
+    branch_for_worktree_dir "$1"
+}
+
 # Move <dir> off <branch> and back onto the branch its name says it holds, so
 # <branch> is free to get a worktree of its own. Returns non-zero, leaving the
 # tree untouched, when the owning branch can't be identified, when tracked
@@ -80,7 +112,7 @@ branch_for_worktree_dir() {
 # is checked out in a third tree).
 reclaim_stray_checkout() {
     local dir="$1" branch="$2" own
-    own=$(branch_for_worktree_dir "$dir")
+    own=$(owning_branch "$dir")
     if [[ -z "$own" || "$own" == "$branch" ]]; then
         echo "Note: $branch is checked out in $dir; cannot tell which branch that tree belongs to." >&2
         return 1
@@ -467,6 +499,10 @@ cmd_switch() {
     # Resolve to absolute path
     wt_path=$(cd "$wt_path" && pwd)
 
+    # Remember which branch this tree is for, so `gwt reclaim` can put it back
+    # even once the directory name and the branch have drifted apart.
+    record_owning_branch "$wt_path" "$branch"
+
     # Link shared paths before the setup script runs, so the script can rely on
     # them being in place.
     link_shared_paths "$wt_path"
@@ -565,6 +601,27 @@ cmd_links() {
     local main_worktree
     main_worktree=$(get_main_worktree)
     "${EDITOR:-vim}" "${main_worktree}/.gwt-links"
+}
+
+# Put the current worktree back on the branch its directory name says it holds,
+# undoing a `git checkout` made inside a gwt tree. Backs the `_` shell function,
+# so it stays quiet and succeeds in every case it declines to act: outside a
+# worktree, in the main checkout, on a detached HEAD, or already on the right
+# branch. Only a wrong branch it cannot fix is worth a word.
+cmd_reclaim() {
+    local dir branch own
+    dir=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+    [[ "$dir" != "$(get_main_worktree)" ]] || return 0
+    branch=$(git -C "$dir" symbolic-ref --quiet --short HEAD) || return 0
+    own=$(owning_branch "$dir")
+    [[ -n "$own" && "$own" != "$branch" ]] || return 0
+
+    if [[ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]]; then
+        echo "On $branch, not this tree's $own — uncommitted changes." >&2
+        return 0
+    fi
+    echo "Restoring to $own"
+    git -C "$dir" checkout --quiet "$own"
 }
 
 cmd_purge() {
@@ -875,6 +932,8 @@ show_help() {
     echo "  gwt delete [-f]   Pick a worktree with fzf and remove it"
     echo "                    -f/--force removes even with uncommitted changes"
     echo "  gwt purge         Remove worktrees whose branches are merged"
+    echo "  gwt reclaim       Check the current worktree back out onto the branch"
+    echo "                    its directory is named for (what \`_\` calls)"
     echo "  gwt setup         Open .gwt-setup in \$EDITOR"
     echo "  gwt links [--apply]"
     echo "                    Open .gwt-links in \$EDITOR"
@@ -897,6 +956,7 @@ case "${1:-}" in
     links)         shift; cmd_links "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
     purge)         shift; cmd_purge "$@" ;;
+    reclaim)       shift; cmd_reclaim "$@" ;;
     -h|--help|"")  show_help ;;
     *)
         echo "Unknown command: $1"

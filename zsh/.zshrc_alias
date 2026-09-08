@@ -13,7 +13,31 @@ alias r='claude --resume'
 alias t='claude --continue'
 alias h='herdr'
 alias gclone='~/bin/git-clone-dev'
-alias _='[[ -n "$TMUX" ]] && cd "$(tmux display-message -p "#{session_path}")"'
+
+# Go home: cd to the top of the current project — the tmux session's start dir,
+# or under herdr the space's own directory (~/bin/herdr-root, which falls back to
+# the git root for a plain shell) — and put a gwt worktree back on its branch.
+#
+# oh-my-zsh's lib/misc.zsh binds `_` to `sudo `, and an alias shadows a function
+# of the same name — worse, it makes the definition below a parse error. Drop it
+# first; it must be its own command so the alias is gone before zsh parses the
+# function.
+unalias _ 2>/dev/null
+_() {
+  local dir
+  if [[ -n "$TMUX" ]]; then
+    dir=$(tmux display-message -p "#{session_path}")
+  else
+    dir=$(herdr-root) || return
+  fi
+  cd "$dir" || return
+  # A `git checkout` inside a gwt worktree leaves it holding someone else's
+  # branch; going home resets that too. No-op outside a gwt tree — but gwt
+  # itself refuses to run outside a repo, so don't call it in a plain directory.
+  if git rev-parse --git-dir &>/dev/null; then
+    command gwt reclaim
+  fi
+}
 
 # ~/bin/gwt runs as a child process, so its `cd` can't move this shell. It
 # writes the target dir to $GWT_CD_FILE; cd there after it exits, so `gwt
@@ -51,6 +75,15 @@ vv() {
 zz() {
   local dir
   dir=$(z -l 2>&1 | sed "s/^[0-9.,]* *//; s|^$HOME|~|" | fzf --tac --no-sort --query "$*") && cd "${dir/#\~/$HOME}"
+}
+
+# Copy the current Claude session id to the clipboard (no trailing newline, so
+# it pastes into `claude --resume` cleanly).
+csid() {
+  local id
+  id=$(claude-session-id) || return
+  printf '%s' "$id" | pbcopy
+  echo "$id  (copied)"
 }
 
 # URL encode a string

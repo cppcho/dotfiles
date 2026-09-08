@@ -58,7 +58,7 @@ description: >-
   `open` it locally, and say the link isn't available here. A report the user
   can read beats no report.
 
-### Publish and open
+### Publish
 
 1. `Skill(artifact-design)` before writing the file — the Artifact contract
    requires it of every publish. Read it for calibration only: the template has
@@ -73,8 +73,8 @@ description: >-
 3. `Artifact` with `file_path` (the local `.html`), a one-sentence
    `description`, and `favicon: "🔍"`. The `<title>` in the file names it, so
    no `title` parameter is needed.
-4. Open the returned URL: `open '<url>'`.
-5. Tell the user the URL in one line, and that it is private until they share
+   Publishing opens the page in the browser — don't `open` the URL yourself.
+4. Tell the user the URL in one line, and that it is private until they share
    it. Mention the local file path only if they'll want to edit it.
 
 ### Re-publishing

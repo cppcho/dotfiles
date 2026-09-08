@@ -40,6 +40,11 @@ return { -- Autocompletion
       ['<S-Tab>'] = { 'snippet_backward', 'fallback' },
     },
 
+    -- Prose doesn't benefit from the completion menu
+    enabled = function()
+      return not vim.tbl_contains({ "markdown", "text", "gitcommit" }, vim.bo.filetype)
+    end,
+
     appearance = {
       -- 'mono' (default) for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
       -- Adjusts spacing to ensure icons are aligned

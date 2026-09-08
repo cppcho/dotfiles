@@ -23,6 +23,7 @@ Then read what is already on disk. If `.scratch/epics/<PREFIX>-<slug>/tickets/` 
 - A ticket with any criterion ticked, or that the conversation says is underway, is **frozen** — leave its text and its number alone. When a change of direction invalidates a frozen ticket, don't edit it — **supersede** it (see "When the plan changes").
 - Revise unstarted tickets freely, but leave a `**Branch:**` line alone if one is there. `/cppcho:implement` writes it to say where a slice's code went, and it is not derivable from anything else once dropped.
 - New work becomes new tickets, appended.
+- A ticket written before the `**Repo:**` line existed can have one added, frozen or not. It is the exception to leaving frozen text alone, because it records where the work went rather than what the work is — a frozen ticket's `**Branch:**` line usually names the repository outright, so filling it in is transcription, not a change of plan. Add it where you can read it off the ticket and leave it off where you can't; a guessed repository is worse than an absent one.
 
 ## 2. Explore the codebase
 
@@ -72,12 +73,20 @@ Keep each ticket to the template's parts. A ticket carries the behaviour and its
 
 **Spec:** [spec.md](../spec.md) — the seams and implementation decisions this slice inherits. Omit this line when no spec exists.
 
+**Repo:** `<repo>` — the repository this slice's code lands in, or several in the order they land.
+
 - [ ] Acceptance criterion 1
 - [ ] Acceptance criterion 2
 
 </ticket-template>
 
 The **Spec** link is what keeps a ticket from becoming an island. `/cppcho:implement` is handed one ticket file and expects to restate the seams the spec already fixed rather than reopen them, which it can only do if the ticket tells it where they are.
+
+The **Repo** line answers the first question anyone picking a ticket up has: which checkout am I working in. A proto contract, a BFF composition and a backend change are three different sessions with three different gates, and none of that is reliably readable off the behaviour the ticket describes — so record it rather than leaving every later glance to guess. Name repositories the way the PR links do, by bare name (`platform-proto`, not the org-qualified path), and list several in the order the work lands when a slice genuinely spans them: `**Repo:** `platform-proto`, then `mercari-mvno-jp``.
+
+Declare it on **every** ticket, including the ones landing in the epic's own repo. It is one line, and it buys the distinction between "this lands here" and "nobody said" — which is what lets `cppcho:ticket-dag` and `cppcho:next-actions` tag only the rows that leave the repo you're standing in, and flag the rest as unknown rather than quietly assuming. A slice that changes no repository at all still gets the line, with what it does instead: `**Repo:** none — verification on development`, `**Repo:** none — a console setting, not in version control`.
+
+A slice spanning three repositories is three PRs and three review waits, so it is worth a second look at whether it wants splitting. Usually it doesn't — a proto field and the consumer that reads it are one tracer bullet, and cutting them apart buys a ticket that demonstrates nothing. When the call is close, name it in step 4's judgement line rather than deciding twice.
 
 Write each **acceptance criterion** as behaviour observable from outside the code — something a test or a demo can check — because `/cppcho:implement` drives red-green against these and ticks them as it goes. A criterion phrased as an implementation step ("add the column", "wire up the handler") can be ticked while nothing actually works; one phrased as an observable outcome cannot.
 
@@ -106,7 +115,7 @@ Decisions move after tickets are cut — a spec revision, a discovery mid-build,
 To supersede a ticket:
 
 1. Add one line to the frozen ticket, directly under **Blocked by**, and change nothing else: `**Superseded by:** <PREFIX>-<NN> — <title>` — or `**Superseded:** <reason>` when the work is dropped outright and nothing replaces it.
-2. Write the replacement as a new ticket under the next free number — the old number is retired with its ticket, because a reused number makes every reference to the dead ticket ambiguous. Carry forward the still-valid unticked criteria, add the changed behaviour, and give it the blocking edges that are true now. Leave any `**Branch:**` line behind on the superseded ticket: what carries forward is unfinished intent, and a branch inherited by the replacement would point at code written against a plan that no longer exists.
+2. Write the replacement as a new ticket under the next free number — the old number is retired with its ticket, because a reused number makes every reference to the dead ticket ambiguous. Carry forward the still-valid unticked criteria, add the changed behaviour, and give it the blocking edges that are true now. Leave any `**Branch:**` line behind on the superseded ticket: what carries forward is unfinished intent, and a branch inherited by the replacement would point at code written against a plan that no longer exists. The `**Repo:**` line is the opposite case — it describes intent rather than work done, so the replacement declares its own, which is often not the dead ticket's: a change of direction that moves a slice from the BFF to the backend is exactly the kind that supersedes.
 3. Re-point every **Blocked by** that named the superseded ticket — in unstarted tickets and in the README graph — at its replacement, or drop the edge when the work is dropped. An edge into a dead ticket blocks its dependents forever.
 4. In `README.md`, strike the entry through and name its successor: `- ~~**PCE-03 — <title>**~~ — superseded by PCE-07`. Keep the line rather than deleting it — the graph is the map of every number ever issued, and a silent gap in the numbering reads as a mistake to the next session.
 5. Redraw the epic with the `cppcho:ticket-dag` skill. Step 3 is the easiest thing here to leave half-done, and a missed edge still aims at a dead ticket and blocks its dependents forever — which the graph shows as an edge running into a 🚫, and nothing else shows at all.

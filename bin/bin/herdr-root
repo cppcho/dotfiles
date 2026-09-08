@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Print the top of the current project: the herdr workspace's own directory,
+# else the worktree checkout, else the git root. Backs the `_` shell function
+# (see ~/.zshrc_alias); outside herdr it degrades to the git root.
+#
+# Workspaces are used as projects here (see ~/.config/herdr/config.toml), so the
+# workspace's directory wins over the git root: a shell that wandered into a
+# nested repo comes back to the project it belongs to, and a space opened at a
+# subdirectory of a repo comes back to that subdirectory, not the repo root.
+set -euo pipefail
+
+ws="${HERDR_WORKSPACE_ID:-}"
+
+if [[ -n $ws ]]; then
+    # identity_cwd is herdr's own record of where the space was opened — the
+    # exact answer, but session state rather than API, so the API-backed
+    # worktree lookup stands in if a herdr release drops or renames it.
+    sock="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
+    dir=$(jq -r --arg ws "$ws" '
+        (.workspaces // [])[] | select(.id == $ws) | .identity_cwd // empty' \
+        "$(dirname "$sock")/session.json" 2>/dev/null || true)
+
+    if [[ ! -d $dir ]]; then
+        dir=$(herdr workspace list | jq -r --arg ws "$ws" '
+            (.result.workspaces // [])[] | select(.workspace_id == $ws)
+            | .worktree.checkout_path // empty')
+    fi
+
+    if [[ -d $dir ]]; then
+        printf '%s\n' "$dir"
+        exit 0
+    fi
+fi
+
+dir=$(git rev-parse --show-toplevel 2>/dev/null || true)
+[[ -d $dir ]] || { echo "herdr-root: no project root to return to" >&2; exit 1; }
+printf '%s\n' "$dir"

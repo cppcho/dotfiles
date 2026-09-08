@@ -17,10 +17,10 @@ focus_pane_down = ""
 focus_pane_up = ""
 focus_pane_right = ""
 new_workspace = ""
-previous_workspace = "ctrl+up"
-next_workspace = "ctrl+down"
-previous_agent = "ctrl+;"
-next_agent = "ctrl+'"
+previous_workspace = "ctrl+left"
+next_workspace = "ctrl+right"
+previous_agent = "ctrl+up"
+next_agent = "ctrl+down"
 close_pane = "prefix+x"
 close_workspace = "prefix+shift+q"
 last_pane = "prefix+."
@@ -28,7 +28,7 @@ last_pane = "prefix+."
 new_tab = "prefix+c"
 previous_tab = "ctrl+["
 next_tab = "ctrl+]"
-close_tab = ""
+close_tab = "prefix+shift+x"
 
 split_vertical = "prefix+%"
 split_horizontal = 'prefix+"'
@@ -107,6 +107,24 @@ key = "prefix+shift+o"
 type = "shell"
 command = "~/bin/herdr-close-other-tabs"
 description = "close all other tabs in workspace"
+
+[[keys.command]]
+key = "prefix+!"
+type = "shell"
+command = "~/bin/herdr-break-pane"
+description = "break pane out into a new tab"
+
+[[keys.command]]
+key = "prefix+shift+j"
+type = "pane"
+command = "~/bin/herdr-join-pane"
+description = "join a pane from another tab in this space (fzf picker)"
+
+[[keys.command]]
+key = "prefix+shift+i"
+type = "shell"
+command = "~/bin/herdr-close-idle-tabs"
+description = "close idle tabs in workspace (no program running)"
 
 [[keys.command]]
 key = "prefix+="
