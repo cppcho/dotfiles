@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Jump to the editor: focus this workspace's nvim pane, or open nvim in a new
-# tab when the workspace has none. Bound to prefix+e as a herdr custom command.
+# tab when the workspace has none. Bound to prefix+v as a herdr custom command.
 #
 # Only the current workspace is searched. Workspaces are used as projects here
 # (see ~/.config/herdr/config.toml), so an nvim sitting in another project is

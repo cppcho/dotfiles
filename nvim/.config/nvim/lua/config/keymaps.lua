@@ -19,6 +19,9 @@ vim.keymap.set("n", "<leader>q", "<cmd>bd<cr>", { desc = "Close buffer" })
 
 -- Splits
 vim.keymap.set("n", "\\vv", "<cmd>vsplit<cr>", { desc = "Vertical split" })
+vim.keymap.set("n", "<leader>z", function()
+  require("config.nav").zoom()
+end, { desc = "Zoom file (close other windows)" })
 
 -- Tabs
 vim.keymap.set("n", "]<Tab>", "<cmd>tabnext<cr>", { desc = "Next tab" })

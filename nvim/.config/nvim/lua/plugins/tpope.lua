@@ -64,7 +64,11 @@ return {
     lazy = false,
     keys = {
       { "<leader>ga", "<cmd>Gwrite<CR>",                 desc = "Git add (stage file)" },
-      { "<leader>gs", "<cmd>topleft 12split | 0Git<CR>", desc = "Git status" },
+      {
+        "<leader>gs",
+        function() require("config.nav").toggle_git_status() end,
+        desc = "Git status (toggle)",
+      },
       { "<leader>gd", "<cmd>Gdiffsplit<CR>",             desc = "Git diff (vs index)" },
       { "<leader>gb", "<cmd>Git blame<CR>",              desc = "Git blame" },
       -- Shadows the global <leader>q (close buffer): in a diff, land on the

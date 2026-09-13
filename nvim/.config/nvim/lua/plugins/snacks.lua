@@ -57,12 +57,12 @@ return {
     -- Explorer (sidebar file tree)
     {
       "<leader>e",
-      function() Snacks.explorer() end,
+      function() require("config.nav").toggle_explorer() end,
       desc = "File Explorer",
     },
     {
       "<leader>E",
-      function() Snacks.explorer.reveal() end,
+      function() require("config.nav").reveal_in_explorer() end,
       desc = "File Explorer (reveal current file)",
     },
     -- Top Pickers

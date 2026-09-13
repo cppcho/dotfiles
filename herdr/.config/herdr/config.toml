@@ -53,6 +53,14 @@ type = "shell"
 command = "~/bin/herdr-nvim"
 description = "nvim (focus this space's editor, else new tab)"
 
+# Not a prefix chord: cmd+ctrl+r is the same key VS Code uses to come back here
+# (~/bin/herdr-open-dir), so one chord toggles between editor and terminal.
+[[keys.command]]
+key = "cmd+ctrl+r"
+type = "shell"
+command = "~/bin/herdr-code"
+description = "open this space's project root in VS Code (code -r)"
+
 # gwt worktree switching, ported from tmux prefix g / G.
 [[keys.command]]
 key = "prefix+g"

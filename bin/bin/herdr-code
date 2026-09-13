@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Open VS Code on this herdr space's project root, reusing an existing window
+# instead of spawning a new one. Bound to cmd+ctrl+r, the same chord VS Code
+# uses to come back here (~/bin/herdr-open-dir).
+#
+# herdr-root reads $HERDR_WORKSPACE_ID, which herdr sets inside pane shells;
+# a keybinding command gets $HERDR_ACTIVE_WORKSPACE_ID instead, so pass the
+# active workspace through under the name herdr-root expects. Without it,
+# herdr-root falls back to the git root of the herdr server's cwd — which is
+# not this space — and the failure is invisible, since type = "shell" runs
+# detached with no terminal to print to.
+#
+# Absolute path: ~/bin joins $PATH in .zshrc, which a detached command never
+# sources.
+set -euo pipefail
+
+dir=$(HERDR_WORKSPACE_ID="${HERDR_ACTIVE_WORKSPACE_ID:-${HERDR_WORKSPACE_ID:-}}" \
+      "$HOME/bin/herdr-root")
+code -r "$dir"

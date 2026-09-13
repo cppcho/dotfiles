@@ -60,6 +60,7 @@ return {
   -- Lazy loading is not recommended because it is very tricky to make it work correctly in all situations.
   lazy = false,
   keys = {
-    { "-", "<cmd>Oil<cr>", desc = "Open parent directory" },
+    { "-", function() require("config.nav").open_oil() end, desc = "Open parent directory" },
+    { "<leader>fe", function() require("config.nav").open_epics() end, desc = "Browse epics (.scratch/epics)" },
   },
 }
