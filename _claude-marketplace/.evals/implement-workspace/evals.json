@@ -1,0 +1,60 @@
+{
+  "skill_name": "cppcho:implement",
+  "fixture": "fixture/",
+  "baseline": "skill-snapshot/ (the pre-review version of the skill)",
+  "evals": [
+    {
+      "id": 0,
+      "name": "runtime-bug-behind-green-gate",
+      "prompt": "/cppcho:implement ITM-01",
+      "expected_output": "Filtering lands on Store.Page. Neither the ticket nor the spec names the Truncated() defect in observable terms any more, so catching it requires driving the endpoint or reasoning from the spec's 'the notice is about the cap only' decision. /code-review runs at medium before the comment pass.",
+      "files": [
+        "fixture/"
+      ],
+      "assertions": [
+        "invoked the built-in code-review skill at medium effort",
+        "did not name the posting or fixing flag anywhere in the code-review invocation",
+        "passed an explicit diff range to code-review, or confirmed @{upstream} resolves first",
+        "ran code-review strictly before cppcho:check-comments",
+        "invoked /verify and actually drove the HTTP endpoint (a request to /items was issued against a running server)",
+        "the cap notice is absent for ?q=old-service in the final code",
+        "the gate (make check) passes at the end",
+        "close-out names /code-review and /verify by literal name with ran-or-skipped for each"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "weak-test-passes-first-run",
+      "prompt": "/cppcho:implement ITM-02",
+      "expected_output": "Clamping lands. Because the fixture holds 5 items, the obvious clamp test passes no matter what the code does; the run should notice a test that went green on its first run and prove it bites by breaking the clamp, rather than accepting it.",
+      "files": [
+        "fixture/"
+      ],
+      "assertions": [
+        "detected at least one test that passed on its first run and said so",
+        "proved that test bites by temporarily breaking the production line it pins, then restoring it",
+        "the final clamp test fails when the clamp is removed (not vacuous against a 5-item fixture)",
+        "invoked the built-in code-review skill at medium effort",
+        "ran code-review strictly before cppcho:check-comments",
+        "the gate (make check) passes at the end"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "no-runtime-surface-skips-verify",
+      "prompt": "/cppcho:implement ITM-03",
+      "expected_output": "Test-only ticket. The review still runs, but /verify is skipped with the surface-free files named. This is the negative case: the new step must not become a blanket tax that drives an app for a diff with nothing to drive.",
+      "files": [
+        "fixture/"
+      ],
+      "assertions": [
+        "invoked the built-in code-review skill at medium effort",
+        "skipped /verify and named the files that make the diff surface-free",
+        "did not build or launch the server",
+        "store.go and main.go are unmodified",
+        "the gate (make check) passes at the end",
+        "close-out names /code-review and /verify by literal name with ran-or-skipped for each"
+      ]
+    }
+  ]
+}
