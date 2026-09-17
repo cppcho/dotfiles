@@ -11,6 +11,8 @@
 #   gwt reclaim                    Put this worktree back on the branch it is named for
 #   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
 #   gwt links [--apply]            Open .gwt-links with $EDITOR (--apply: link here now)
+#   gwt claude-create              Claude Code WorktreeCreate hook (stdin: JSON)
+#   gwt claude-remove              Claude Code WorktreeRemove hook (stdin: JSON)
 #
 # Shared paths:
 #   New worktrees get symlinks to git-ignored paths in the main worktree, so
@@ -603,6 +605,68 @@ cmd_links() {
     "${EDITOR:-vim}" "${main_worktree}/.gwt-links"
 }
 
+# Claude Code creates its own worktrees and knows nothing about .gwt-links or
+# .gwt-setup, so its WorktreeCreate hook points here instead: stdin carries
+# {"name": "<slug>"}, stdout must carry nothing but the worktree path. Trees
+# land under .claude/worktrees/ with the branch name Claude would have used, so
+# its own resume and cleanup paths still recognize them.
+cmd_claude_create() {
+    local name
+    name=$(jq -r '.name // empty')
+    [[ -n "$name" ]] || name="claude-$(date +%s)"
+
+    local main_worktree wt_path branch
+    main_worktree=$(get_main_worktree)
+    wt_path="${main_worktree}/.claude/worktrees/${name}"
+    branch="worktree-${name}"
+
+    if [[ -d "$wt_path" ]]; then
+        : # Claude reuses a name when it resumes; hydrate what is already there.
+    elif git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
+        git worktree add "$wt_path" "$branch" >&2
+    else
+        local base
+        base=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+        if [[ -z "$base" || "$base" == "HEAD" ]]; then
+            base=$(get_default_branch)
+        fi
+        git worktree add -b "$branch" "$wt_path" "$base" >&2
+    fi
+
+    wt_path=$(cd "$wt_path" && pwd)
+    record_owning_branch "$wt_path" "$branch"
+    { link_shared_paths "$wt_path"; run_setup_script "$wt_path"; } >&2
+
+    printf '%s\n' "$wt_path"
+}
+
+# Counterpart to claude-create: Claude Code only force-removes a hook-created
+# worktree when a WorktreeRemove hook is there to do it. Stdin carries
+# {"worktree_path": "<abs path>"}.
+cmd_claude_remove() {
+    local wt_path
+    wt_path=$(jq -r '.worktree_path // empty')
+    if [[ -z "$wt_path" ]]; then
+        echo "claude-remove: no worktree_path in the hook payload" >&2
+        exit 1
+    fi
+
+    local main_worktree branch
+    main_worktree=$(git -C "$wt_path" worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //')
+    [[ -n "$main_worktree" ]] || main_worktree=$(get_main_worktree)
+    branch=$(git -C "$wt_path" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=""
+
+    unlock_worktree "$wt_path"
+    git -C "$main_worktree" worktree remove --force "$wt_path" >&2
+
+    # Claude Code deletes the branch itself on the trees it creates; on the hook
+    # path that falls to us. -d declines anything unmerged, so work that
+    # outlived the worktree stays put.
+    if [[ "$branch" == worktree-* ]]; then
+        git -C "$main_worktree" branch -d "$branch" >&2 || true
+    fi
+}
+
 # Put the current worktree back on the branch its directory name says it holds,
 # undoing a `git checkout` made inside a gwt tree. Backs the `_` shell function,
 # so it stays quiet and succeeds in every case it declines to act: outside a
@@ -948,10 +1012,18 @@ show_help() {
     echo "Setup:"
     echo "  Place a .gwt-setup script in your repo root. It runs automatically"
     echo "  in the background on new worktrees; output -> .gwt-setup.log"
+    echo ""
+    echo "Claude Code:"
+    echo "  claude-create / claude-remove back the WorktreeCreate and"
+    echo "  WorktreeRemove hooks, so worktrees Claude Code makes for itself get"
+    echo "  the same shared paths and setup script. They read the hook payload"
+    echo "  on stdin and are not meant to be run by hand."
 }
 
 case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
+    claude-create) shift; cmd_claude_create "$@" ;;
+    claude-remove) shift; cmd_claude_remove "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
     links)         shift; cmd_links "$@" ;;
     delete)        shift; cmd_delete "$@" ;;
