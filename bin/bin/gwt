@@ -9,6 +9,10 @@
 #   gwt delete [--force]            Pick a worktree with fzf and remove it
 #   gwt purge                      Remove worktrees whose branches are merged
 #   gwt reclaim                    Put this worktree back on the branch it is named for
+#   gwt hydrate [--force] [--no-setup] [path]
+#                                  Link shared paths + run setup on a worktree (idempotent)
+#   gwt hooks                      Install the post-checkout hook that hydrates
+#                                  worktrees created outside gwt
 #   gwt setup                      Open .gwt-setup in the repo root with $EDITOR
 #   gwt links [--apply]            Open .gwt-links with $EDITOR (--apply: link here now)
 #   gwt claude-create              Claude Code WorktreeCreate hook (stdin: JSON)
@@ -20,11 +24,19 @@
 #   linked; a `.gwt-links` file in the repo root adds repo-specific paths.
 #
 # Setup script:
-#   Place a `.gwt-setup` file in your repo root (git-ignored).
-#   It runs automatically (in the background) when a new worktree is created;
-#   output is logged to <worktree>/.gwt-setup.log.
+#   Place a `.gwt-setup` file in your repo root (git-ignored). It runs once per
+#   worktree, detached in the background, inside `direnv exec .` when the tree's
+#   .envrc matches the main checkout's; output -> <worktree>/.gwt-setup.log.
+#   Hydration reaches every new worktree, not just gwt's, through a git
+#   post-checkout hook gwt installs the first time it runs in a repo.
 
 set -e
+
+# Absolute path to this script, for the detached setup worker and the git hook.
+case "$0" in
+    */*) GWT_SELF=$(cd "$(dirname "$0")" && pwd)/$(basename "$0") ;;
+    *)   GWT_SELF=$(command -v "$0") ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -361,28 +373,222 @@ link_shared_paths() {
     done < <(read_link_specs "$main_worktree")
 }
 
-# Run the repo's .gwt-setup script for a freshly created worktree, detached and
-# in the background so the session opens immediately instead of blocking on it.
-# Output goes to <worktree>/.gwt-setup.log (git-ignored globally); nohup +
-# redirected stdio keep it alive past gwt's exit and any pane detach.
+# Setup status for a worktree, kept in its git dir like gwt-owning-branch so
+# git never sees it. Holds "running <pid> <epoch>" or "done <exit> <epoch>".
+setup_status_file() {
+    local gitdir
+    gitdir=$(git -C "$1" rev-parse --absolute-git-dir 2>/dev/null) || return 1
+    printf '%s\n' "$gitdir/gwt-setup-status"
+}
+
+# Start a command in its own session, detached from this process group. A plain
+# `& disown` job still dies when herdr tears down the pane it was started from.
+spawn_detached() {
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c '
+import os, sys
+if os.fork() != 0: os._exit(0)
+os.setsid()
+if os.fork() != 0: os._exit(0)
+os.execvp(sys.argv[1], sys.argv[1:])
+' "$@" </dev/null >/dev/null 2>&1
+    else
+        nohup "$@" </dev/null >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+    fi
+}
+
+# Should the setup script run inside the worktree's direnv environment? Only
+# when direnv is installed and the tree's .envrc is byte-identical to the main
+# checkout's, so a branch cannot get an arbitrary .envrc auto-trusted. Prints
+# the reason to skip on stdout when the answer is no.
+direnv_gate() {
+    local wt_path="$1" main_worktree="$2"
+    [[ -f "$wt_path/.envrc" ]] || return 1
+    if ! command -v direnv >/dev/null 2>&1; then
+        echo "direnv not installed; running setup without it"
+        return 1
+    fi
+    if ! cmp -s "$main_worktree/.envrc" "$wt_path/.envrc"; then
+        echo "WARNING: .envrc differs from the main worktree's; running setup without direnv"
+        return 1
+    fi
+    return 0
+}
+
+# Run the repo's .gwt-setup for a worktree, once. The status file is the lock:
+# a run that already succeeded, failed, or is still going is left alone, and a
+# failure is reported rather than retried since each attempt can cost minutes.
+# --force clears the status and runs again. The script itself runs detached (see
+# cmd_run_setup) so callers return at once; output -> <worktree>/.gwt-setup.log.
 run_setup_script() {
-    local worktree_path="$1"
+    local worktree_path="$1" force="${2:-0}"
     local main_worktree
     main_worktree=$(get_main_worktree)
     local setup_script="${main_worktree}/.gwt-setup"
 
     [[ -f "$setup_script" ]] || return 0
+    [[ "$worktree_path" == "$main_worktree" ]] && return 0
 
+    local status_file
+    status_file=$(setup_status_file "$worktree_path") || return 0
     local log="${worktree_path}/.gwt-setup.log"
+
+    if [[ "$force" == "1" ]]; then
+        rm -f "$status_file"
+    elif [[ -f "$status_file" ]]; then
+        local state arg
+        read -r state arg _ <"$status_file" || true
+        case "$state" in
+            done)
+                if [[ "$arg" == "0" ]]; then
+                    echo "Setup already done."
+                else
+                    echo "Setup previously FAILED (exit $arg). See $log; rerun with: gwt hydrate --force"
+                fi
+                return 0 ;;
+            running)
+                if kill -0 "$arg" 2>/dev/null; then
+                    echo "Setup already running (pid $arg): tail -f '$log'"
+                else
+                    echo "Setup previously CRASHED (pid $arg gone). See $log; rerun with: gwt hydrate --force"
+                fi
+                return 0 ;;
+        esac
+    fi
+
+    local use_direnv=0
+    if direnv_gate "$worktree_path" "$main_worktree"; then
+        use_direnv=1
+    fi
+
+    # Claim the run atomically; a concurrent gwt that loses the race skips.
+    if ! (set -o noclobber; printf 'running %s %s\n' "$$" "$(date +%s)" >"$status_file") 2>/dev/null; then
+        echo "Setup already claimed by another gwt."
+        return 0
+    fi
+
     echo "Running setup script in background: $setup_script"
     echo "  logs -> $log  (tail -f '$log')"
+    spawn_detached "$GWT_SELF" __run-setup "$worktree_path" "$setup_script" "$use_direnv" "$status_file"
+}
 
-    if [[ -x "$setup_script" ]]; then
-        nohup bash -c 'cd "$1" && exec "$2"' _ "$worktree_path" "$setup_script" >"$log" 2>&1 &
-    else
-        nohup bash -c 'cd "$1" && exec bash "$2"' _ "$worktree_path" "$setup_script" >"$log" 2>&1 &
+# Detached worker behind run_setup_script. Owns the status file from here on:
+# records its own pid, runs the script (inside `direnv exec` when the gate
+# passed), and writes the exit code to both the log and the status file.
+cmd_run_setup() {
+    local worktree_path="$1" setup_script="$2" use_direnv="$3" status_file="$4"
+    local log="${worktree_path}/.gwt-setup.log"
+    if [[ ! -d "$worktree_path" ]]; then
+        printf 'done 1 %s\n' "$(date +%s)" >"$status_file"
+        return 0
     fi
-    disown 2>/dev/null || true
+    printf 'running %s %s\n' "$$" "$(date +%s)" >"$status_file"
+
+    # Subshell, so any failure lands in rc and gets recorded.
+    local rc=0
+    (
+        cd "$worktree_path" || exit 1
+        local -a runner
+        if [[ -x "$setup_script" ]]; then runner=("$setup_script"); else runner=(bash "$setup_script"); fi
+        if [[ "$use_direnv" == "1" ]]; then
+            echo "gwt: direnv allow . && direnv exec . ${runner[*]}"
+            direnv allow . && direnv exec . "${runner[@]}"
+        else
+            echo "gwt: ${runner[*]}"
+            "${runner[@]}"
+        fi
+    ) >"$log" 2>&1 || rc=$?
+
+    echo "exit=$rc" >>"$log"
+    printf 'done %s %s\n' "$rc" "$(date +%s)" >"$status_file"
+}
+
+# Bring a worktree to the hydrated state: owning branch recorded, shared paths
+# linked, setup run once. Every step is idempotent, so this is safe to call on
+# any tree at any time, however it was created. The main checkout is left alone.
+hydrate_worktree() {
+    local wt_path="$1" branch="${2:-}" force="${3:-0}" no_setup="${4:-0}"
+    wt_path=$(cd "$wt_path" && pwd)
+    local main_worktree
+    main_worktree=$(git -C "$wt_path" worktree list --porcelain | head -1 | sed 's/^worktree //')
+    if [[ "$wt_path" == "$main_worktree" ]]; then
+        echo "Main worktree; nothing to hydrate."
+        return 0
+    fi
+
+    local f
+    if [[ -n "$branch" ]]; then
+        record_owning_branch "$wt_path" "$branch"
+    elif f=$(owning_branch_file "$wt_path") && [[ ! -s "$f" ]]; then
+        branch=$(git -C "$wt_path" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=""
+        [[ -n "$branch" ]] && record_owning_branch "$wt_path" "$branch"
+    fi
+
+    # The helpers below resolve the repo from cwd; run them from inside the tree
+    # without moving the caller.
+    (
+        cd "$wt_path"
+        link_shared_paths "$wt_path"
+        [[ "$no_setup" == "1" ]] || run_setup_script "$wt_path" "$force"
+    )
+}
+
+# The block gwt prepends to the repo's post-checkout hook. git runs that hook
+# inside the new worktree after `git worktree add`, from any caller, with the
+# null SHA as $1; a plain checkout has a real previous HEAD and skips the block.
+# gwt's own commands set GWT_HOOK_SKIP since they hydrate explicitly after the
+# add. Whatever hook was already there (husky's, lefthook's, hand-written)
+# follows the block untouched, so its behaviour and its `$0` are preserved.
+GWT_HOOK_MARKER="# gwt-hook: hydrate new worktrees (managed by \`gwt hooks\`)"
+GWT_HOOK_END="# gwt-hook-end"
+post_checkout_hook_block() {
+    cat <<EOF
+$GWT_HOOK_MARKER
+if [ "\$1" = "0000000000000000000000000000000000000000" ] && [ -z "\$GWT_HOOK_SKIP" ]; then
+    (unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; "$GWT_SELF" hydrate "\$(pwd)" </dev/null) || true
+fi
+$GWT_HOOK_END
+EOF
+}
+
+# Make sure the repo's post-checkout hook starts with gwt's block. Honours
+# core.hooksPath, so this lands in husky's or a repo's own hooks dir when one is
+# configured. Hook managers regenerate their files and drop the block; every gwt
+# command calls this, so it comes back the next time gwt runs in the repo.
+ensure_post_checkout_hook() {
+    local quiet="${1:-0}"
+    local main_worktree hooks_dir hook
+    main_worktree=$(get_main_worktree)
+    hooks_dir=$(cd "$main_worktree" && git rev-parse --path-format=absolute --git-path hooks)
+    hook="$hooks_dir/post-checkout"
+
+    local current="" original=""
+    [[ -f "$hook" ]] && current=$(<"$hook")
+    if [[ -n "$current" ]]; then
+        if grep -qF -- "$GWT_HOOK_END" "$hook"; then
+            original=$(sed "1,/^$GWT_HOOK_END\$/d" "$hook")
+        else
+            original=$(sed '1{/^#!/d;}' "$hook")
+        fi
+    fi
+
+    local body
+    body="#!/bin/sh"$'\n'"$(post_checkout_hook_block)"
+    [[ -n "$original" ]] && body+=$'\n'"$original"
+
+    if [[ "$current" == "$body" ]]; then
+        [[ "$quiet" == "1" ]] || echo "gwt post-checkout hook in place: $hook"
+        return 0
+    fi
+    mkdir -p "$hooks_dir"
+    printf '%s\n' "$body" >"$hook"
+    chmod +x "$hook"
+    if [[ -n "$original" ]]; then
+        echo "Installed gwt post-checkout hook ahead of the existing one: $hook"
+    else
+        echo "Installed gwt post-checkout hook: $hook"
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -479,14 +685,16 @@ cmd_switch() {
         return
     fi
 
+    ensure_post_checkout_hook 1
+
     # Check if branch exists (locally or in origin)
     if git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
         # Local branch exists — create worktree from it
-        git worktree add "$wt_path" "$branch"
+        GWT_HOOK_SKIP=1 git worktree add "$wt_path" "$branch"
     elif git fetch origin "$branch" 2>/dev/null && \
          git show-ref --verify --quiet "refs/remotes/origin/${branch}" 2>/dev/null; then
         # Remote branch exists — create worktree tracking it
-        git worktree add "$wt_path" "$branch"
+        GWT_HOOK_SKIP=1 git worktree add "$wt_path" "$branch"
     else
         # Branch doesn't exist — create from the current branch (fall back to
         # the default branch if HEAD is detached or unavailable).
@@ -495,25 +703,45 @@ cmd_switch() {
         if [[ -z "$base" || "$base" == "HEAD" ]]; then
             base=$(get_default_branch)
         fi
-        git worktree add -b "$branch" "$wt_path" "$base"
+        GWT_HOOK_SKIP=1 git worktree add -b "$branch" "$wt_path" "$base"
     fi
 
-    # Resolve to absolute path
     wt_path=$(cd "$wt_path" && pwd)
-
-    # Remember which branch this tree is for, so `gwt reclaim` can put it back
-    # even once the directory name and the branch have drifted apart.
-    record_owning_branch "$wt_path" "$branch"
-
-    # Link shared paths before the setup script runs, so the script can rely on
-    # them being in place.
-    link_shared_paths "$wt_path"
-
-    # Run setup script for new worktrees
-    run_setup_script "$wt_path"
+    hydrate_worktree "$wt_path" "$branch"
 
     # Open in tmux
     open_session "$branch" "$wt_path"
+}
+
+# Hydrate a worktree (default: the current one) however it was created: record
+# the owning branch, link shared paths, run .gwt-setup once. Idempotent.
+cmd_hydrate() {
+    local force=0 no_setup=0 wt_path=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force)    force=1; shift ;;
+            --no-setup) no_setup=1; shift ;;
+            -*) echo "Unknown option: $1"; exit 1 ;;
+            *)  wt_path="$1"; shift ;;
+        esac
+    done
+    [[ -n "$wt_path" ]] || wt_path=$(git rev-parse --show-toplevel 2>/dev/null) || wt_path=""
+    if [[ -z "$wt_path" || ! -d "$wt_path" ]] || ! git -C "$wt_path" rev-parse --git-dir &>/dev/null; then
+        echo "Error: not a git worktree: ${wt_path:-$PWD}" >&2
+        exit 1
+    fi
+    # The target may belong to a different repo than cwd; the hook goes in its repo.
+    (cd "$wt_path" && ensure_post_checkout_hook 1)
+    hydrate_worktree "$wt_path" "" "$force" "$no_setup"
+}
+
+# Install (or report on) the post-checkout hook that hydrates worktrees created
+# outside gwt, e.g. by a plain `git worktree add`. --quiet only speaks when it
+# changes something, for use from a session-start hook.
+cmd_hooks() {
+    local quiet=0
+    [[ "${1:-}" == "--quiet" ]] && quiet=1
+    ensure_post_checkout_hook "$quiet"
 }
 
 cmd_delete() {
@@ -620,22 +848,22 @@ cmd_claude_create() {
     wt_path="${main_worktree}/.claude/worktrees/${name}"
     branch="worktree-${name}"
 
+    ensure_post_checkout_hook 1 >&2
     if [[ -d "$wt_path" ]]; then
         : # Claude reuses a name when it resumes; hydrate what is already there.
     elif git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
-        git worktree add "$wt_path" "$branch" >&2
+        GWT_HOOK_SKIP=1 git worktree add "$wt_path" "$branch" >&2
     else
         local base
         base=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
         if [[ -z "$base" || "$base" == "HEAD" ]]; then
             base=$(get_default_branch)
         fi
-        git worktree add -b "$branch" "$wt_path" "$base" >&2
+        GWT_HOOK_SKIP=1 git worktree add -b "$branch" "$wt_path" "$base" >&2
     fi
 
     wt_path=$(cd "$wt_path" && pwd)
-    record_owning_branch "$wt_path" "$branch"
-    { link_shared_paths "$wt_path"; run_setup_script "$wt_path"; } >&2
+    hydrate_worktree "$wt_path" "$branch" >&2
 
     printf '%s\n' "$wt_path"
 }
@@ -979,11 +1207,16 @@ subprocess.run(["herdr", "workspace", "focus", sys.argv[2]])
 # Main
 # ---------------------------------------------------------------------------
 
-# Ensure we're in a git repo
-if ! git rev-parse --git-dir &>/dev/null; then
-    echo "Error: not inside a git repository"
-    exit 1
-fi
+# Ensure we're in a git repo. hydrate takes the repo from its path argument and
+# checks for itself; the setup worker inherits a valid cwd from hydrate.
+case "${1:-}" in
+    hydrate|__run-setup|-h|--help|"") ;;
+    *)
+        if ! git rev-parse --git-dir &>/dev/null; then
+            echo "Error: not inside a git repository"
+            exit 1
+        fi ;;
+esac
 
 show_help() {
     echo "Usage: gwt <command> [args]"
@@ -998,6 +1231,13 @@ show_help() {
     echo "  gwt purge         Remove worktrees whose branches are merged"
     echo "  gwt reclaim       Check the current worktree back out onto the branch"
     echo "                    its directory is named for (what \`_\` calls)"
+    echo "  gwt hydrate [--force] [--no-setup] [path]"
+    echo "                    Link shared paths and run .gwt-setup on a worktree"
+    echo "                    (default: current). Safe to repeat; setup runs once."
+    echo "                    --force reruns a finished or failed setup"
+    echo "                    --no-setup links only"
+    echo "  gwt hooks         Install the git post-checkout hook that hydrates"
+    echo "                    worktrees created outside gwt"
     echo "  gwt setup         Open .gwt-setup in \$EDITOR"
     echo "  gwt links [--apply]"
     echo "                    Open .gwt-links in \$EDITOR"
@@ -1010,8 +1250,10 @@ show_help() {
     echo "  instead of the directory itself, leaving tracked files alone."
     echo ""
     echo "Setup:"
-    echo "  Place a .gwt-setup script in your repo root. It runs automatically"
-    echo "  in the background on new worktrees; output -> .gwt-setup.log"
+    echo "  Place a .gwt-setup script in your repo root. It runs once per new"
+    echo "  worktree, detached in the background, under 'direnv exec .' when the"
+    echo "  tree's .envrc matches the main checkout's. Output -> .gwt-setup.log;"
+    echo "  status -> <git-dir>/gwt-setup-status."
     echo ""
     echo "Claude Code:"
     echo "  claude-create / claude-remove back the WorktreeCreate and"
@@ -1022,6 +1264,9 @@ show_help() {
 
 case "${1:-}" in
     switch)        shift; cmd_switch "$@" ;;
+    hydrate)       shift; cmd_hydrate "$@" ;;
+    hooks)         shift; cmd_hooks "$@" ;;
+    __run-setup)   shift; cmd_run_setup "$@" ;;
     claude-create) shift; cmd_claude_create "$@" ;;
     claude-remove) shift; cmd_claude_remove "$@" ;;
     setup)         shift; cmd_setup "$@" ;;
