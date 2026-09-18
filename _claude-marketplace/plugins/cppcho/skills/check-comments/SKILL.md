@@ -2,6 +2,7 @@
 name: check-comments
 description: Reviews the comments in a diff and fixes what fails three rules — unnecessary comments get deleted, verbose ones get tightened to a concise non-obvious "why", and comments narrating the revision get rewritten to describe the final state. Use when the user asks to check, review, tighten or clean up comments or doc comments, asks to remove unnecessary or obvious comments (e.g. "remove unnecessary comments that describe obvious code"), wonders whether a comment is needed or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
 argument-hint: "[diff-range|path]"
+model: sonnet
 ---
 
 # Check comments
@@ -39,7 +40,7 @@ Then read each comment where it lives, with the code around it. A grep of the di
 
 ## Who runs the pass
 
-When a caller delegates this to a fresh reader — which is the right shape, since the comments an author can't audit are their own — spawn that reader on **Sonnet 5** (`model: "sonnet"` on the Agent call). This is judgement against three fixed rules over a diff that is often long, not open-ended design, and the rules below do the reasoning that a larger model would otherwise have to reconstruct.
+When a caller delegates this to a fresh reader — which is the right shape, since the comments an author can't audit are their own — spawn that reader on the cheaper model (`model: "sonnet"` on the Agent call). This is judgement against three fixed rules over a diff that is often long, not open-ended design, and the rules above do the reasoning that a larger model would otherwise have to reconstruct.
 
 ## How to run the pass
 
