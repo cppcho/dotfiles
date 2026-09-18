@@ -37,6 +37,10 @@ With an argument, take it as given — a range or a path. With none, review the 
 
 Then read each comment where it lives, with the code around it. A grep of the diff's added comment lines is not something you can judge from: rule 1 asks what a reader would conclude from the code alone, and a comment-only listing has stripped out the very code you'd hold the comment against. Two signals only the file shows. A comment warning about a mistake should sit where that mistake would be made — a hazard described on a struct field rather than at the call site that could get it wrong is usually a note the author wrote to themselves. And a comment that is the one documented member among undocumented siblings says the same thing: the surrounding code got along without any.
 
+## Who runs the pass
+
+When a caller delegates this to a fresh reader — which is the right shape, since the comments an author can't audit are their own — spawn that reader on **Sonnet 5** (`model: "sonnet"` on the Agent call). This is judgement against three fixed rules over a diff that is often long, not open-ended design, and the rules below do the reasoning that a larger model would otherwise have to reconstruct.
+
 ## How to run the pass
 
 Three stages, and keeping them separate is the point:
