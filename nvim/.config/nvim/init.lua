@@ -6,4 +6,5 @@ vim.g.maplocalleader = " "
 require("config.options")
 require("config.keymaps")
 require("config.gui")
+require("config.pinned-panels")
 require("config.lazy")
