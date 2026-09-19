@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Jump to the editor: focus this workspace's nvim pane, or open nvim in a new
-# tab when the workspace has none. Bound to prefix+v as a herdr custom command.
+# Jump to the editor. Bound to prefix+v as a herdr custom command.
+#
+# The editor prefers a tab of its own: focus a single-pane tab running nvim,
+# else switch to the first nvim pane wherever it sits, else open nvim in a new
+# tab. Every other nvim pane in the workspace is then closed so one editor is
+# left, along with tabs that have nothing running.
 #
 # Only the current workspace is searched. Workspaces are used as projects here
 # (see ~/.config/herdr/config.toml), so an nvim sitting in another project is
@@ -8,27 +12,88 @@
 set -euo pipefail
 
 ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
-sock="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
 
 # The tmux is_vim set (see ~/.tmux.conf), matched against each foreground
 # process's argv0/name rather than the raw JSON, so a pane whose cwd happens to
 # be ~/dotfiles/nvim cannot pass for a running editor.
 vim_re='^-?g?\.?(view|l?n?vim?x?)(diff)?(-wrapped)?$'
 
-for pane in $(herdr pane list --workspace "$ws" | jq -r '.result.panes[].pane_id'); do
-    if herdr pane process-info --pane "$pane" | jq -e --arg re "$vim_re" '
-            [(.result.process_info.foreground_processes // [])[]
-             | (.argv0 // ""), (.name // "") | sub(".*/"; "")]
-            | any(test($re))' >/dev/null; then
-        # pane.focus takes an absolute pane id and pulls the workspace and tab
-        # along with it; the CLI's `pane focus` only moves by direction.
-        printf '%s\n' "{\"id\":\"1\",\"method\":\"pane.focus\",\"params\":{\"pane_id\":\"$pane\"}}" \
-            | nc -U "$sock" >/dev/null
-        exit 0
+is_vim() {
+    herdr pane process-info --pane "$1" | jq -e --arg re "$vim_re" '
+        [(.result.process_info.foreground_processes // [])[]
+         | (.argv0 // ""), (.name // "") | sub(".*/"; "")]
+        | any(test($re))' >/dev/null
+}
+
+# herdr moves focus only between neighbours, so walk from the target's tab
+# focus toward the target one hop at a time, steering by the panes' geometry.
+# Hops are capped by the pane count, and a hop that lands nowhere new (a zoomed
+# tab, a layout the walk cannot cross) gives up with the tab still focused.
+focus_pane() {
+    local target="$1" layout focused dir hop out
+    layout=$(herdr pane layout --pane "$target" | jq '.result.layout')
+    for ((hop = $(jq '.panes | length' <<<"$layout"); hop > 0; hop--)); do
+        focused=$(jq -r '.focused_pane_id' <<<"$layout")
+        [ "$focused" = "$target" ] && return 0
+        dir=$(jq -r --arg f "$focused" --arg t "$target" '
+            (.panes[] | select(.pane_id == $f) | .rect) as $fr
+            | (.panes[] | select(.pane_id == $t) | .rect) as $tr
+            | (($tr.x + $tr.width / 2) - ($fr.x + $fr.width / 2)) as $dx
+            | (($tr.y + $tr.height / 2) - ($fr.y + $fr.height / 2)) as $dy
+            | if ($dx | fabs) >= ($dy | fabs)
+              then (if $dx > 0 then "right" else "left" end)
+              else (if $dy > 0 then "down" else "up" end) end' <<<"$layout")
+        out=$(herdr pane focus --pane "$focused" --direction "$dir")
+        [ "$(jq -r '.result.focus.changed' <<<"$out")" = "true" ] || return 0
+        layout=$(jq '.result.focus.layout' <<<"$out")
+    done
+}
+
+panes=$(herdr pane list --workspace "$ws")
+
+vim_panes=()
+vim_tabs=()     # vim_tabs[i] is the tab holding vim_panes[i]
+while IFS=$'\t' read -r pane tab; do
+    if is_vim "$pane"; then
+        vim_panes+=("$pane")
+        vim_tabs+=("$tab")
+    fi
+done < <(jq -r '.result.panes[] | "\(.pane_id)\t\(.tab_id)"' <<<"$panes")
+
+# The pane to keep: the first nvim alone in its tab, falling back to the first
+# nvim sharing a tab with other splits rather than opening a second editor.
+keep=""
+keep_tab=""
+for i in "${!vim_panes[@]}"; do
+    n=$(jq -r --arg t "${vim_tabs[$i]}" '[.result.panes[] | select(.tab_id == $t)] | length' <<<"$panes")
+    if [ "$n" -eq 1 ]; then
+        keep="${vim_panes[$i]}"
+        keep_tab="${vim_tabs[$i]}"
+        break
     fi
 done
+if [ -z "$keep" ] && [ ${#vim_panes[@]} -gt 0 ]; then
+    keep="${vim_panes[0]}"
+    keep_tab="${vim_tabs[0]}"
+fi
 
-# No editor here yet. A tab created without --cwd inherits the workspace cwd,
-# which is the project root we want nvim rooted at.
-pane=$(herdr tab create --workspace "$ws" --focus | jq -r '.result.root_pane.pane_id')
-herdr pane run "$pane" nvim >/dev/null
+# Close strays before focusing: closing a pane moves focus to its tab.
+for pane in "${vim_panes[@]+"${vim_panes[@]}"}"; do
+    [ "$pane" = "$keep" ] && continue
+    herdr pane close "$pane" >/dev/null
+done
+
+if [ -n "$keep" ]; then
+    herdr tab focus "$keep_tab" >/dev/null
+    focus_pane "$keep"
+else
+    # A tab created without --cwd inherits the workspace cwd, which is the
+    # project root we want nvim rooted at.
+    created=$(herdr tab create --workspace "$ws" --focus)
+    keep_tab=$(jq -r '.result.tab.tab_id' <<<"$created")
+    herdr pane run "$(jq -r '.result.root_pane.pane_id' <<<"$created")" nvim >/dev/null
+fi
+
+# Sweep tabs with nothing running. The nvim tab is passed as the protected tab
+# because a freshly created one may still read as a bare shell before nvim is up.
+HERDR_ACTIVE_TAB_ID="$keep_tab" "$HOME/bin/herdr-close-idle-tabs"
