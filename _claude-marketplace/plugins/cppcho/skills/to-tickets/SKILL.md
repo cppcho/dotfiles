@@ -88,7 +88,7 @@ Declare it on **every** ticket, including the ones landing in the epic's own rep
 
 A slice spanning three repositories is three PRs and three review waits, so it is worth a second look at whether it wants splitting. Usually it doesn't — a proto field and the consumer that reads it are one tracer bullet, and cutting them apart buys a ticket that demonstrates nothing. When the call is close, name it in step 4's judgement line rather than deciding twice.
 
-Write each **acceptance criterion** as behaviour observable from outside the code — something a test or a demo can check — because `/cppcho:implement` drives red-green against these and ticks them as it goes. A criterion phrased as an implementation step ("add the column", "wire up the handler") can be ticked while nothing actually works; one phrased as an observable outcome cannot.
+Write each **acceptance criterion** as behaviour observable from outside the code — something a test or a demo can check — because `/cppcho:implement` tests against these and ticks them as it goes. A criterion phrased as an implementation step ("add the column", "wire up the handler") can be ticked while nothing actually works; one phrased as an observable outcome cannot.
 
 Avoid specific file paths or code snippets in tickets — they go stale fast. Exception: if a snippet encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it. Trim to the decision-rich parts — not a working demo, just the important bits.
 

@@ -2,6 +2,7 @@
 name: check-comments
 description: Reviews the comments in a diff and fixes what fails three rules — unnecessary comments get deleted, verbose ones get tightened to a concise non-obvious "why", and comments narrating the revision get rewritten to describe the final state. Use when the user asks to check, review, tighten or clean up comments or doc comments, asks to remove unnecessary or obvious comments (e.g. "remove unnecessary comments that describe obvious code"), wonders whether a comment is needed or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
 argument-hint: "[diff-range|path]"
+model: sonnet
 ---
 
 # Check comments
@@ -36,6 +37,10 @@ This is usually a trim rather than a deletion — the summary line and the contr
 With an argument, take it as given — a range or a path. With none, review the branch: `git diff $(git merge-base HEAD <base-branch>)`, which covers the branch's commits plus uncommitted work. Also check `git status --porcelain` for untracked files and read those in full — new files are where fresh comments are densest, and `git diff` won't show them.
 
 Then read each comment where it lives, with the code around it. A grep of the diff's added comment lines is not something you can judge from: rule 1 asks what a reader would conclude from the code alone, and a comment-only listing has stripped out the very code you'd hold the comment against. Two signals only the file shows. A comment warning about a mistake should sit where that mistake would be made — a hazard described on a struct field rather than at the call site that could get it wrong is usually a note the author wrote to themselves. And a comment that is the one documented member among undocumented siblings says the same thing: the surrounding code got along without any.
+
+## Who runs the pass
+
+When a caller delegates this to a fresh reader — which is the right shape, since the comments an author can't audit are their own — spawn that reader on the cheaper model (`model: "sonnet"` on the Agent call). This is judgement against three fixed rules over a diff that is often long, not open-ended design, and the rules above do the reasoning that a larger model would otherwise have to reconstruct.
 
 ## How to run the pass
 
