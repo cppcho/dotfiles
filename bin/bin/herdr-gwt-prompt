@@ -7,7 +7,7 @@
 # herdr [[keys.command]] with type = "pane" so this runs in a temporary
 # interactive pane (readline + fzf need a real TTY):
 #   [[keys.command]]
-#   key = "prefix+shift+g"
+#   key = "prefix+g"
 #   type = "pane"
 #   command = "~/bin/herdr-gwt-prompt"
 #

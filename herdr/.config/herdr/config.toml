@@ -8,7 +8,7 @@ prefix = "ctrl+a"
 goto = ""
 detach = "prefix+d"
 workspace_picker = "prefix+w"
-# Worktrees are opened through prefix+f (herdr-sessionizer) and prefix+shift+g
+# Worktrees are opened through prefix+f (herdr-sessionizer) and prefix+g
 # (gwt), see [[keys.command]] below. Disable herdr's native worktree actions.
 open_worktree = ""
 new_worktree = ""
@@ -61,15 +61,9 @@ type = "shell"
 command = "~/bin/herdr-code"
 description = "open this space's project root in VS Code (code -r)"
 
-# gwt worktree switching, ported from tmux prefix g / G.
+# gwt worktree creation, ported from tmux prefix G.
 [[keys.command]]
 key = "prefix+g"
-type = "pane"
-command = "~/bin/herdr-gwt-switch"
-description = "worktree switch (gwt fzf picker)"
-
-[[keys.command]]
-key = "prefix+shift+g"
 type = "pane"
 command = "~/bin/herdr-gwt-prompt"
 description = "worktree switch (branch/#pr/url)"
