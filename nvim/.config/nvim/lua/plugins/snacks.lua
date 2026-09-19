@@ -56,7 +56,7 @@ return {
   keys = {
     -- Explorer (sidebar file tree)
     {
-      "<leader>e",
+      "<C-e>",
       function() require("config.nav").toggle_explorer() end,
       desc = "File Explorer",
     },

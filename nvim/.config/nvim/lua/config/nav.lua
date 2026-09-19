@@ -1,6 +1,6 @@
 -- Oil, the snacks explorer sidebar and the fugitive status split all own file
 -- navigation, so only one is ever up: each opener tears the other two down.
--- Required from the plugin specs that own the keymaps (`-`, `<leader>e`,
+-- Required from the plugin specs that own the keymaps (`-`, `<C-e>`,
 -- `<leader>gs`).
 
 local M = {}
