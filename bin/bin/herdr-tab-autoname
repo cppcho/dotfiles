@@ -2,7 +2,7 @@
 # herdr-tab-autoname — tmux-style automatic-rename for herdr TABS.
 #
 # Renames each tab to the foreground process running in its active pane
-# (nvim, claude, git, lazygit, …). Bare-shell tabs show their position number
+# (nvim, claude, git, …). Bare-shell tabs show their position number
 # within the workspace (gap-free, unlike herdr's own tab number), and a tab
 # reverts to its number when its command exits. Workspace labels are left
 # untouched, so herdr-sessionizer's label matching keeps working.
