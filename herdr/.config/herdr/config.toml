@@ -114,7 +114,7 @@ description = "snap split 64:36 (big left)"
 key = "prefix+shift+o"
 type = "shell"
 command = "~/bin/herdr-close-other-tabs"
-description = "close all other tabs in workspace"
+description = "close other tabs in workspace (keep agent tabs)"
 
 [[keys.command]]
 key = "prefix+!"

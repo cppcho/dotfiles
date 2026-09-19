@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
-# Close every tab in the current herdr workspace except the focused one
-# (vim :tabonly / tmux kill-window -a). Bound to prefix+shift+o.
+# Close every tab in the current herdr workspace except the focused one and any
+# tab with an agent running in it (vim :tabonly / tmux kill-window -a, sparing
+# the agents). Bound to prefix+shift+o.
 set -euo pipefail
 
 ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
 cur="${HERDR_ACTIVE_TAB_ID:?not run from a herdr keybinding}"
 
+# herdr tags a pane with the agent it detected in it (claude, ...), which is the
+# same signal the agents sidebar uses. Tabs holding one are kept so a live
+# session never gets closed out from under itself.
+agent_tabs=$(
+  herdr pane list --workspace "$ws" \
+    | jq -r '.result.panes[] | select(.agent != null) | .tab_id' \
+    | tr '\n' ' '
+)
+
 herdr tab list --workspace "$ws" \
-  | jq -r --arg cur "$cur" '.result.tabs[].tab_id | select(. != $cur)' \
+  | jq -r '.result.tabs[].tab_id' \
   | while read -r tab; do
+      [ "$tab" = "$cur" ] && continue
+      case " $agent_tabs " in *" $tab "*) continue ;; esac
       herdr tab close "$tab" >/dev/null
     done
