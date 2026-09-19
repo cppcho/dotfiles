@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# herdr-recent — remember when a project directory was last opened in herdr.
+#
+# herdr keeps no last-focused timestamp for workspaces, so every script that
+# opens or focuses a workspace by path (herdr-sessionizer, gwt, the pane mover)
+# records it here and herdr-sessionizer orders its picker by it.
+#
+#   herdr-recent touch <path>   mark <path> as opened now
+#   herdr-recent list           print "<epoch>\t<path>", most recent first
+#   herdr-recent bootstrap      seed from currently open workspaces (no-op if
+#                               the log already exists)
+set -euo pipefail
+
+file="${HERDR_RECENT_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/herdr/recent.tsv}"
+max=500
+
+touch_path() {
+    local path="${1:?path required}" tmp
+    path="${path/#\~/$HOME}"; path="${path%/}"
+    mkdir -p "$(dirname "$file")"
+    tmp=$(mktemp "$file.XXXXXX")
+    {
+        printf '%s\t%s\n' "$(date +%s)" "$path"
+        if [[ -f $file ]]; then awk -F'\t' -v p="$path" '$2 != p' "$file"; fi
+    } | head -n "$max" > "$tmp"
+    mv "$tmp" "$file"
+}
+
+case "${1:-}" in
+    touch) touch_path "${2:-}" ;;
+    list) [[ -f $file ]] && cat "$file" || true ;;
+    bootstrap)
+        [[ -f $file ]] && exit 0
+        # Oldest workspace first so the highest-numbered (newest) ends on top.
+        while IFS= read -r p; do [[ -d $p ]] && touch_path "$p"; done < <(
+            herdr workspace list 2>/dev/null | jq -r '
+                (.result.workspaces // []) | sort_by(.number)[]
+                | .worktree.checkout_path // empty')
+        ;;
+    *) echo "usage: herdr-recent touch <path> | list | bootstrap" >&2; exit 2 ;;
+esac

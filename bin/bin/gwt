@@ -1056,6 +1056,8 @@ open_in_herdr() {
     wt_path=$(cd "$wt_path" && pwd)
     local label
     label=$(basename "$wt_path")
+    # Feeds herdr-sessionizer's recency ordering.
+    "$HOME/bin/herdr-recent" touch "$wt_path" 2>/dev/null || true
 
     # Open it as a native herdr worktree so herdr tracks the git checkout (badge,
     # worktree list, remove confirmation) instead of a generic space. Idempotent:

@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # herdr-sessionizer — a tmux-sessionizer for herdr spaces.
 #
-# fzf a project directory; if a herdr space is already open for it, focus that
-# space, otherwise create a new one there. The herdr sibling of
-# ~/bin/tmux-sessionizer: same project roots ($TMUX_SESSIONIZER_PATHS) and ~/.z
-# frecency ordering.
+# fzf over project roots ($TMUX_SESSIONIZER_PATHS) and every gwt worktree under
+# ~/.worktrees in one list; focus the herdr space already open for the pick,
+# otherwise create one. Ordered by when each was last opened here (see
+# ~/bin/herdr-recent), then ~/.z frecency for never-opened entries.
 #
-# Spaces are matched to directories by label, which herdr defaults to the dir
-# basename (this script labels new spaces the same way). When several spaces
-# share a label the most recent is focused; use the workspace picker (prefix+w)
-# to reach a specific one.
+# Worktrees are read off the filesystem (the `.git` pointer file and its HEAD)
+# rather than `git worktree list` per repo, which takes about a second across
+# ~/dev. Claude Code's .claude/worktrees checkouts are left out on purpose.
 #
 # Bind via a herdr [[keys.command]] with type = "pane" so fzf runs in a
 # temporary interactive pane:
@@ -20,6 +19,7 @@
 #
 # With a directory argument it skips the picker (mirrors `af <dir>`):
 #   herdr-sessionizer ~/dev/foo
+# With --list it prints the ordered rows and exits (for debugging).
 set -euo pipefail
 
 # Surface a fatal error in the throwaway herdr pane, then pause so it stays
@@ -45,57 +45,115 @@ herdr_call() {
     fi
 }
 
-# label -> most recent space with that label (for focus-if-exists).
-declare -A lbl_ws lbl_num
+# Open workspaces, by checkout path (exact) and by label (most recent wins;
+# spaces opened before herdr indexed their worktree only carry a label).
+declare -A path_ws lbl_ws lbl_num
 herdr_call workspace list
-while IFS=$'\t' read -r wsid num label; do
+while IFS=$'\t' read -r wsid num label cpath; do
+    [[ -n $cpath && -z ${path_ws[$cpath]:-} ]] && path_ws[$cpath]=$wsid
     [[ -z $label ]] && continue
     if (( num > ${lbl_num[$label]:-0} )); then lbl_ws[$label]=$wsid; lbl_num[$label]=$num; fi
-done < <(printf '%s' "$HERDR_OUT" \
-    | jq -r '(.result.workspaces // [])[] | "\(.workspace_id)\t\(.number)\t\(.label)"')
+done < <(printf '%s' "$HERDR_OUT" | jq -r '(.result.workspaces // [])[]
+    | "\(.workspace_id)\t\(.number)\t\(.label)\t\(.worktree.checkout_path // "")"')
 
+# Owning repo root of a worktree checkout, from its `.git` pointer file.
+worktree_repo() {
+    local gitdir
+    gitdir=$(sed -n 's/^gitdir: //p' "$1/.git" 2>/dev/null) || return 1
+    [[ $gitdir == */.git/worktrees/* ]] || return 1
+    printf '%s\n' "${gitdir%/.git/worktrees/*}"
+}
+
+# Focus the space for a directory, or open one. A linked worktree opens as a
+# native herdr worktree (anchored on its main repo: herdr refuses worktree
+# actions sourced from a linked checkout), falling back to a plain space.
 open_dir() {
-    local dir="$1" label
+    local dir="$1" label repo
     dir="${dir/#\~/$HOME}"; dir="${dir%/}"
+    [[ -d $dir ]] || die "no such directory: $dir"
     label=$(basename "$dir")
-    if [[ -n ${lbl_ws[$label]:-} ]]; then
+    "$HOME/bin/herdr-recent" touch "$dir"
+    if [[ -n ${path_ws[$dir]:-} ]]; then
+        herdr_call workspace focus "${path_ws[$dir]}"
+    elif [[ -n ${lbl_ws[$label]:-} ]]; then
         herdr_call workspace focus "${lbl_ws[$label]}"
+    elif repo=$(worktree_repo "$dir") \
+        && herdr worktree open --cwd "$repo" --path "$dir" --label "$label" --focus --json 2>/dev/null \
+           | jq -e '.result.workspace.workspace_id' >/dev/null; then
+        :
     else
         herdr_call workspace create --cwd "$dir" --label "$label" --focus
     fi
 }
 
 # Direct argument skips the picker.
-if [[ $# -eq 1 ]]; then
+if [[ $# -eq 1 && $1 != --list ]]; then
     open_dir "$1"
     exit 0
 fi
 
-# --- candidate directories (mirror tmux-sessionizer discovery) --------------
-declare -a root_dirs=()
+# --- candidates ----------------------------------------------------------------
+# rows: "<display>\t<path>"
+rows=()
+
 IFS=':' read -ra _paths <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
 for p in "${_paths[@]}"; do
     p="${p/#\~/$HOME}"
-    if [[ "$p" == */ ]]; then
-        while IFS= read -r d; do root_dirs+=("$d"); done \
+    if [[ $p == */ ]]; then
+        while IFS= read -r d; do rows+=("${d##*/}"$'\t'"$d"); done \
             < <(find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
     else
-        [[ -d "$p" ]] && root_dirs+=("$p")
+        [[ -d $p ]] && rows+=("${p##*/}"$'\t'"$p")
     fi
 done
 
-# ~/.z frecency scores order the list (highest first), like `zz`.
-declare -A zscore
+# gwt worktrees: ~/.worktrees/<repo>/<slug> and the older flat <repo>-<slug>.
+# A directory with its own .git is a checkout; otherwise it groups checkouts.
+# Pure bash file reads: this runs for every checkout on every keypress.
+add_worktree() {
+    local wt="$1" gitdir branch
+    read -r _ gitdir < "$wt/.git" 2>/dev/null || return 0
+    [[ $gitdir == */.git/worktrees/* ]] || return 0   # not a submodule pointer
+    local repo="${gitdir%/.git/worktrees/*}"
+    read -r _ branch < "$gitdir/HEAD" 2>/dev/null || branch=""
+    branch="${branch#refs/heads/}"
+    rows+=("$(printf '%-28s %s' "${repo##*/}" "${branch:-${wt##*/}}")"$'\t'"$wt")
+}
+wt_root="${GWT_WORKTREES_DIR:-$HOME/.worktrees}"
+for d in "$wt_root"/*/; do
+    d="${d%/}"
+    if [[ -f $d/.git ]]; then
+        add_worktree "$d"
+    else
+        for c in "$d"/*/; do [[ -f ${c%/}/.git ]] && add_worktree "${c%/}"; done
+    fi
+done
+
+# --- ordering ------------------------------------------------------------------
+"$HOME/bin/herdr-recent" bootstrap >/dev/null 2>&1 || true
+declare -A recent zscore
+while IFS=$'\t' read -r ts rp; do recent[$rp]=$ts; done < <("$HOME/bin/herdr-recent" list)
 if [[ -f ~/.z ]]; then
-    while IFS='|' read -r zd zs _; do zscore[$zd]=$zs; done < ~/.z
+    while IFS='|' read -r zd zs _; do zscore[$zd]=${zs%%.*}; done < ~/.z
 fi
 
-selected=$(
-    for dir in "${root_dirs[@]}"; do
-        printf '%s\t%s\n' "${zscore[$dir]:-0}" "$dir"
-    done | sort -rn | cut -f2- | sed "s|^$HOME|~|" \
-      | fzf --exact --no-sort --prompt='Space > '
-) || exit 0
+listing=$(
+    for row in "${rows[@]}"; do
+        path="${row#*$'\t'}"; disp="${row%%$'\t'*}"
+        mark=" "; [[ -n ${path_ws[$path]:-} || -n ${lbl_ws[${path##*/}]:-} ]] && mark="●"
+        # recency epoch (seconds) outranks any z score (well below 1e9).
+        printf '%s\t%s\t%s %s\t%s\n' "${recent[$path]:-0}" "${zscore[$path]:-0}" "$mark" "$disp" "$path"
+    done | sort -t$'\t' -k1,1rn -k2,2rn -k3,3 | cut -f3-
+)
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "$listing"
+    exit 0
+fi
+
+selected=$(printf '%s\n' "$listing" \
+    | fzf --exact --no-sort --delimiter=$'\t' --with-nth=1 \
+          --preview 'echo {2}' --preview-window=down,1 --prompt='Space > ') || exit 0
 [[ -z $selected ]] && exit 0
 
-open_dir "$selected"
+open_dir "${selected#*$'\t'}"
