@@ -24,7 +24,7 @@ git submodule update --init  # Initialize submodules (pure prompt)
 
 Package structure: `<package>/.config/foo/bar` becomes `~/.config/foo/bar` via symlink.
 
-Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
+Current public packages: `bin`, `ghostty`, `herdr`, `nvim`, `tmux`, `vim`, `zsh`
 
 ## Claude Code Plugin
 
