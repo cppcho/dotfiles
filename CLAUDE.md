@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Personal dotfiles managed with GNU Stow. Each top-level directory (excluding `_`-prefixed and `.`-prefixed dirs) is a Stow package that gets symlinked into `~`.
 
-Private packages (alfred, cursor, git, iterm2, karabiner, private zsh config, launchd jobs) live in a separate repo, `my-stuff`, under its `dotfiles/` directory. That repo stows itself; this one knows nothing about it.
+This repo is only the public half. The private packages live in the private `cppcho/my-stuff` repo under `dotfiles/`, cloned at `~/dev/my-stuff/dotfiles`. It has its own `stow.sh` and is stowed separately, so `make stow` here does not touch them.
 
 ## Commands
 
@@ -15,7 +15,7 @@ make stow          # Restow all packages (runs stow.sh)
 make claude        # Install/update Claude Code marketplace and plugin
 make help          # Show available make targets
 brew bundle install # Install Homebrew dependencies from Brewfile
-git submodule update --init  # Initialize submodules (pure prompt)
+git submodule update --init  # Initialize submodules
 ```
 
 ## How Stow Works Here
@@ -24,27 +24,18 @@ git submodule update --init  # Initialize submodules (pure prompt)
 
 Package structure: `<package>/.config/foo/bar` becomes `~/.config/foo/bar` via symlink.
 
-Current public packages: `bin`, `ghostty`, `herdr`, `nvim`, `tmux`, `vim`, `zsh`
-
 ## Claude Code Plugin
 
-`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin (personal skills like `spec-interview`, `to-tickets`, `implement`, `commit`). It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
+`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin of personal skills. It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
 
 After any change under `_claude-marketplace/plugins/cppcho/skills/` — adding, editing, renaming, or deleting a skill — run `make claude` to reload it. The installed plugin is a snapshot copied into `~/.claude/plugins/cache/`, so edits to the source have no effect until it is reinstalled.
 
-## Key Architecture
-
-- **Neovim** (`nvim/.config/nvim/`): Uses lazy.nvim for plugin management. Config split into `lua/config/` (options, keymaps, lazy bootstrap) and `lua/plugins/` (one file per plugin). LSP configs in `lsp/`. Leader key is Space.
-- **Zsh** (`zsh/`): Oh-my-zsh with Pure prompt theme (from `_vendor/pure` submodule). Sources `~/.zshrc_alias`, `~/.zshrc_private`, `~/.zshrc_local` if they exist.
-- **Tmux** (`tmux/`): Prefix is `C-a`. Uses TPM with catppuccin theme. vim-tmux-navigator for seamless pane/split navigation with `C-h/j/k/l`.
-- **Ghostty** (`ghostty/.config/ghostty/`): IosevkaTerm Nerd Font, minimal config.
-- **Vim** (`vim/`): Legacy `.vimrc` fallback.
-
 ## Conventions
 
+- **Neovim** (`nvim/.config/nvim/`): lazy.nvim; `lua/config/` for options/keymaps/bootstrap, `lua/plugins/` one file per plugin, LSP configs in `lsp/`
+- `vim/` is a legacy `.vimrc` fallback — nvim changes don't need mirroring into it
 - All Stow-managed files retain their dot prefix (e.g., `.zshrc`, `.tmux.conf`)
 - Local customization via untracked files: `~/.zshrc_local`, `~/.vimrc.local`
 - Consistent Catppuccin Mocha theme across nvim, tmux, and terminal
-- `_vendor/` holds git submodules (currently: pure prompt)
-- `.gitignore` patterns: `.DS_Store`, `.vscode/`, `bin/`, `*.local.*`
+- `_vendor/` holds git submodules
 - Zsh aliases go in `zsh/.zshrc_alias` (`~/.zshrc_alias`), not in `.zshrc`
