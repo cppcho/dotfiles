@@ -6,7 +6,7 @@ This file provides guidance to Codex when working with code in this repository.
 
 Personal dotfiles managed with GNU Stow. Each top-level directory (excluding `_`-prefixed and `.`-prefixed dirs) is a Stow package that gets symlinked into `~`.
 
-The `_private` submodule (`dotfiles-private`) contains additional packages and its own AGENTS.md with extended documentation.
+Private packages (alfred, cursor, git, iterm2, karabiner, private zsh config, launchd jobs) live in a separate repo, `my-stuff`, under its `dotfiles/` directory. That repo stows itself; this one knows nothing about it.
 
 ## Commands
 
@@ -15,12 +15,12 @@ make stow          # Restow all packages (runs stow.sh)
 make claude        # Install/update Claude Code marketplace and plugin
 make help          # Show available make targets
 brew bundle install # Install Homebrew dependencies from Brewfile
-git submodule update --init  # Initialize submodules (pure prompt, _private)
+git submodule update --init  # Initialize submodules (pure prompt)
 ```
 
 ## How Stow Works Here
 
-`stow.sh` iterates over top-level directories, skipping `_`-prefixed and `.`-prefixed ones, and runs `stow -R -t ~` on each. Then it runs `_private/stow.sh` if present.
+`stow.sh` iterates over top-level directories, skipping `_`-prefixed and `.`-prefixed ones, and runs `stow -R -t ~` on each.
 
 Package structure: `<package>/.config/foo/bar` becomes `~/.config/foo/bar` via symlink.
 

@@ -9,9 +9,3 @@ for dir in */; do
   echo "Stowing $dir ($(pwd)) -> ~"
   stow -R -t ~ "$dir"
 done
-
-if [[ -f _private/stow.sh ]]; then
-  pushd _private > /dev/null
-  ./stow.sh
-  popd > /dev/null
-fi
