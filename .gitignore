@@ -2,6 +2,5 @@
 .vscode/
 .scratch/
 *.local.*
-herdr/.config/herdr/*.log
-herdr/.config/herdr/session.json
-herdr/.config/herdr/*.sock
+herdr/.config/herdr/*
+!herdr/.config/herdr/config.toml
