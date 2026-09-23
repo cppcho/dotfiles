@@ -1050,35 +1050,14 @@ herdr_workspace_for_path() {
 }
 
 open_in_herdr() {
-    local branch="$1"
-    local wt_path="$2"
+    local wt_path="$2"   # $1 is the branch, which only open_in_tmux needs
 
-    wt_path=$(cd "$wt_path" && pwd)
-    local label
-    label=$(basename "$wt_path")
-    # Feeds herdr-sessionizer's recency ordering.
-    "$HOME/bin/herdr-recent" touch "$wt_path" 2>/dev/null || true
-
-    # Open it as a native herdr worktree so herdr tracks the git checkout (badge,
-    # worktree list, remove confirmation) instead of a generic space. Idempotent:
-    # herdr reconciles by checkout path, focusing the existing workspace — and
-    # upgrading a plain space's metadata — if it's already open.
-    #
-    # --cwd the main worktree: herdr rejects worktree open/create actions whose
-    # source is a *linked* worktree (error "linked_worktree_source"), so anchor
-    # the call to the repo's parent workspace instead of gwt's caller — otherwise
-    # it fails whenever invoked from a secondary worktree. The `|| true` keeps a
-    # non-zero exit from aborting gwt under `set -e` so the fallback below runs.
-    local main_worktree created wsid
-    main_worktree=$(get_main_worktree)
-    created=$(herdr worktree open --cwd "$main_worktree" --path "$wt_path" --label "$label" --focus --json 2>/dev/null) || true
-    wsid=$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id // empty')
-
-    # Fall back to a plain space if the path isn't a registered git worktree
-    # (e.g. a stale directory) or `worktree open` is unavailable.
-    if [[ -z "$wsid" ]]; then
-        herdr workspace create --cwd "$wt_path" --label "$label" --focus >/dev/null 2>&1 || true
-    fi
+    # Focus the space already rooted at the worktree or open one, and record the
+    # visit for herdr-sessionizer's recency ordering. Best-effort: a failure here
+    # must not abort gwt under `set -e` — but it must say so, or the switch looks
+    # like it silently did nothing while leaving you in the old workspace.
+    "$HOME/bin/herdr-workspace-for" --focus "$(cd "$wt_path" && pwd)" >/dev/null \
+        || echo "gwt: could not open a herdr space for $wt_path" >&2
 }
 
 # Close the herdr workspace associated with a worktree path. Mirrors

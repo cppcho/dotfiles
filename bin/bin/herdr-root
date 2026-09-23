@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Print the top of the current project: the herdr workspace's own directory,
-# else the worktree checkout, else the git root. Backs the `_` shell function
-# (see ~/.zshrc_alias); outside herdr it degrades to the git root.
+# Print the top of the current project: the herdr workspace's checkout, else the
+# directory the space was opened at, else the git root. Backs the `_` shell
+# function (see ~/.zshrc_alias); outside herdr it degrades to the git root.
 #
 # Workspaces are used as projects here (see ~/.config/herdr/config.toml), so the
 # workspace's directory wins over the git root: a shell that wandered into a
@@ -12,18 +12,22 @@ set -euo pipefail
 ws="${HERDR_WORKSPACE_ID:-}"
 
 if [[ -n $ws ]]; then
-    # identity_cwd is herdr's own record of where the space was opened — the
-    # exact answer, but session state rather than API, so the API-backed
-    # worktree lookup stands in if a herdr release drops or renames it.
-    sock="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
-    dir=$(jq -r --arg ws "$ws" '
-        (.workspaces // [])[] | select(.id == $ws) | .identity_cwd // empty' \
-        "$(dirname "$sock")/session.json" 2>/dev/null || true)
+    # The checkout herdr bound the space to when it was opened as a worktree.
+    # Fixed for the life of the space, which is what makes it the answer: a pane
+    # that wandered into a linked worktree must still come back here.
+    dir=$(herdr workspace list | jq -r --arg ws "$ws" '
+        (.result.workspaces // [])[] | select(.workspace_id == $ws)
+        | .worktree.checkout_path // empty')
 
     if [[ ! -d $dir ]]; then
-        dir=$(herdr workspace list | jq -r --arg ws "$ws" '
-            (.result.workspaces // [])[] | select(.workspace_id == $ws)
-            | .worktree.checkout_path // empty')
+        # A space opened as a plain workspace carries no checkout, so fall back
+        # to herdr's session state. identity_cwd is rewritten to the active
+        # pane's cwd on every save, so it drifts with a pane that cds away —
+        # still the best available note of where a non-worktree space lives.
+        sock="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
+        dir=$(jq -r --arg ws "$ws" '
+            (.workspaces // [])[] | select(.id == $ws) | .identity_cwd // empty' \
+            "$(dirname "$sock")/session.json" 2>/dev/null || true)
     fi
 
     if [[ -d $dir ]]; then

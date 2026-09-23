@@ -9,6 +9,9 @@
 # Only the current workspace is searched. Workspaces are used as projects here
 # (see ~/.config/herdr/config.toml), so an nvim sitting in another project is
 # never the one this key means.
+#
+# The TODO list (prefix+shift+t) is an nvim too, but it is not the editor: it is
+# neither focused nor closed here, and keeps its own tab.
 set -euo pipefail
 
 ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
@@ -51,9 +54,17 @@ focus_pane() {
 
 panes=$(herdr pane list --workspace "$ws")
 
+# The TODO list owns its pane; ~/bin/herdr-todo is the one place that knows
+# which pane that is.
+todo_pane=""
+if found=$("$HOME/bin/herdr-todo" --find); then
+    todo_pane="${found%%$'\t'*}"
+fi
+
 vim_panes=()
 vim_tabs=()     # vim_tabs[i] is the tab holding vim_panes[i]
 while IFS=$'\t' read -r pane tab; do
+    [ "$pane" = "$todo_pane" ] && continue
     if is_vim "$pane"; then
         vim_panes+=("$pane")
         vim_tabs+=("$tab")

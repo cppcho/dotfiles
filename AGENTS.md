@@ -28,7 +28,7 @@ Current public packages: `ghostty`, `nvim`, `tmux`, `vim`, `zsh`
 
 ## Claude Code Plugin
 
-`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin (personal skills like `brainstorm`, `to-tickets`, `implement`, `commit`). It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
+`_claude-marketplace/` is a local Claude Code marketplace containing the `cppcho` plugin (personal skills like `spec-interview`, `to-tickets`, `implement`, `commit`). It's `_`-prefixed so Stow ignores it. Run `make claude` to register the marketplace and install/update the plugin.
 
 ## Key Architecture
 

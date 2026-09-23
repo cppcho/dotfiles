@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# herdr-follow-worktree — move this pane into the herdr space for a checkout.
+#
+#   herdr-follow-worktree [<dir>]
+#
+# Resolves <dir> (default $PWD) to its git checkout root, finds or opens the
+# space for that checkout (~/bin/herdr-workspace-for) and moves $HERDR_PANE_ID
+# into it as a new tab, focused. A no-op when the pane already sits there.
+#
+# For an agent pane whose work has moved to another worktree: the pane follows,
+# so a space stays one project and the agents panel groups it where the work is.
+# prefix+m (herdr-move-pane-to-worktree) is the same move made interactively,
+# for a worktree picked in fzf rather than the one the caller is standing in.
+#
+# No API can chdir the shell inside a pane, so a moved pane keeps the cwd it
+# started with; the space, and every tab opened in it later, are rooted at the
+# worktree regardless. An agent that changed its own directory first is the
+# consistent case — Claude's EnterWorktree chdirs the process, which is what
+# herdr reports as the pane's foreground cwd (see the follow-worktree skill).
+set -euo pipefail
+
+die() { printf 'herdr-follow-worktree: %s\n' "$1" >&2; exit 1; }
+
+# Run a herdr socket command, failing loudly on transport errors and on a JSON
+# {"error":...} reply (e.g. a client/server mismatch after a herdr upgrade).
+# Result is left in $HERDR_OUT.
+HERDR_OUT=""
+herdr_call() {
+    if ! HERDR_OUT=$(herdr "$@" 2>&1); then
+        die "'herdr $*' failed:"$'\n'"$HERDR_OUT"
+    fi
+    if printf '%s' "$HERDR_OUT" | jq -e 'has("error")' >/dev/null 2>&1; then
+        die "'herdr $*': $(printf '%s' "$HERDR_OUT" | jq -r '.error.message // .error')"
+    fi
+}
+
+pane="${HERDR_PANE_ID:-}"
+[[ -n $pane ]] || die "not running inside a herdr pane (HERDR_PANE_ID unset)"
+
+dir="${1:-$PWD}"
+dir="${dir/#\~/$HOME}"; dir="${dir%/}"
+[[ -d $dir ]] || die "no such directory: $dir"
+
+# The space belongs to the checkout root: herdr records that path, and the exact
+# match is what finds the space again from prefix+f, so a space opened at a
+# subdirectory of the checkout would be a second, unfindable one.
+root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) \
+    || die "not inside a git checkout: $dir"
+
+herdr_call pane get "$pane"
+from=$(printf '%s' "$HERDR_OUT" | jq -r '.result.pane.workspace_id // empty')
+
+# A fresh space comes with an empty root shell, closed once the pane has landed.
+resolved=$("$HOME/bin/herdr-workspace-for" "$root") || die "cannot open a space for $root"
+IFS=$'\t' read -r wsid rootpane <<<"$resolved"
+[[ -n $wsid ]] || die "cannot open a space for $root"
+
+if [[ $wsid == "$from" ]]; then
+    printf 'already in the space for %s (%s)\n' "${root##*/}" "$wsid"
+    exit 0
+fi
+
+herdr_call pane move "$pane" --workspace "$wsid" --new-tab --focus
+[[ -n ${rootpane:-} ]] && herdr_call pane close "$rootpane"
+
+printf 'moved %s to the %s space (%s)\n' "$pane" "${root##*/}" "$wsid"

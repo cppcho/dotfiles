@@ -45,45 +45,24 @@ herdr_call() {
     fi
 }
 
-# Open workspaces, by checkout path (exact) and by label (most recent wins;
-# spaces opened before herdr indexed their worktree only carry a label).
-declare -A path_ws lbl_ws lbl_num
+# Open workspaces, by checkout path and by label, for the `●` marker on rows
+# whose pick joins a live space instead of opening one. Spaces opened before
+# herdr indexed their worktree only carry a label.
+declare -A path_ws lbl_ws
 herdr_call workspace list
-while IFS=$'\t' read -r wsid num label cpath; do
-    [[ -n $cpath && -z ${path_ws[$cpath]:-} ]] && path_ws[$cpath]=$wsid
-    [[ -z $label ]] && continue
-    if (( num > ${lbl_num[$label]:-0} )); then lbl_ws[$label]=$wsid; lbl_num[$label]=$num; fi
+while IFS=$'\t' read -r wsid label cpath; do
+    [[ -n $cpath ]] && path_ws[$cpath]=$wsid
+    [[ -n $label ]] && lbl_ws[$label]=$wsid
 done < <(printf '%s' "$HERDR_OUT" | jq -r '(.result.workspaces // [])[]
-    | "\(.workspace_id)\t\(.number)\t\(.label)\t\(.worktree.checkout_path // "")"')
+    | "\(.workspace_id)\t\(.label)\t\(.worktree.checkout_path // "")"')
 
-# Owning repo root of a worktree checkout, from its `.git` pointer file.
-worktree_repo() {
-    local gitdir
-    gitdir=$(sed -n 's/^gitdir: //p' "$1/.git" 2>/dev/null) || return 1
-    [[ $gitdir == */.git/worktrees/* ]] || return 1
-    printf '%s\n' "${gitdir%/.git/worktrees/*}"
-}
-
-# Focus the space for a directory, or open one. A linked worktree opens as a
-# native herdr worktree (anchored on its main repo: herdr refuses worktree
-# actions sourced from a linked checkout), falling back to a plain space.
+# Focus the space for a directory, opening one if it has none.
 open_dir() {
-    local dir="$1" label repo
+    local dir="$1"
     dir="${dir/#\~/$HOME}"; dir="${dir%/}"
     [[ -d $dir ]] || die "no such directory: $dir"
-    label=$(basename "$dir")
-    "$HOME/bin/herdr-recent" touch "$dir"
-    if [[ -n ${path_ws[$dir]:-} ]]; then
-        herdr_call workspace focus "${path_ws[$dir]}"
-    elif [[ -n ${lbl_ws[$label]:-} ]]; then
-        herdr_call workspace focus "${lbl_ws[$label]}"
-    elif repo=$(worktree_repo "$dir") \
-        && herdr worktree open --cwd "$repo" --path "$dir" --label "$label" --focus --json 2>/dev/null \
-           | jq -e '.result.workspace.workspace_id' >/dev/null; then
-        :
-    else
-        herdr_call workspace create --cwd "$dir" --label "$label" --focus
-    fi
+    "$HOME/bin/herdr-workspace-for" --focus "$dir" >/dev/null \
+        || die "could not open a space for $dir"
 }
 
 # Direct argument skips the picker.
@@ -96,14 +75,63 @@ fi
 # rows: "<display>\t<path>"
 rows=()
 
+# Row display: "<repo> <worktree dir> (<branch>)". A main checkout has no
+# directory of its own to name — it *is* the repo — so it shows "*<branch>"
+# instead, and a worktree directory named after its branch shows just the one
+# name. Result in $ROW; no subshell, because this runs for every candidate on
+# every keypress.
+ROW=""
+fmt_row() {
+    local rest
+    if [[ -z $2 ]]; then                rest="${3:+*$3}"
+    elif [[ -z $3 || $3 == "$2" ]]; then rest="$2"
+    else                                 rest="$2 ($3)"
+    fi
+    if [[ -n $rest ]]; then printf -v ROW '%-24s %s' "$1" "$rest"; else ROW="$1"; fi
+}
+
+# Describe a checkout from its git dir alone — .git is a directory in a clone
+# and a pointer file in a linked worktree. Result in $REPO (the owning repo),
+# $DIR (the checkout's own directory name, empty when it *is* the repo) and
+# $BRANCH (empty on a detached HEAD). Non-zero for a path that is no checkout,
+# or whose .git points somewhere else entirely, such as a submodule.
+REPO="" DIR="" BRANCH=""
+resolve_checkout() {
+    local gitdir="$1/.git" head=""
+    if [[ -f $gitdir ]]; then
+        read -r _ gitdir 2>/dev/null < "$1/.git" || return 1
+    fi
+    if [[ $gitdir == */.git/worktrees/* ]]; then
+        REPO="${gitdir%/.git/worktrees/*}"; REPO="${REPO##*/}"; DIR="${1##*/}"
+    elif [[ -d $gitdir ]]; then
+        REPO="${1##*/}"; DIR=""
+    else
+        return 1
+    fi
+    BRANCH=""
+    read -r _ head 2>/dev/null < "$gitdir/HEAD" || return 0
+    [[ $head == refs/heads/* ]] && BRANCH="${head#refs/heads/}"
+    return 0
+}
+
+# A candidate directory, git or not: a plain directory shows its own name alone.
+add_repo() {
+    if resolve_checkout "$1"; then
+        fmt_row "$REPO" "$DIR" "$BRANCH"
+    else
+        fmt_row "${1##*/}" "" ""
+    fi
+    rows+=("$ROW"$'\t'"$1")
+}
+
 IFS=':' read -ra _paths <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
 for p in "${_paths[@]}"; do
     p="${p/#\~/$HOME}"
     if [[ $p == */ ]]; then
-        while IFS= read -r d; do rows+=("${d##*/}"$'\t'"$d"); done \
+        while IFS= read -r d; do add_repo "$d"; done \
             < <(find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
     else
-        [[ -d $p ]] && rows+=("${p##*/}"$'\t'"$p")
+        [[ -d $p ]] && add_repo "$p"
     fi
 done
 
@@ -111,13 +139,10 @@ done
 # A directory with its own .git is a checkout; otherwise it groups checkouts.
 # Pure bash file reads: this runs for every checkout on every keypress.
 add_worktree() {
-    local wt="$1" gitdir branch
-    read -r _ gitdir < "$wt/.git" 2>/dev/null || return 0
-    [[ $gitdir == */.git/worktrees/* ]] || return 0   # not a submodule pointer
-    local repo="${gitdir%/.git/worktrees/*}"
-    read -r _ branch < "$gitdir/HEAD" 2>/dev/null || branch=""
-    branch="${branch#refs/heads/}"
-    rows+=("$(printf '%-28s %s' "${repo##*/}" "${branch:-${wt##*/}}")"$'\t'"$wt")
+    resolve_checkout "$1" || return 0
+    [[ -n $DIR ]] || return 0   # a clone or a submodule, not a linked worktree
+    fmt_row "$REPO" "$DIR" "$BRANCH"
+    rows+=("$ROW"$'\t'"$1")
 }
 wt_root="${GWT_WORKTREES_DIR:-$HOME/.worktrees}"
 for d in "$wt_root"/*/; do
@@ -130,7 +155,6 @@ for d in "$wt_root"/*/; do
 done
 
 # --- ordering ------------------------------------------------------------------
-"$HOME/bin/herdr-recent" bootstrap >/dev/null 2>&1 || true
 declare -A recent zscore
 while IFS=$'\t' read -r ts rp; do recent[$rp]=$ts; done < <("$HOME/bin/herdr-recent" list)
 if [[ -f ~/.z ]]; then

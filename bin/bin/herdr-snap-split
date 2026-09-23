@@ -4,7 +4,9 @@
 # Usage: herdr-snap-split <ratio>   e.g. herdr-snap-split 0.64
 #
 # If the tab has no horizontal split yet, create one at that ratio
-# (mirrors the tmux prefix+( / prefix+) bindings this replaces).
+# (mirrors the tmux prefix+( / prefix+) bindings this replaces) and start
+# claude in it, which is what the second pane is nearly always for. Set
+# HERDR_SNAP_SPLIT_CMD to run something else, or to empty for a bare shell.
 #
 # Uses the herdr CLI, not the socket API: as of herdr 0.7.3 the socket's
 # pane.split/pane.resize ignore pane_id and act on the focused tab, while the
@@ -27,7 +29,13 @@ fi
 ratio=$(jq -r '[(.splits // [])[] | select(.direction == "right")][0].ratio // empty' <<<"$layout")
 
 if [[ -z "$ratio" ]]; then
-  herdr pane split "${pane_args[@]}" --direction right --ratio "$target" --no-focus >/dev/null
+  new=$(herdr pane split "${pane_args[@]}" --direction right --ratio "$target" --no-focus \
+    | jq -r '.result.pane.pane_id')
+  cmd="${HERDR_SNAP_SPLIT_CMD-claude}"
+  if [[ -n "$cmd" ]]; then
+    # Unquoted so the override can carry arguments.
+    herdr pane run "$new" $cmd >/dev/null
+  fi
   exit 0
 fi
 

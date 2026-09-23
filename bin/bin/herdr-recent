@@ -8,7 +8,8 @@
 #   herdr-recent touch <path>   mark <path> as opened now
 #   herdr-recent list           print "<epoch>\t<path>", most recent first
 #   herdr-recent bootstrap      seed from currently open workspaces (no-op if
-#                               the log already exists)
+#                               the log already exists; `list` does it too, so
+#                               readers need not call it)
 set -euo pipefail
 
 file="${HERDR_RECENT_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/herdr/recent.tsv}"
@@ -26,16 +27,18 @@ touch_path() {
     mv "$tmp" "$file"
 }
 
+bootstrap() {
+    [[ -f $file ]] && return 0
+    # Oldest workspace first so the highest-numbered (newest) ends on top.
+    while IFS= read -r p; do [[ -d $p ]] && touch_path "$p"; done < <(
+        herdr workspace list 2>/dev/null | jq -r '
+            (.result.workspaces // []) | sort_by(.number)[]
+            | .worktree.checkout_path // empty')
+}
+
 case "${1:-}" in
     touch) touch_path "${2:-}" ;;
-    list) [[ -f $file ]] && cat "$file" || true ;;
-    bootstrap)
-        [[ -f $file ]] && exit 0
-        # Oldest workspace first so the highest-numbered (newest) ends on top.
-        while IFS= read -r p; do [[ -d $p ]] && touch_path "$p"; done < <(
-            herdr workspace list 2>/dev/null | jq -r '
-                (.result.workspaces // []) | sort_by(.number)[]
-                | .worktree.checkout_path // empty')
-        ;;
+    list) bootstrap; [[ -f $file ]] && cat "$file" || true ;;
+    bootstrap) bootstrap ;;
     *) echo "usage: herdr-recent touch <path> | list | bootstrap" >&2; exit 2 ;;
 esac

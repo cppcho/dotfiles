@@ -8,8 +8,9 @@ prefix = "ctrl+a"
 goto = ""
 detach = "prefix+d"
 workspace_picker = "prefix+w"
-# Worktrees are opened through prefix+f (herdr-sessionizer) and prefix+g
-# (gwt), see [[keys.command]] below. Disable herdr's native worktree actions.
+# Worktrees are opened through prefix+f (herdr-sessionizer), prefix+g and
+# prefix+shift+g (gwt), see [[keys.command]] below. Disable herdr's native
+# worktree actions.
 open_worktree = ""
 new_worktree = ""
 focus_pane_left = ""
@@ -29,6 +30,9 @@ new_tab = "prefix+c"
 previous_tab = "ctrl+["
 next_tab = "ctrl+]"
 close_tab = "prefix+shift+x"
+# prefix+shift+t is the TODO list (see [[keys.command]] below); tabs are named
+# by ~/bin/herdr-tab-autoname anyway.
+rename_tab = ""
 
 split_vertical = "prefix+%"
 split_horizontal = 'prefix+"'
@@ -53,6 +57,12 @@ type = "shell"
 command = "~/bin/herdr-nvim"
 description = "nvim (focus this space's editor, else new tab)"
 
+[[keys.command]]
+key = "prefix+shift+t"
+type = "shell"
+command = "~/bin/herdr-todo"
+description = "TODO list (focus this space's TODO tab, else new tab)"
+
 # Not a prefix chord: cmd+ctrl+r is the same key VS Code uses to come back here
 # (~/bin/herdr-open-dir), so one chord toggles between editor and terminal.
 [[keys.command]]
@@ -61,9 +71,18 @@ type = "shell"
 command = "~/bin/herdr-code"
 description = "open this space's project root in VS Code (code -r)"
 
-# gwt worktree creation, ported from tmux prefix G.
+# Worktree picker, ported from tmux prefix g. The prefix+f picker scoped to the
+# current repo; type = "pane" so the temp pane inherits the active pane's cwd
+# (terminal.new_cwd defaults to "follow"), which is the repo it lists.
 [[keys.command]]
 key = "prefix+g"
+type = "pane"
+command = "~/bin/herdr-worktree-picker"
+description = "worktree picker (this repo, most recently opened first)"
+
+# gwt worktree creation, ported from tmux prefix G.
+[[keys.command]]
+key = "prefix+shift+g"
 type = "pane"
 command = "~/bin/herdr-gwt-prompt"
 description = "worktree switch (branch/#pr/url)"
@@ -121,6 +140,14 @@ key = "prefix+shift+j"
 type = "pane"
 command = "~/bin/herdr-join-pane"
 description = "join a pane from another tab in this space (fzf picker)"
+
+[[keys.command]]
+key = "prefix+m"
+type = "popup"
+command = "~/bin/herdr-move-pane-to-worktree"
+width = "70%"
+height = "60%"
+description = "move this pane to another worktree's space (most recently opened first)"
 
 [[keys.command]]
 key = "prefix+shift+i"

@@ -44,7 +44,7 @@ Then judge which of three situations you're in:
 
 - **Go ahead** when every line follows from the ticket. A ticket is already an approved plan; re-approving your restatement of it buys nothing.
 - **Stop and ask** when a line is your call — an open seam where the options differ in cost, scope you want to cut or add, a criterion with two readings that lead to different code. Ask in the work's own terms, not skill vocabulary.
-- **Hand it back** when the ticket isn't decided: you can't write Scope without inventing the decision, or the answer changes which modules you touch. Name `/cppcho:brainstorm` or `/cppcho:to-spec` and **stop**. Five runs entered the build loop on an undecided ticket and became design sessions — 860 turns arguing test parallelism, 276 turns iterating a design doc with no code — and together they are a third of everything this skill has ever spent. A question can't reach them; a different skill can.
+- **Hand it back** when the ticket isn't decided: you can't write Scope without inventing the decision, or the answer changes which modules you touch. Name `/cppcho:spec-interview` or `/cppcho:to-spec` and **stop**. Five runs entered the build loop on an undecided ticket and became design sessions — 860 turns arguing test parallelism, 276 turns iterating a design doc with no code — and together they are a third of everything this skill has ever spent. A question can't reach them; a different skill can.
 
 Build that scope and stop there; adjacent fixes belong in a follow-up.
 

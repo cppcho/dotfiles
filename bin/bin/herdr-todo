@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Open the TODO list in a tab of its own, or focus the tab already holding it.
+# Bound to prefix+shift+t as a herdr custom command.
+#
+#   herdr-todo            # focus the TODO tab, else open one
+#   herdr-todo --find     # print "<pane>\t<tab>" of the TODO editor, else exit 1
+#
+# The buffer auto-saves on InsertLeave and TextChanged, so a note is on disk as
+# soon as it is typed and nothing has to be remembered about writing the file.
+#
+# Only the current workspace is searched, like prefix+v (~/bin/herdr-nvim):
+# workspaces are projects here, so the list is reachable from whichever project
+# is in front. The file is shared, so a second copy open elsewhere shows nvim's
+# swap warning — which is the right moment to notice it.
+#
+# --find is what keeps the editor and the list apart: prefix+v asks here which
+# pane is the TODO one and leaves it alone, so the two keys never fight over the
+# same nvim.
+set -euo pipefail
+
+ws="${HERDR_ACTIVE_WORKSPACE_ID:?not run from a herdr keybinding}"
+
+file="$HOME/Documents/TODO.md"
+
+# The tmux is_vim set (see ~/.tmux.conf), matched against the process's
+# argv0/name rather than the raw JSON.
+vim_re='^-?g?\.?(view|l?n?vim?x?)(diff)?(-wrapped)?$'
+
+# The TODO editor is an nvim whose argv names the file. That is the launch
+# command, which herdr keeps reporting however the buffer list changes later.
+find_todo() {
+    local pane tab
+    while IFS=$'\t' read -r pane tab; do
+        if herdr pane process-info --pane "$pane" \
+            | jq -e --arg re "$vim_re" --arg file "$file" '
+                [(.result.process_info.foreground_processes // [])[]
+                 | select([(.argv0 // ""), (.name // "") | sub(".*/"; "") | test($re)] | any)
+                 | (.argv // [])[]]
+                | any(. == $file)' >/dev/null
+        then
+            printf '%s\t%s\n' "$pane" "$tab"
+            return 0
+        fi
+    done < <(
+        herdr pane list --workspace "$ws" \
+            | jq -r '.result.panes[] | "\(.pane_id)\t\(.tab_id)"'
+    )
+    return 1
+}
+
+if [ "${1:-}" = "--find" ]; then
+    find_todo
+    exit
+fi
+
+if found=$(find_todo); then
+    herdr tab focus "${found#*$'\t'}" >/dev/null
+    exit 0
+fi
+
+# The label is left alone by herdr-tab-autoname, which manages only tabs still
+# on a numeric label or on one it set itself.
+created=$(herdr tab create --workspace "$ws" --label TODO --focus)
+herdr pane run "$(jq -r '.result.root_pane.pane_id' <<<"$created")" \
+    "nvim '+autocmd InsertLeave,TextChanged <buffer> silent write' $(printf '%q' "$file")" \
+    >/dev/null

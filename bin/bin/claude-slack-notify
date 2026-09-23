@@ -8,6 +8,8 @@
 # An optional first arg labels the event ("stop" for the Stop hook); without it
 # the script assumes a permission/question request.
 #
+# A project opts out of all three notifications with a .claude/no-notify file.
+#
 # Every notification from one Claude session lands in a single Slack thread,
 # keyed by session_id (state under ~/.claude/slack-threads), so parallel
 # sessions stay untangled. Replies are broadcast back to the channel so the
@@ -45,6 +47,14 @@ sid=$(jqi '.session_id // ""')
 cwd=$(jqi '.cwd // ""')
 proj="${cwd:-$PWD}"
 proj="${proj/#$HOME/\~}"  # collapse home to ~ (e.g. ~/dev/zp-cppcho)
+
+# Opt-out: a project stays silent if it (or any parent) has .claude/no-notify.
+# For repos running a scheduled routine, where every turn would ping.
+optdir="${cwd:-$PWD}"
+while [ -n "$optdir" ] && [ "$optdir" != "/" ]; do
+  [ -e "$optdir/.claude/no-notify" ] && exit 0
+  optdir=$(dirname "$optdir")
+done
 
 # Session title: a /rename custom title wins, else the auto topic title, else
 # the last user prompt. Lets the ping say which session it came from.

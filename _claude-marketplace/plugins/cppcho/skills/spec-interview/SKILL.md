@@ -1,6 +1,7 @@
 ---
-name: brainstorm
-description: Brainstorms a plan, decision, or idea with the user in rounds, working a design tree until nothing is left silently assumed. Use when the user says brainstorm, wants to stress-test or poke holes in their thinking, asks what they are missing, or is weighing an approach and wants the trade-offs worked through. Produces shared understanding, not a document — once the design tree is settled, /cppcho:to-spec writes it up as a spec.
+name: spec-interview
+description: Interviews the user in rounds, working a design tree until nothing is left silently assumed. Produces shared understanding, not a document — once the tree is settled, /cppcho:to-spec writes it up as a spec. Manually invoked via /cppcho:spec-interview.
+disable-model-invocation: true
 ---
 
 Use the `/cppcho:domain-modeling` skill.

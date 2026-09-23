@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# herdr-workspace-for — resolve, or open, the herdr space rooted at a directory.
+#
+#   herdr-workspace-for [--focus|--no-focus] <dir>
+#
+# Prints "<workspace_id>\t<root_pane_id>". The root pane is set only when this
+# call created the space, so a caller that is about to move its own pane in can
+# close the empty shell the new space came with. Default is --no-focus.
+#
+# A git checkout opens as a native herdr worktree so herdr records its checkout
+# path — that exact match is what finds the space again next time, and it earns
+# the worktree badge and remove confirmation. The call is anchored on the repo's
+# main worktree because herdr refuses worktree actions sourced from a linked
+# checkout, and falls back to a plain space for a directory that is no checkout.
+set -euo pipefail
+
+focus=--no-focus
+case "${1:-}" in
+    --focus) focus=--focus; shift ;;
+    --no-focus) shift ;;
+esac
+
+dir="${1:?usage: herdr-workspace-for [--focus] <dir>}"
+dir="${dir/#\~/$HOME}"; dir="${dir%/}"
+[[ -d $dir ]] || { echo "herdr-workspace-for: no such directory: $dir" >&2; exit 1; }
+label="${dir##*/}"
+
+# Run a herdr socket command, failing loudly on transport errors and on a JSON
+# {"error":...} reply (e.g. a client/server mismatch after a herdr upgrade).
+# Result is left in $HERDR_OUT.
+HERDR_OUT=""
+herdr_call() {
+    if ! HERDR_OUT=$(herdr "$@" 2>&1); then
+        printf 'herdr-workspace-for: %s\n%s\n' "'herdr $*' failed:" "$HERDR_OUT" >&2
+        exit 1
+    fi
+    if printf '%s' "$HERDR_OUT" | jq -e 'has("error")' >/dev/null 2>&1; then
+        printf 'herdr-workspace-for: %s %s\n' "'herdr $*':" \
+            "$(printf '%s' "$HERDR_OUT" | jq -r '.error.message // .error')" >&2
+        exit 1
+    fi
+}
+
+"$HOME/bin/herdr-recent" touch "$dir" 2>/dev/null || true
+
+# Existing space: herdr's tracked checkout path first, then the label (highest
+# workspace number wins) for spaces opened before herdr indexed the worktree.
+herdr_call workspace list
+wsid=$(printf '%s' "$HERDR_OUT" | jq -r --arg p "$dir" --arg l "$label" '
+    (.result.workspaces // [])
+    | map(select(.worktree.checkout_path == $p))
+      + (map(select(.label == $l)) | sort_by(.number) | reverse)
+    | .[0].workspace_id // empty')
+
+if [[ -n $wsid ]]; then
+    [[ $focus == --focus ]] && herdr_call workspace focus "$wsid"
+    printf '%s\t\n' "$wsid"
+    exit 0
+fi
+
+root=""
+main=$(git -C "$dir" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p') || main=""
+if [[ -n $main ]] \
+    && out=$(herdr worktree open --cwd "$main" --path "$dir" \
+                 --label "$label" "$focus" --json 2>/dev/null); then
+    wsid=$(jq -r '.result.workspace.workspace_id // empty' <<<"$out")
+    root=$(jq -r '.result.root_pane.pane_id // empty' <<<"$out")
+fi
+
+if [[ -z $wsid ]]; then
+    herdr_call workspace create --cwd "$dir" --label "$label" "$focus"
+    wsid=$(printf '%s' "$HERDR_OUT" | jq -r '.result.workspace.workspace_id // empty')
+    root=$(printf '%s' "$HERDR_OUT" | jq -r '.result.root_pane.pane_id // empty')
+fi
+
+[[ -n $wsid ]] || { echo "herdr-workspace-for: cannot open a space for $dir" >&2; exit 1; }
+printf '%s\t%s\n' "$wsid" "$root"
