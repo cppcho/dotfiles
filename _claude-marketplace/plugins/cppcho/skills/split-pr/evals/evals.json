@@ -1,0 +1,26 @@
+{
+  "skill_name": "split-pr",
+  "evals": [
+    {
+      "id": 1,
+      "name": "plan-refunds-python",
+      "prompt": "In {repo}, my branch `wip` is a work-in-progress with a couple of things mixed into it. I want to land the refund feature onto `integration` as small reviewable PRs. Plan the PRs for me — don't create any branches yet. Save the plan to {outputs}/plan.md.",
+      "expected_output": "A slice plan for the refund feature only: the payment client standalone at the bottom, domain+repository+service by capability with every domain/repository method alongside its caller, handlers+routes+wiring+env last; newsletter hunks excluded; count_refunds flagged as uncalled; stops before building.",
+      "files": ["fixture: build_fixture.py shop"]
+    },
+    {
+      "id": 2,
+      "name": "build-refunds-python",
+      "prompt": "In {repo}, pull the refund feature out of `wip` into stacked PRs onto `integration`. I already agree to whatever split you think is right, so don't stop to ask me — plan it and build it. There's no GitHub here: push the branches to origin, and instead of opening PRs write each PR's title, base branch and description to {outputs}/prs.md. Save your plan to {outputs}/plan.md as well.",
+      "expected_output": "Branches pushed to origin forming one linear stack off integration; each branch passes `python3 -m unittest discover -s tests -t .`; the tip matches wip for refund-only files and matches wip minus newsletter hunks for shared files; no newsletter code anywhere in the stack; prs.md lists each PR with its base.",
+      "files": ["fixture: build_fixture.py shop"]
+    },
+    {
+      "id": 3,
+      "name": "plan-reminders-typescript",
+      "prompt": "{repo} is our billing service. The `wip` branch has the invoice reminders feature plus some unrelated dark-mode UI work. Plan how to split just the reminders into stacked PRs onto `integration`. Plan only — save it to {outputs}/plan.md.",
+      "expected_output": "A plan in the repo's own vocabulary (entities/db/integrations/services/routes/jobs/container): the Twilio SMS client standalone at the bottom carrying the twilio dependency; entity+store+service for reminders with every entity/store method beside its caller; the cron job, the route, container and server wiring together last; the dark-mode files and the color dependency excluded from package.json hunks.",
+      "files": ["fixture: build_fixture.py billing"]
+    }
+  ]
+}
