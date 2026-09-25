@@ -56,8 +56,9 @@ get_default_branch() {
 }
 
 # Directory that holds all gwt-created worktrees. Override with $GWT_WORKTREES_DIR.
-# Worktree dirs are named "<repo>-<slug>", so every repo's trees share one flat
-# root without colliding. Ensures the root exists.
+# Worktrees are nested per repo as "<repo>/<slug>", so every repo's trees live
+# under one root without colliding. git worktree add creates the <repo>/ dir;
+# this just ensures the root exists.
 worktrees_dir() {
     local dir="${GWT_WORKTREES_DIR:-$HOME/.worktrees}"
     mkdir -p "$dir"
@@ -74,16 +75,13 @@ find_worktree_for_branch() {
 }
 
 # Branch a worktree directory is named for: the one whose slug ('/' → '-', the
-# same flattening cmd_switch applies) matches the directory's basename, as
-# "<repo>-<slug>" or the bare "<slug>" of trees nested under a <repo>/ dir.
-# Echoes nothing when no local branch matches or the name is ambiguous.
+# same flattening cmd_switch applies) equals the directory's basename. Echoes
+# nothing when no local branch matches or the name is ambiguous.
 branch_for_worktree_dir() {
-    local want repo
+    local want
     want=$(basename "$1")
-    repo=$(git -C "$1" worktree list --porcelain | head -1 | sed 's/^worktree //')
-    repo=${repo##*/}
-    git -C "$1" for-each-ref --format='%(refname:short)' refs/heads | awk -v want="$want" -v repo="$repo" '
-        { slug = $0; gsub(/\//, "-", slug); if (slug == want || repo "-" slug == want) { n++; found = $0 } }
+    git for-each-ref --format='%(refname:short)' refs/heads | awk -v want="$want" '
+        { slug = $0; gsub(/\//, "-", slug); if (slug == want) { n++; found = $0 } }
         END { if (n == 1) print found }
     '
 }
@@ -647,16 +645,16 @@ cmd_switch() {
     local repo
     repo=$(basename "$main_worktree")
 
-    # Flatten '/' so "feat/foo" → "<repo>-feat-foo", one dir per branch.
+    # Worktree path: nested under a per-repo dir, with '/' in the branch flattened
+    # so "feat/foo" → "<repo>/feat-foo" (one dir per branch, not deeper nesting).
     local branch_slug="${branch//\//-}"
     local wt_root
     wt_root=$(worktrees_dir)
-    local wt_path="${wt_root}/${repo}-${branch_slug}"
+    local wt_path="${wt_root}/${repo}/${branch_slug}"
 
     # Check if a worktree already exists for this branch
-    local existing_wt existing_name
+    local existing_wt
     existing_wt=$(find_worktree_for_branch "$branch")
-    existing_name="${existing_wt##*/}"
 
     # A branch checked out in some other tree's directory (someone ran git
     # checkout in there) is a hijacked tree, not this branch's worktree: hand
@@ -664,7 +662,7 @@ cmd_switch() {
     # worktree the branch should have had. Reclaiming can decline, in which case
     # we fall back to opening the tree where the branch actually sits.
     if [[ -n "$existing_wt" && "$existing_wt" != "$main_worktree" \
-          && "$existing_name" != "${repo}-${branch_slug}" && "$existing_name" != "$branch_slug" ]]; then
+          && "$(basename "$existing_wt")" != "$branch_slug" ]]; then
         if reclaim_stray_checkout "$existing_wt" "$branch"; then
             existing_wt=""
         fi

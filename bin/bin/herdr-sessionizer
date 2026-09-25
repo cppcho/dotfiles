@@ -135,7 +135,7 @@ for p in "${_paths[@]}"; do
     fi
 done
 
-# gwt worktrees: ~/.worktrees/<repo>-<slug> and the older nested <repo>/<slug>.
+# gwt worktrees: ~/.worktrees/<repo>/<slug> and the older flat <repo>-<slug>.
 # A directory with its own .git is a checkout; otherwise it groups checkouts.
 # Pure bash file reads: this runs for every checkout on every keypress.
 add_worktree() {
