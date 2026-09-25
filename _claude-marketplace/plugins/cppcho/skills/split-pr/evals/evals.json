@@ -21,6 +21,14 @@
       "prompt": "{repo} is our billing service. The `wip` branch has the invoice reminders feature plus some unrelated dark-mode UI work. Plan how to split just the reminders into stacked PRs onto `integration`. Plan only — save it to {outputs}/plan.md.",
       "expected_output": "A plan in the repo's own vocabulary (entities/db/integrations/services/routes/jobs/container): the Twilio SMS client standalone at the bottom carrying the twilio dependency; entity+store+service for reminders with every entity/store method beside its caller; the cron job, the route, container and server wiring together last; the dark-mode files and the color dependency excluded from package.json hunks.",
       "files": ["fixture: build_fixture.py billing"]
+    },
+    {
+      "id": 4,
+      "name": "first-slice-assist",
+      "prompt": "In {repo}, `wip` holds the assistant's tool-catalog feature: the catalog client, a catalog cache, the ask service, a customer-token debug path and the /ask endpoint. Carve it into stacked PRs onto `integration`. Plan the whole stack, but build and push only the first slice for now: the catalog client, browser-session path only — the customer-token debug path will be its own slice further up. I already agree with whatever plan you pick, so don't stop to ask. There's no GitHub here: push the branch to origin and write the PR's title, base branch and description to {outputs}/prs.md. Save the plan to {outputs}/plan.md.",
+      "expected_output": "One branch off integration touching only catalog_client.py and its test: no token-path imports, env reads or with_env helper; no comment citing the ToolCatalog cache; ToolSpec imported from assist_contracts 1.5 (on integration since wip forked) instead of the hand-written copy; tests rewritten to pin path, payload and encoding rather than counting calls. The plan puts tests/helpers.py with the debug slice and the LIVE_MODEL flag with the ask-service slice.",
+      "files": ["fixture: build_fixture.py assist"],
+      "grader": "grade_first_slice.py"
     }
   ]
 }

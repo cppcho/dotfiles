@@ -4,6 +4,7 @@
 
     build_fixture.py <dest> shop      # Python app, runnable tests (python3 -m unittest)
     build_fixture.py <dest> billing   # TypeScript app, plan-only (no install needed)
+    build_fixture.py <dest> assist    # Python app; first slice trims a WIP file (see fixture_assist.py)
 """
 import os
 import subprocess
@@ -1064,12 +1065,19 @@ BILLING_WIP = [
     }),
 ]
 
-FIXTURES = {"shop": (SHOP_BASE, SHOP_WIP), "billing": (BILLING_BASE, BILLING_WIP)}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from fixture_assist import ASSIST_BASE, ASSIST_BASE_LATER, ASSIST_WIP  # noqa: E402
+
+FIXTURES = {
+    "shop": (SHOP_BASE, SHOP_WIP, []),
+    "billing": (BILLING_BASE, BILLING_WIP, []),
+    "assist": (ASSIST_BASE, ASSIST_WIP, ASSIST_BASE_LATER),
+}
 
 
 def main():
     dest, name = sys.argv[1], sys.argv[2]
-    base, wip = FIXTURES[name]
+    base, wip, base_later = FIXTURES[name]
     remote = os.path.join(dest, "remote.git")
     repo = os.path.join(dest, "repo")
     os.makedirs(dest, exist_ok=True)
@@ -1083,6 +1091,10 @@ def main():
     sh(repo, "git", "branch", "integration")
     sh(repo, "git", "switch", "-q", "-c", "wip")
     for msg, files in wip:
+        write(repo, files)
+        commit(repo, msg)
+    sh(repo, "git", "switch", "-q", "integration")
+    for msg, files in base_later:
         write(repo, files)
         commit(repo, msg)
     sh(repo, "git", "push", "-q", "origin", "main", "integration", "wip")
