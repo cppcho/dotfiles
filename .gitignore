@@ -5,3 +5,4 @@
 herdr/.config/herdr/*
 !herdr/.config/herdr/config.toml
 nvim/.config/nvim/nvim.log
+.herdr-label-strip-prefixes
