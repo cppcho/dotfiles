@@ -1,6 +1,6 @@
 ---
-name: spec-interview
-description: Interviews the user in rounds, working a design tree until nothing is left silently assumed. Produces shared understanding, not a document — once the tree is settled, /cppcho:to-spec writes it up as a spec. Manually invoked via /cppcho:spec-interview.
+name: grill
+description: Interviews the user in rounds, working a design tree until nothing is left silently assumed. Produces shared understanding, not a document — once the tree is settled, /cppcho:to-spec writes it up as a spec. Manually invoked via /cppcho:grill.
 disable-model-invocation: true
 ---
 
