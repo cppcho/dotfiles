@@ -1,14 +1,14 @@
 ---
 name: implement
-description: Implements the work a spec or ticket describes, slice by slice with tests at agreed seams, runs the repo's gate, reviews the diff and drives it at runtime, has a fresh pair of eyes tighten the comments, and commits — branching, pushing and opening the PR when the work asks for it. Use when building work that has already been specced or ticketed — "build PCE-03", "implement this ticket", "start on the spec", "land the next slice" — and when an epic has a ready ticket and the user asks what to pick up next and to get on with it. When the work isn't decided yet, /cppcho:brainstorm or /cppcho:to-spec comes first.
+description: Implements the work a spec or ticket describes, slice by slice with tests at agreed seams, runs the repo's gate, reviews the diff and drives it at runtime, and commits — branching, pushing and opening the PR when the work asks for it. Use when building work that has already been specced or ticketed — "build PCE-03", "implement this ticket", "start on the spec", "land the next slice" — and when an epic has a ready ticket and the user asks what to pick up next and to get on with it. When the work isn't decided yet, /cppcho:brainstorm or /cppcho:to-spec comes first.
 argument-hint: "[spec-or-ticket-path|ticket-id] [in a worktree] [create a pr]"
 ---
 
 # Implement
 
-**Skill revision: 2026-09-18b.** Quote it in the close-out; nothing else in a transcript records which version of this skill ran.
+**Skill revision: 2026-10-01.** Quote it in the close-out; nothing else in a transcript records which version of this skill ran.
 
-Build what a spec or ticket describes, in three phases: plan it, build it slice by slice, then land it. The third phase is where runs go wrong — never by refusing a step, but by treating a green gate or a pushed commit as the finish line. Across 69 runs, none of which ever compacted, a third ended without the comment pass and a quarter without the commit skill while the instruction sat in context the whole time. So the finish line is defined once, at the end: **the run is done when the close-out template is filled**, every slot with evidence or an explicit skip. Copy this into your first response and tick each box as it lands, so the run carries its own record of what's left:
+Build what a spec or ticket describes, in three phases: plan it, build it slice by slice, then land it. The third phase is where runs go wrong — never by refusing a step, but by treating a green gate or a pushed commit as the finish line. Across 69 runs, none of which ever compacted, a quarter ended without the commit skill while the instruction sat in context the whole time. So the finish line is defined once, at the end: **the run is done when the close-out template is filled**, every slot with evidence or an explicit skip. Copy this into your first response and tick each box as it lands, so the run carries its own record of what's left:
 
 ```
 - [ ] Plan posted — scope, seams, touch list, landing, commands
@@ -16,7 +16,6 @@ Build what a spec or ticket describes, in three phases: plan it, build it slice 
 - [ ] Gate green
 - [ ] Reviewed — findings traced, survivors fixed and pinned by a test
 - [ ] Driven — ran the code, or named the files that make it surface-free
-- [ ] Comments — check-comments over the session's diff
 - [ ] Landed — worktree, push or PR as asked; branch recorded on the ticket
 - [ ] Close-out posted
 ```
@@ -56,7 +55,7 @@ Each slice ships with tests that fail without it. Write them wherever in the cyc
 
 A slice with nothing worth pinning — a mechanical rename, generated code, config nothing reads — is answered by the gate and the drive instead. An awkward test is a design signal, and a new seam changes what the spec committed to, so agree it first.
 
-Write comments under the test the comment pass will apply: keep one only if you can name the wrong conclusion a reader draws without it. Narration, restated field meanings and failure stories don't pass.
+Keep a comment only if you can name the wrong conclusion a reader draws without it. Narration, restated field meanings and failure stories don't pass.
 
 Do the work yourself. A subagent editing in parallel, or re-checking what the plan's commands can check, costs more than it returns here.
 
@@ -76,7 +75,7 @@ Do the work yourself. A subagent editing in parallel, or re-checking what the pl
 
 ## Phase 3 — Land
 
-A green gate says the code compiles and your tests agree with your code. It says nothing about whether the code is right, whether it runs, whether the comments survive a fresh reader, or whether the work is where the invocation said it goes. Those are this phase's four questions, asked once over everything the session built. Don't report before they're answered: "create a pr", "commit and push" and "check with mcp chrome and verify it end to end" are what the user types when this phase stops early, and three runs in five type one of them.
+A green gate says the code compiles and your tests agree with your code. It says nothing about whether the code is right, whether it runs, or whether the work is where the invocation said it goes. Those are this phase's three questions, asked once over everything the session built. Don't report before they're answered: "create a pr", "commit and push" and "check with mcp chrome and verify it end to end" are what the user types when this phase stops early, and three runs in five type one of them.
 
 ### Review
 
@@ -108,15 +107,9 @@ Run the changed code; the gate and the review only read it. Name the surface:
 - **Local binary or CLI** — build it and run it against throwaway infrastructure: an emulator, loopback stand-ins, a seeded row. Report the log lines you saw.
 - **Remote dev service behind auth** — the real endpoint with real mock user data and a real token. Ask for what's missing rather than substituting a local stub.
 
-The `run` skill can launch things; the evidence is what you watched happen. Don't hand it the suite. A slice once went out with a green gate, a clean review and a clean comment pass, and the first click showed a filter reporting "capped at 2" when the cap wasn't what hid the rows — every function was right and only their combination was wrong.
+The `run` skill can launch things; the evidence is what you watched happen. Don't hand it the suite. A slice once went out with a green gate and a clean review, and the first click showed a filter reporting "capped at 2" when the cap wasn't what hid the rows — every function was right and only their combination was wrong.
 
 Skip the drive only when the diff has no runtime surface — tests only, docs, config nothing reads, a mechanical rename — and name the files that make it so.
-
-Review and drive come before the comment pass because fixing findings changes code, and the comment pass describes final state.
-
-### Comments
-
-Read the `cppcho:check-comments` skill and follow it over the session's diff, with the fresh reader on the cheaper model — pass `model: "sonnet"` on the Agent call, which the skill's own `model:` frontmatter can't set for a subagent that merely reads the file. Three fixed rules over a long diff is judgement, not open-ended design, which is what makes the cheap model the right tool here. It delegates to a fresh reader for a reason: the comments you can't audit are your own. Don't brief that reader on the plan or the ticket — every line of that can be laundered back into a comment. Fold its fixes into the slice's commit.
 
 ### Land it
 
@@ -144,10 +137,9 @@ The run ends with this, filled in. A slot you can't fill is a step still to do, 
 **Gate:** <the command> — green | red because …
 **Review:** /code-review at <the level the report said it ran> — N findings, M fixed, rest dead: traced wrong because … / out of scope, <ticket> owns it | skipped because the user said "…"
 **Drive:** what you launched and what you saw it do | skipped — surface-free: <files>
-**Comments:** check-comments — N edits, folded into <sha>
 **Commits:** <shas> on <branch>; PR #… | not pushed because …
 **Next:** the ticket the graph points at | epic complete, archive offered
-**Skill revision:** 2026-09-18b
+**Skill revision:** 2026-10-01
 ```
 
 Write it for someone who has not re-read the ticket: behaviours and files as they'd say them out loud, none of this skill's vocabulary. The measure is whether they can act on it without opening another file.
