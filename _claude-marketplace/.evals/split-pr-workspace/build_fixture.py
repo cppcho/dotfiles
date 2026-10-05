@@ -8,6 +8,7 @@
     build_fixture.py <dest> kb        # Python app; re-plan after the user drops slices (see fixture_kb.py)
     build_fixture.py <dest> turn      # Python app; one-layer feature, thin path first (see fixture_turn.py)
     build_fixture.py <dest> turn-plan # as turn, plus an approved plan the user builds a subset of
+    build_fixture.py <dest> merge     # Python app; wip merged the base and kept stale text (see fixture_merge.py)
 """
 import os
 import subprocess
@@ -1072,6 +1073,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixture_assist import ASSIST_BASE, ASSIST_BASE_LATER, ASSIST_WIP  # noqa: E402
 from fixture_kb import KB_BASE, KB_PLAN_V1, KB_WIP  # noqa: E402
 from fixture_turn import TURN_BASE, TURN_PLAN_V1, TURN_WIP  # noqa: E402
+import fixture_merge  # noqa: E402
 
 FIXTURES = {
     "shop": (SHOP_BASE, SHOP_WIP, []),
@@ -1087,7 +1089,6 @@ PLANS = {"kb": KB_PLAN_V1, "turn-plan": TURN_PLAN_V1}
 
 def main():
     dest, name = sys.argv[1], sys.argv[2]
-    base, wip, base_later = FIXTURES[name]
     remote = os.path.join(dest, "remote.git")
     repo = os.path.join(dest, "repo")
     os.makedirs(dest, exist_ok=True)
@@ -1096,17 +1097,21 @@ def main():
     sh(repo, "git", "config", "user.name", "Fixture")
     sh(repo, "git", "config", "user.email", "fixture@example.com")
     sh(repo, "git", "remote", "add", "origin", remote)
-    write(repo, base)
-    commit(repo, "initial app")
-    sh(repo, "git", "branch", "integration")
-    sh(repo, "git", "switch", "-q", "-c", "wip")
-    for msg, files in wip:
-        write(repo, files)
-        commit(repo, msg)
-    sh(repo, "git", "switch", "-q", "integration")
-    for msg, files in base_later:
-        write(repo, files)
-        commit(repo, msg)
+    if name == "merge":
+        fixture_merge.build_history(repo, sh, write, commit)
+    else:
+        base, wip, base_later = FIXTURES[name]
+        write(repo, base)
+        commit(repo, "initial app")
+        sh(repo, "git", "branch", "integration")
+        sh(repo, "git", "switch", "-q", "-c", "wip")
+        for msg, files in wip:
+            write(repo, files)
+            commit(repo, msg)
+        sh(repo, "git", "switch", "-q", "integration")
+        for msg, files in base_later:
+            write(repo, files)
+            commit(repo, msg)
     sh(repo, "git", "push", "-q", "origin", "main", "integration", "wip")
     sh(repo, "git", "switch", "-q", "main")
     if name in PLANS:

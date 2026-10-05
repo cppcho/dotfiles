@@ -68,6 +68,16 @@
         "fixture: build_fixture.py turn-plan (writes plan_v1.md beside the repo)"
       ],
       "grader": "grade_turn.py subset"
+    },
+    {
+      "id": 8,
+      "name": "stale-merge-greeting",
+      "prompt": "In {repo}, `wip` has the follow-up suggestions for our chat backend. Carve the suggestions into stacked PRs onto `integration` and build them all. I already agree with whatever split you pick, so don't stop to ask. There's no GitHub here: push the branches to origin, write each PR's title, base branch and description to {outputs}/prs.md, and save the plan to {outputs}/plan.md.",
+      "expected_output": "The suggestions land (suggest.py, run_turn calling it, tests). wip merged integration and resolved its conflicts with its own older greeting code, so the three-dot diff also reverts #101's punctuation fix, comment and two tests; every slice keeps integration's version of those, and the plan names the stale merge resolution as a deviation from wip.",
+      "files": [
+        "fixture: build_fixture.py merge"
+      ],
+      "grader": "grade_merge.py"
     }
   ]
 }
