@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# herdr-pr-status — prefix each herdr space's name with its PR status emoji.
+#
+#   herdr-pr-status                    # run forever (the launchd agent)
+#   herdr-pr-status --once             # one pass over every space
+#   herdr-pr-status --dry              # print what one pass would report
+#   herdr-pr-status --refresh-here     # refresh only the space for $PWD's checkout
+#
+# The PR is the one for the checkout's current branch (its upstream name when it
+# has one), not the worktree directory, so switching branches in a worktree
+# switches the emoji.
+#
+# Two workspace tokens: $pr holds the emoji, with a TTL of a few poll intervals
+# so a dead poller drops it rather than leaving it stale; $title is "<emoji>
+# <label>", the sidebar's name. The sidebar shows $title in place of the
+# built-in workspace token because herdr puts a " · " between any two row tokens
+# but the one after state_icon. $title has no TTL, since an expired one would
+# leave the row nameless, so the loop rebuilds it every couple of seconds to
+# follow renames, new spaces and an expired $pr.
+#
+# First match wins:
+#   🟣 merged  🚫 closed  💤 draft  💥 conflict  🔥 CI failing
+#   🔴 changes requested  🟢 approved  🔄 CI running  🟡 waiting for review
+#
+# Env:
+#   HERDR_PR_STATUS_INTERVAL   GitHub poll seconds (default 180)
+#   HERDR_PR_STATUS_TICK       title sync seconds (default 2)
+#   HERDR_PR_STATUS_IGNORE     ERE of check names left out of CI state
+#                              (default: policy-bot, an approval gate that
+#                              stays pending until review, not CI)
+set -uo pipefail
+
+interval="${HERDR_PR_STATUS_INTERVAL:-180}"
+tick="${HERDR_PR_STATUS_TICK:-2}"
+ignore="${HERDR_PR_STATUS_IGNORE:-^policy-bot}"
+ttl_ms=$(( interval * 3 * 1000 ))
+jobs_max=6
+
+mode="loop"
+case "${1:-}" in
+    --once) mode="once" ;;
+    --dry) mode="dry" ;;
+    --refresh-here) mode="here" ;;
+esac
+
+# Increasing across processes, so a stale poller result can't overwrite a newer
+# hook refresh.
+seq_now() {
+    if [[ -n ${EPOCHREALTIME:-} ]]; then
+        local t=${EPOCHREALTIME/./}
+        printf '%s' "${t:0:13}"
+    else
+        printf '%s000' "$(date +%s)"
+    fi
+}
+
+# Branch name to look the PR up by: the upstream's, else the local one. Empty
+# for detached HEAD and for the repo's default branch, which has no PR of its
+# own (or only a release PR that isn't this checkout's work).
+pr_branch() {
+    local dir="$1" branch up default
+    branch=$(git -C "$dir" symbolic-ref --short -q HEAD) || return
+    default=$(git -C "$dir" symbolic-ref --short -q refs/remotes/origin/HEAD 2>/dev/null)
+    [[ $branch == "${default#origin/}" ]] && return
+    if up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null); then
+        branch=${up#*/}
+    fi
+    printf '%s' "$branch"
+}
+
+# Emoji for the newest PR whose head is $2, or empty when there's none.
+pr_emoji() {
+    local dir="$1" branch="$2" json
+    json=$(cd "$dir" && gh pr list --head "$branch" --state all --limit 1 \
+        --json state,isDraft,reviewDecision,mergeable,statusCheckRollup 2>/dev/null) || return
+    jq -r --arg ignore "$ignore" '
+        .[0] // empty
+        | ([.statusCheckRollup[]?
+            | select(((.name // .context // "") | test($ignore)) | not)
+            | if .__typename == "StatusContext" then .state
+              elif .status != "COMPLETED" then "PENDING"
+              else .conclusion end]) as $checks
+        | def any_of($s): any($checks[]; IN($s[]));
+          if .state == "MERGED" then "🟣"
+          elif .state == "CLOSED" then "🚫"
+          elif .isDraft then "💤"
+          elif .mergeable == "CONFLICTING" then "💥"
+          elif any_of(["FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"]) then "🔥"
+          elif .reviewDecision == "CHANGES_REQUESTED" then "🔴"
+          elif .reviewDecision == "APPROVED" then "🟢"
+          elif any_of(["PENDING", "EXPECTED"]) then "🔄"
+          else "🟡" end' <<<"$json"
+}
+
+refresh() {
+    local ws="$1" dir="$2" branch="" emoji=""
+    [[ -d $dir ]] || return
+    branch=$(pr_branch "$dir")
+    [[ -n $branch ]] && emoji=$(pr_emoji "$dir" "$branch")
+
+    if [[ $mode == "dry" ]]; then
+        printf '%s\t%s\t%s\n' "${emoji:--}" "${branch:--}" "$dir"
+    elif [[ -n $emoji ]]; then
+        herdr workspace report-metadata "$ws" --source pr-status --seq "$(seq_now)" \
+            --token "pr=$emoji" --ttl-ms "$ttl_ms" >/dev/null 2>&1
+    else
+        herdr workspace report-metadata "$ws" --source pr-status --seq "$(seq_now)" \
+            --clear-token pr >/dev/null 2>&1
+    fi
+}
+
+# "<workspace_id>\t<checkout_path>" for every space herdr tracks as a checkout.
+spaces() {
+    herdr workspace list 2>/dev/null | jq -r '
+        (.result.workspaces // [])[]
+        | select(.worktree.checkout_path)
+        | "\(.workspace_id)\t\(.worktree.checkout_path)"' 2>/dev/null
+}
+
+pass() {
+    local ws dir
+    while IFS=$'\t' read -r ws dir; do
+        while (( $(jobs -rp | wc -l) >= jobs_max )); do wait -n; done
+        refresh "$ws" "$dir" &
+    done < <(spaces)
+    wait
+}
+
+# Rewrite $title on every space (or only $1) whose "<$pr> <label>" changed.
+sync_titles() {
+    local ws title
+    while IFS=$'\t' read -r ws title; do
+        herdr workspace report-metadata "$ws" --source pr-title --seq "$(seq_now)" \
+            --token "title=$title" >/dev/null 2>&1
+    done < <(herdr workspace list 2>/dev/null | jq -r --arg only "${1:-}" '
+        (.result.workspaces // [])[]
+        | select($only == "" or .workspace_id == $only)
+        | ((.tokens.pr // "") as $pr
+           | (if $pr == "" then "" else "\($pr) " end) + (.label // "")) as $want
+        | select(.tokens.title != $want)
+        | "\(.workspace_id)\t\($want)"' 2>/dev/null)
+}
+
+case "$mode" in
+    here)
+        # Called from a git hook: stay silent and never fail the git command.
+        dir=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+        ws=$(spaces | awk -F'\t' -v d="$dir" '$2 == d {print $1; exit}')
+        [[ -n $ws ]] && refresh "$ws" "$dir" && sync_titles "$ws"
+        exit 0
+        ;;
+    dry) pass ;;
+    once) pass; sync_titles ;;
+    loop)
+        # GitHub passes run in the background so a slow one doesn't hold up
+        # the title sync.
+        pass_pid="" last_pass=-$interval
+        while :; do
+            if (( SECONDS - last_pass >= interval )) \
+                && ! { [[ -n $pass_pid ]] && kill -0 "$pass_pid" 2>/dev/null; }; then
+                pass & pass_pid=$!
+                last_pass=$SECONDS
+            fi
+            sync_titles
+            sleep "$tick"
+        done
+        ;;
+esac
