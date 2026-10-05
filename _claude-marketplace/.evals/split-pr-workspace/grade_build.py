@@ -65,10 +65,16 @@ def main():
     check("Every branch in the stack passes python3 -m unittest discover -s tests -t .", stack and not failures, "; ".join(failures) or f"{len(stack)} branches green")
 
     tip = contents[stack[-1]] if stack else {}
+    # Tests may gain cases the plan added (the gate asks for a guard on every behaviour); they must keep wip's.
     diffs = []
     for f in REFUND_ONLY:
         wip = git(remote, "show", f"wip:{f}")
-        if tip.get(f) != wip:
+        if f.startswith("tests/"):
+            wip_tests = {l.strip() for l in wip.splitlines() if l.strip().startswith("def test_")}
+            tip_tests = {l.strip() for l in tip.get(f, "").splitlines() if l.strip().startswith("def test_")}
+            if not wip_tests <= tip_tests:
+                diffs.append(f"{f} (lost {sorted(wip_tests - tip_tests)})")
+        elif tip.get(f) != wip:
             diffs.append(f)
     repo_file = "shop/repository/order_repository.py"
     wip_repo = git(remote, "show", f"wip:{repo_file}")
@@ -83,15 +89,25 @@ def main():
     missing = [f"{f}:{m}" for f, ms in SHARED_REFUND_MARKERS.items() for m in ms if m not in tip.get(f, "")]
     check("The tip's shared files (handlers, app, .env.example, tests) carry the refund hunks", stack and not missing, f"missing: {missing}" if missing else "all present")
 
+    # The thin path: the bottom slice already issues a refund over HTTP, and nothing else.
     first = contents[stack[0]] if stack else {}
+    first_app, first_handlers = first.get("shop/app.py", ""), first.get("shop/api/handlers.py", "")
     check(
-        "The payment client slice comes first and is not wired into app.py",
-        "shop/clients/payment_client.py" in first and "PaymentClient" not in first.get("shop/app.py", ""),
-        f"first={stack[0] if stack else None}; client={'shop/clients/payment_client.py' in first}; wired={'PaymentClient' in first.get('shop/app.py', '')}",
+        "The bottom slice is a working refund path: post_refund routed in app.py with PaymentClient wired",
+        "post_refund" in first_handlers and "PaymentClient" in first_app and "/orders/{id}/refunds" in first_app,
+        f"first={stack[0] if stack else None}; post_refund={'post_refund' in first_handlers}; wired={'PaymentClient' in first_app}",
     )
-
-    early_handlers = [b for b in stack[:-1] if "post_refund" in contents[b].get("shop/api/handlers.py", "")]
-    check("post_refund/get_refunds handlers only appear in the top slice", stack and not early_handlers, f"early: {early_handlers}" if early_handlers else "top only")
+    first_order = first.get("shop/domain/order.py", "")
+    check(
+        "The bottom slice is safe to run: refunds are already capped at what is refundable",
+        "refundable_amount" in first_order and "RefundNotAllowed" in first_order,
+        f"refundable_amount={'refundable_amount' in first_order} RefundNotAllowed={'RefundNotAllowed' in first_order}",
+    )
+    check(
+        "The bottom slice is thin: listing refunds arrives in a later slice",
+        stack and "get_refunds" not in first_handlers and "list_refunds" not in first.get("shop/service/refund_service.py", ""),
+        f"get_refunds={'get_refunds' in first_handlers}",
+    )
 
     # The caller rule: a domain or repository method only lands in a slice that also has its caller.
     uncalled = []
@@ -104,9 +120,13 @@ def main():
             uncalled.append(f"{b}: save_refund without RefundService")
         if "list_refunds" in t.get("shop/repository/order_repository.py", "") and "list_refunds" not in t.get("shop/service/refund_service.py", ""):
             uncalled.append(f"{b}: repository list_refunds without its service caller")
+        if "list_refunds" in t.get("shop/service/refund_service.py", "") and "get_refunds" not in t.get("shop/api/handlers.py", ""):
+            uncalled.append(f"{b}: service list_refunds without the get_refunds handler")
+        if "shop/service/refund_service.py" in t and "post_refund" not in t.get("shop/api/handlers.py", ""):
+            uncalled.append(f"{b}: RefundService without the post_refund handler")
         if "count_refunds" in t.get("shop/repository/order_repository.py", ""):
             uncalled.append(f"{b}: count_refunds has no caller anywhere")
-    check("No slice adds a domain or repository method without its caller", stack and not uncalled, "; ".join(uncalled) or "every method lands beside its caller")
+    check("No slice adds a domain, repository or service method without its caller", stack and not uncalled, "; ".join(uncalled) or "every method lands beside its caller")
 
     prs_path = os.path.join(run, "outputs", "prs.md")
     prs = open(prs_path).read() if os.path.exists(prs_path) else ""

@@ -2,3 +2,6 @@
 # .git. Regenerable, and no business being nested in this repo.
 implement-workspace/iteration-*/
 implement-workspace/experiment-*/
+split-pr-workspace/iteration-*/
+split-pr-workspace/skill-snapshot/
+__pycache__/

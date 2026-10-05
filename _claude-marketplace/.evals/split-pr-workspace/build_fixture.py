@@ -6,6 +6,8 @@
     build_fixture.py <dest> billing   # TypeScript app, plan-only (no install needed)
     build_fixture.py <dest> assist    # Python app; first slice trims a WIP file (see fixture_assist.py)
     build_fixture.py <dest> kb        # Python app; re-plan after the user drops slices (see fixture_kb.py)
+    build_fixture.py <dest> turn      # Python app; one-layer feature, thin path first (see fixture_turn.py)
+    build_fixture.py <dest> turn-plan # as turn, plus an approved plan the user builds a subset of
 """
 import os
 import subprocess
@@ -1069,15 +1071,18 @@ BILLING_WIP = [
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixture_assist import ASSIST_BASE, ASSIST_BASE_LATER, ASSIST_WIP  # noqa: E402
 from fixture_kb import KB_BASE, KB_PLAN_V1, KB_WIP  # noqa: E402
+from fixture_turn import TURN_BASE, TURN_PLAN_V1, TURN_WIP  # noqa: E402
 
 FIXTURES = {
     "shop": (SHOP_BASE, SHOP_WIP, []),
     "billing": (BILLING_BASE, BILLING_WIP, []),
     "assist": (ASSIST_BASE, ASSIST_WIP, ASSIST_BASE_LATER),
     "kb": (KB_BASE, KB_WIP, []),
+    "turn": (TURN_BASE, TURN_WIP, []),
+    "turn-plan": (TURN_BASE, TURN_WIP, []),
 }
 # An earlier, approved plan the run starts from, written next to the repo.
-PLANS = {"kb": KB_PLAN_V1}
+PLANS = {"kb": KB_PLAN_V1, "turn-plan": TURN_PLAN_V1}
 
 
 def main():

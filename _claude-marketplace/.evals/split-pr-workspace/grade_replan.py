@@ -7,7 +7,6 @@ import sys
 import tempfile
 
 TEST_CMD = ["python3", "-m", "unittest", "discover", "-s", "tests", "-t", "."]
-CLIENT_FILES = {"assist/clients/catalog_client.py", "tests/test_catalog_client.py"}
 REFRESH_FILES = ["scripts/refresh/crawl.py", "scripts/check_knowledge.py", "tests/test_refresh.py",
                  "tests/test_check_knowledge.py", "tests/fixtures/pages.json", "tests/fixtures/index_bad.jsonl"]
 REFRESH_WORDS = ["tmp_cwd", "REFRESH_SOURCE_URL"]
@@ -45,9 +44,17 @@ def main():
         trees[b] = {f: git(remote, "show", f"{b}:{f}") for f in files}
     check("Every slice's test suite passes", not failures, f"failing={failures}" if failures else "all green")
 
-    changed = set(git(remote, "diff", "--name-only", f"integration...{stack[0]}").split())
-    check("Slice 1 is the catalog client alone (no helpers, fixtures or env riding along)",
-          changed == CLIENT_FILES, f"changed={sorted(changed)}")
+    # Slice 1 is a thin path: POST /ask answering through one capability (the tool or the knowledge),
+    # carrying only the helpers that capability needs. FakeHTTP and GATEWAY_URL are already on integration.
+    first = trees[stack[0]]
+    has_client = "assist/clients/catalog_client.py" in first
+    has_loader = "assist/knowledge/load.py" in first
+    routed = "/ask" in first.get("assist/app.py", "") and "post_ask" in first.get("assist/api/handlers.py", "")
+    check("Slice 1 serves POST /ask end to end through exactly one of the two capabilities",
+          routed and has_client != has_loader, f"routed={routed} client={has_client} loader={has_loader}")
+    stray = "def fixture_path" in first.get("tests/helpers.py", "") and not has_loader
+    check("Slice 1 carries fixture_path only if it carries the knowledge loader that uses it",
+          not stray, "fixture_path without the loader" if stray else "clean")
 
     leaks = [f"{b}:{f}" for b in stack for f in REFRESH_FILES if f in trees[b]]
     leaks += [f"{b}:{f}:{w}" for b in stack for f, body in trees[b].items() for w in REFRESH_WORDS if w in body]
@@ -61,9 +68,10 @@ def main():
         "assist/knowledge/load.py": "assist/knowledge/load.py" in top,
         "fixture_path in tests/helpers.py": "def fixture_path" in top.get("tests/helpers.py", ""),
         "tests/fixtures/index_small.jsonl": "tests/fixtures/index_small.jsonl" in top,
+        "assist/clients/catalog_client.py": "assist/clients/catalog_client.py" in top,
     }
     missing = [k for k, ok in carried.items() if not ok]
-    check("Slice 2 carries the committed index, the loader and the fixture_path helper it needs",
+    check("By slice 2 both capabilities are in: the committed index, loader, fixture_path and the catalog client",
           not missing, f"missing={missing}" if missing else "all present")
 
     plan, prs = (os.path.join(run, "outputs", n) for n in ("plan.md", "prs.md"))
