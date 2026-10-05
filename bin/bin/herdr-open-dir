@@ -18,7 +18,7 @@ dir="${1:?usage: herdr-open-dir <dir>}"
 dir="${dir/#\~/$HOME}"
 [[ -d "$dir" ]] || die "no such directory: $dir"
 dir=$(cd "$dir" && pwd)
-label=$("$HOME/bin/herdr-label" "$dir")
+label=$(basename "$dir")
 
 # Focusing a workspace doesn't raise the terminal, so a call from another app
 # would otherwise change nothing the caller can see.

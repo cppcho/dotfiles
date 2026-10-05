@@ -1038,10 +1038,10 @@ open_in_tmux() {
 
 # Find the herdr workspace already rooted at a worktree path. Match first on the
 # git checkout path herdr tracks per workspace (robust), then fall back to the
-# label (workspaces opened before herdr indexed the worktree).
+# dir-basename label (workspaces opened before herdr indexed the worktree).
 herdr_workspace_for_path() {
     local wt_path="$1" label
-    label=$("$HOME/bin/herdr-label" "$wt_path" 2>/dev/null || basename "$wt_path")
+    label=$(basename "$wt_path")
     herdr workspace list 2>/dev/null | jq -r --arg p "$wt_path" --arg l "$label" '
         (.result.workspaces // [])
         | ( map(select(.worktree.checkout_path == $p))

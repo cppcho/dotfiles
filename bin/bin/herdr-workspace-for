@@ -23,7 +23,7 @@ esac
 dir="${1:?usage: herdr-workspace-for [--focus] <dir>}"
 dir="${dir/#\~/$HOME}"; dir="${dir%/}"
 [[ -d $dir ]] || { echo "herdr-workspace-for: no such directory: $dir" >&2; exit 1; }
-label=$("$HOME/bin/herdr-label" "$dir")
+label="${dir##*/}"
 
 # Run a herdr socket command, failing loudly on transport errors and on a JSON
 # {"error":...} reply (e.g. a client/server mismatch after a herdr upgrade).
