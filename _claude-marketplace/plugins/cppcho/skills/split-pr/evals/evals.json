@@ -29,6 +29,14 @@
       "expected_output": "One branch off integration touching only catalog_client.py and its test: no token-path imports, env reads or with_env helper; no comment citing the ToolCatalog cache; ToolSpec imported from assist_contracts 1.5 (on integration since wip forked) instead of the hand-written copy; tests rewritten to pin path, payload and encoding rather than counting calls. The plan puts tests/helpers.py with the debug slice and the LIVE_MODEL flag with the ask-service slice.",
       "files": ["fixture: build_fixture.py assist"],
       "grader": "grade_first_slice.py"
+    },
+    {
+      "id": 5,
+      "name": "replan-drop-refresh-kb",
+      "prompt": "Earlier you planned how to carve `wip` in {repo} into stacked PRs onto `integration`, and I approved it; the plan is at {fixture}/plan_v1.md. Change of scope: temporarily scope out the knowledge-refresh tooling — the crawler and the check CLI. We just need its final output, the committed index, and the runtime code that reads it. Re-plan, then build and push the first two slices of the new plan. Don't stop to ask. There's no GitHub here: push the branches to origin, write each PR's title, base branch and description to {outputs}/prs.md, and save the new plan to {outputs}/plan.md.",
+      "expected_output": "Slice 1 is the catalog client alone; tests/helpers.py and .env.example are not in it even though plan v1 attached them to the (now dropped) bottom slice. Slice 2 carries the committed index, the loader, the ask service, index_small.jsonl and fixture_path — but not tmp_cwd, pages.json, index_bad.jsonl or REFRESH_SOURCE_URL, which only the dropped tooling used.",
+      "files": ["fixture: build_fixture.py kb (writes plan_v1.md beside the repo)"],
+      "grader": "grade_replan.py"
     }
   ]
 }

@@ -5,6 +5,7 @@
     build_fixture.py <dest> shop      # Python app, runnable tests (python3 -m unittest)
     build_fixture.py <dest> billing   # TypeScript app, plan-only (no install needed)
     build_fixture.py <dest> assist    # Python app; first slice trims a WIP file (see fixture_assist.py)
+    build_fixture.py <dest> kb        # Python app; re-plan after the user drops slices (see fixture_kb.py)
 """
 import os
 import subprocess
@@ -1067,12 +1068,16 @@ BILLING_WIP = [
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixture_assist import ASSIST_BASE, ASSIST_BASE_LATER, ASSIST_WIP  # noqa: E402
+from fixture_kb import KB_BASE, KB_PLAN_V1, KB_WIP  # noqa: E402
 
 FIXTURES = {
     "shop": (SHOP_BASE, SHOP_WIP, []),
     "billing": (BILLING_BASE, BILLING_WIP, []),
     "assist": (ASSIST_BASE, ASSIST_WIP, ASSIST_BASE_LATER),
+    "kb": (KB_BASE, KB_WIP, []),
 }
+# An earlier, approved plan the run starts from, written next to the repo.
+PLANS = {"kb": KB_PLAN_V1}
 
 
 def main():
@@ -1099,6 +1104,9 @@ def main():
         commit(repo, msg)
     sh(repo, "git", "push", "-q", "origin", "main", "integration", "wip")
     sh(repo, "git", "switch", "-q", "main")
+    if name in PLANS:
+        with open(os.path.join(dest, "plan_v1.md"), "w") as f:
+            f.write(textwrap.dedent(PLANS[name]).lstrip("\n"))
     print(repo)
 
 
