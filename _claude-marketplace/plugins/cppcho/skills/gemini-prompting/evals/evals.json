@@ -1,0 +1,62 @@
+{
+  "skill_name": "gemini-prompting",
+  "evals": [
+    {
+      "id": 1,
+      "name": "nextjs-grounded-faq-assistant",
+      "prompt": "I'm building a Next.js route handler at app/api/plan-faq/route.ts that answers customer questions about our MVNO plans using the Vercel AI SDK with google('gemini-3.8-flash'). The FAQ text (around 40k tokens of markdown) is loaded from lib/faq.md at request time. Answers must come only from the FAQ, in Japanese, polite but not stiff. Write the route handler including the system prompt. Save it to {outputs}/route.ts.",
+      "expected_output": "A route.ts using streamText/generateText with google('gemini-3.8-flash'): system instruction holds persona, language, tone, length and the grounding rule (only the FAQ; a set reply when the answer is absent); the FAQ goes in the user turn before the question, which is anchored ('Based on the FAQ above'); no temperature/topP/topK; no step-by-step or <thinking> scaffolding; no caps emphasis; one delimiter style; a few-shot example or explicit length/format guidance; current date injected at runtime.",
+      "files": [],
+      "assertions": [
+        "No temperature/topP/topK set",
+        "No caps emphasis (IMPORTANT/MUST/CRITICAL/NEVER/ALWAYS) in prompt text",
+        "No step-by-step / <thinking> scaffolding",
+        "Few-shot examples included in the prompt",
+        "One delimiter style (not XML tags and Markdown headings mixed)",
+        "Grounding fallback reply defined for answers not in the FAQ",
+        "Current date injected at runtime",
+        "Uses gemini-3.8-flash via @ai-sdk/google"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "go-function-declarations",
+      "prompt": "Our Go service calls Gemini 3.1 Pro through google.golang.org/genai to run a support agent. Write the genai.FunctionDeclaration values for three tools the agent can call: one that looks up an account's current plan by account ID (MM + 10 digits), one that returns data usage for a billing month in MB or GB, and one that changes the plan to one of 'mini', 'standard', 'large' starting next month. Also write the system instruction that tells the agent how to use them. Put it all in {outputs}/tools.go (package agent).",
+      "expected_output": "Three FunctionDeclarations with snake_case verb names; each description says what it does and when to use it; every parameter typed and described with format (account ID pattern, YYYY-MM month); unit and plan as enums; Required set; the change-plan tool flagged as a write that needs confirmation/validation; a system instruction that explains tool use plainly with no caps emphasis or step-by-step scaffolding; no Temperature set.",
+      "files": [],
+      "assertions": [
+        "No temperature/topP/topK set",
+        "No caps emphasis (IMPORTANT/MUST/CRITICAL/NEVER/ALWAYS) in prompt text",
+        "No step-by-step / <thinking> scaffolding",
+        "Few-shot examples included in the prompt",
+        "One delimiter style (not XML tags and Markdown headings mixed)",
+        "Three function names, all snake_case",
+        "unit and plan declared as enums",
+        "Required set on every declaration",
+        "Formats described (YYYY-MM month, MM + 10 digit account ID)",
+        "Plan change gated on user confirmation"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "rewrite-claude-style-classifier",
+      "prompt": "This classifier at {inputs}/classify-inquiry.ts runs on gemini-3.8-flash and sometimes returns categories that aren't in our list, and urgency is flaky. Can you rewrite it so it works well on Gemini? Keep the same categories and rules. Save the new file to {outputs}/classify-inquiry.ts and a short note of what you changed and why to {outputs}/notes.md.",
+      "expected_output": "temperature: 0 removed; IMPORTANT/MUST/CRITICAL caps and the duplicated CRITICAL line removed; the <thinking> step-by-step instruction removed (thinkingLevel set via providerOptions instead, optional); mixed XML+Markdown unified to one style; schema uses z.enum for category and urgency, regex/describe for accountId, .describe() on every field; the JSON shape is no longer restated in the prompt; 2-4 few-shot examples added with identical formatting; categories and urgency rules preserved; notes.md cites Gemini guidance for each change.",
+      "files": [
+        "evals/files/classify-inquiry.ts"
+      ],
+      "assertions": [
+        "No temperature/topP/topK set",
+        "No caps emphasis (IMPORTANT/MUST/CRITICAL/NEVER/ALWAYS) in prompt text",
+        "No step-by-step / <thinking> scaffolding",
+        "Few-shot examples included in the prompt",
+        "One delimiter style (not XML tags and Markdown headings mixed)",
+        "category and urgency are z.enum",
+        "Every schema field has .describe()",
+        "JSON shape not restated in the prompt",
+        "All five categories preserved",
+        "notes.md written"
+      ]
+    }
+  ]
+}

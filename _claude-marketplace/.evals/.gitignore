@@ -5,3 +5,4 @@ implement-workspace/experiment-*/
 split-pr-workspace/iteration-*/
 split-pr-workspace/skill-snapshot/
 __pycache__/
+gemini-prompting-workspace/iteration-*/
