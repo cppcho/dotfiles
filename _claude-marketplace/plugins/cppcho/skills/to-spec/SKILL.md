@@ -11,7 +11,9 @@ This skill takes the current conversation context and codebase understanding and
 
 2. Sketch out the seams at which you're going to test the feature. A **seam** is a place where you can substitute behaviour without editing the code under test — the boundary a test plugs into. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-   Name these seams in the spec's Implementation Decisions, in plain words: the concrete boundary ("the repository interface", "the gRPC handler") and what a fake replaces there. "Seam" is this skill's internal shorthand, not shared vocabulary — prose that leans on it reads as jargon. Do not stop to confirm them. Write the spec, then say in one line which boundary you chose, so it can be redirected before `/cppcho:to-tickets` cuts tickets from it.
+   Name these seams in the spec's Implementation Decisions, in plain words: the concrete boundary and what stands in for what there ("the repository: a fake returns the rows", "the gRPC handler: a fake client answers"). "Seam" is this skill's internal shorthand, not shared vocabulary — prose that leans on it reads as jargon. Do not stop to confirm them. Write the spec, then say in one line which boundary you chose, so it can be redirected before `/cppcho:to-tickets` cuts tickets from it.
+
+   Name the boundary by what the fake stands in for, not by how a test reaches it. "The library accepts an injected request function" is a claim about the code that only a test reaching it can prove, and this skill writes no tests. One spec made that claim — true of the library, never checked against the app, where no test could reach the argument without editing production code — and two builders then bridged the gap two different ways, a factory in one PR and an optional parameter on a production function in the other. Both had to be undone. So write what stands in for what ("tests stand in for the experiment platform's answers and nothing else"). If you do name an existing hook, say what shows a test can reach it without editing production code. Otherwise leave the mechanism to the one prefactor ticket `/cppcho:to-tickets` cuts to build the fake: a parameter or wrapper added for tests is a new seam, added there once, by agreement, and imported by every other ticket — never once per builder.
 
 3. Write the spec using the template below to `.scratch/epics/<PREFIX>-<slug>/spec.md`, creating the directory if it does not exist. That directory is a **local epic** — the spec and, later, the tickets `/cppcho:to-tickets` cuts from it. Its `<PREFIX>` is the epic's id, so coin one when the directory is new: the initials of the slug's significant words, uppercased, two letters minimum (`promo-credit-exchange` → `PCE`), checked against `ls .scratch/epics/` for a collision and extended until unique. Every ticket id in the epic is built from it.
 
@@ -59,7 +61,7 @@ A list of implementation decisions that were made. This can include:
 - API contracts
 - Specific interactions
 
-Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
+Do NOT include specific file paths or code snippets. They may end up being outdated very quickly. The same goes for a mechanism nobody decided — which module a test replaces, which argument carries a fake: a spec records decisions, and a mechanism written down reads as one.
 
 Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
 

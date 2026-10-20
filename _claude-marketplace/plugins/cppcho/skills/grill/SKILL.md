@@ -23,13 +23,15 @@ The test that separates them: try to state the consequence out loud. "If we key 
 Two things pull a decision back into the questions pile however settled the convention looks:
 
 - **A severe failure mode.** Cheap to _decide_ is not cheap to be _wrong about_. Fail-open versus fail-closed, exempting a class of traffic from the very thing meant to protect you, anything that quietly loses data or money — the conventional answer can be both obvious and wrong here, and someone who ratifies it by skimming a ✅ line has not actually agreed to it.
-- **An unverified fact underneath it.** A default is only as good as what it rests on. "Use the Redis we already run" is a default once you've seen the Redis and a guess wearing a checkmark until you have. Go look; if you can't, that's a question, and say which fact you're missing.
+- **An unverified fact underneath it.** A default is only as good as what it rests on. "Use the Redis we already run" is a default once you've seen the Redis and a guess wearing a checkmark until you have. Go look; if you can't, that's a question, and say which fact you're missing. "Unchanged", "as on main", "exactly today's page" is this case in disguise: it is a diff you haven't run. Diff the branch against the base it claims to equal (`git diff <base>...HEAD -- <area>`), and each thing the branch removed is a question — keep it removed, or bring it back? One branch had dropped a UI element, and "control is the page exactly as on main" quietly committed the build to restoring it.
 
 Three questions in a round is about the ceiling of what someone answers carefully. If more than three survive the filter, ask the highest-consequence three and leave the rest for a later round — don't demote a real question to a default just to fit the cap. Most rounds should come in well under three; if yours keep hitting the ceiling, the filter is too loose.
 
 ## Go find the facts
 
 Deciding on someone's behalf raises the bar on groundedness rather than lowering it: finding _facts_ is your job, never the user's. When a decision needs a fact from the environment (filesystem, tools, docs), dispatch a sub-agent — don't ask for anything you could look up. Don't block on it: a running exploration is an unsettled prerequisite, so only the decisions downstream of it wait for the report. Take the rest of the frontier now.
+
+How the neighbours do it is a fact too, and when the code uses a library that sibling apps in the organisation also use, it often outweighs first-principles reasoning. A set of defaults reasoned from first principles — fetch only on the pages that read a flag, a 300ms timeout — was reversed on every point once the sibling apps were read, and only because the user said "check how other projects do it". Search the organisation's code for other users of the library (Sourcegraph, `gh search code`) and read its README before the first recommendation that touches it.
 
 Be strict about which decisions those are. If a pending report could reshape a question, narrow it, or delete it outright, the question is not on the frontier — hold it, and don't hedge it into the round with a caveat about the agent still being out. A question asked on a fact you're still fetching is worse than unasked: the user spends their attention on a premise that changes underneath them.
 
@@ -68,6 +70,8 @@ Reply **ok** to take all of the above, or just name what you'd change.
 `ok` — or `go`, `sounds good`, `lgtm` — accepts every recommendation and every default in the round. Treat that as a real answer, not as the user dodging.
 
 A partial reply settles only what it mentions; everything unmentioned stands as you recommended it. Someone who answers Q2 and ignores Q1 and Q3 has told you Q1 and Q3 were fine, so don't re-ask them — re-asking teaches the user that skimming is unsafe and that the escape hatch is a trap, and then you're back to twelve questions a round.
+
+That includes the blank inside a question. "➡️ (c), but tell me the metric" answered with `ok` has taken (c) and left the metric blank, and a blank the user passed over is settled too: write it to the ledger as out of scope or as your default, not as "still open". One metric question rode along four rounds as "still open" through four oks until the user asked why it was being asked at all; the task was only to set the test up.
 
 ## Finishing
 

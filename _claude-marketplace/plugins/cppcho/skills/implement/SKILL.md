@@ -6,7 +6,7 @@ argument-hint: "[spec-or-ticket-path|ticket-id] [in a worktree] [create a pr]"
 
 # Implement
 
-**Skill revision: 2026-10-01.** Quote it in the close-out; nothing else in a transcript records which version of this skill ran.
+**Skill revision: 2026-10-20.** Quote it in the close-out; nothing else in a transcript records which version of this skill ran.
 
 Build what a spec or ticket describes, in three phases: plan it, build it slice by slice, then land it. The third phase is where runs go wrong — never by refusing a step, but by treating a green gate or a pushed commit as the finish line. Across 69 runs, none of which ever compacted, a quarter ended without the commit skill while the instruction sat in context the whole time. So the finish line is defined once, at the end: **the run is done when the close-out template is filled**, every slot with evidence or an explicit skip. Copy this into your first response and tick each box as it lands, so the run carries its own record of what's left:
 
@@ -34,7 +34,7 @@ Build what a spec or ticket describes, in three phases: plan it, build it slice 
 A list, posted so the user can catch a wrong turn early:
 
 - **Scope** — what this pass delivers and what it leaves
-- **Seams** — where each behaviour gets tested. If the spec fixed them, restate; otherwise propose the highest and fewest that work
+- **Seams** — where each behaviour gets tested, and how a test plugs in there: the module it replaces, the argument already exposed, the env var. If the spec fixed the boundary, restate it; otherwise propose the highest and fewest that work. A boundary the spec named that no test can reach without adding a parameter or wrapper to production code is a new seam, not a restatement: it belongs to the prefactor ticket that builds the fake, and if this ticket is not that one, this is a line to stop and ask about
 - **Touch list** — modules you expect to change, plus any prefactor to land first
 - **Landing** — the branch, and whether a worktree, push or PR was asked for
 - **Commands** — read off `CLAUDE.md`, `Makefile`, `package.json`, pre-commit config: **typecheck** (`tsc --noEmit`, `go build ./...`), **one test file**, and **the gate** CI treats as the bar (`make check`). A guessed command costs a wasted cycle; if the gate is genuinely ambiguous, ask once
@@ -51,13 +51,13 @@ Build that scope and stop there; adjacent fixes belong in a follow-up.
 
 Get something compiling and running within the first handful of turns — the first test, the prefactor, a typecheck over a stub.
 
-Each slice ships with tests that fail without it. Write them wherever in the cycle they come easiest; what matters is that they pin the behaviour, and a test that passes the first time you run it hasn't shown that it does. Break the line it covers, watch it go red, put it back — if it still passes, make the break bigger before you rewrite the test.
+Each slice ships with tests that fail without it. Write them wherever in the cycle they come easiest; what matters is that they pin the behaviour, and a test that passes the first time you run it hasn't shown that it does. Break the line it covers, watch it go red, put it back — if it still passes, make the break bigger before you rewrite the test. One break at a time, each reverted with the Edit tool before the next: a scripted batch can fail to restore, and one left every mutation in place.
 
-A slice with nothing worth pinning — a mechanical rename, generated code, config nothing reads — is answered by the gate and the drive instead. An awkward test is a design signal, and a new seam changes what the spec committed to, so agree it first.
+A slice with nothing worth pinning — a mechanical rename, generated code, config nothing reads — is answered by the gate and the drive instead. An awkward test is a design signal, and a new seam changes what the spec committed to, so agree it first. A parameter or wrapper added so that a test can reach production code is a new seam, and it is added once per boundary, in the prefactor ticket that builds the fake; every other ticket imports it. When nobody can be asked — a background run — fake the dependency the spec named from the outside, with what a test already reaches without editing production code: replace the module import (`jest.mock`, `vi.mock`), intercept the HTTP call (`msw`, `nock`, `httptest`), or point an env var at a stub. If none of those reaches it, stop and report it under Left out / diverged rather than add a hook. Two tickets that each add their own hook leave the module with two ways of doing the same thing.
 
 Keep a comment only if you can name the wrong conclusion a reader draws without it. Narration, restated field meanings and failure stories don't pass.
 
-Do the work yourself. A subagent editing in parallel, or re-checking what the plan's commands can check, costs more than it returns here.
+Within one ticket, do the work yourself. A subagent editing in parallel, or re-checking what the plan's commands can check, costs more than it returns here. Building several tickets at once, when the user asks for it, is covered under Running tickets in subagents.
 
 **Verify tightest loop first:** typecheck after each cycle, the one test file in the loop, then once at the end the suite scoped to changed files and then the gate. Green reached by deleting an assertion, skipping a test, loosening lint or type config, or moving a date into the future hides the failure rather than fixing it. A failure that looks legitimate is a plan change; take it to "When the plan changes mid-build".
 
@@ -121,11 +121,22 @@ Record the branch as the ticket's last header line, below **Spec**, above the cr
 **Branch:** `feat/pc-exchange` [#1234](https://github.com/acme/billing-api/pull/1234)
 ```
 
-`.scratch` is shared across worktrees, so this line is the only thing that tells the next session which branch a slice's code is on. Append with ` · `, never rewrite; `[owner/repo#1234]` when the PR is in another repo; record identity, never merge state; skip it on the default branch or with no ticket file.
+`.scratch` is shared across worktrees (agent-isolated ones excepted; see Running tickets in subagents), so this line is the only thing that tells the next session which branch a slice's code is on. Append with ` · `, never rewrite; `[owner/repo#1234]` when the PR is in another repo; record identity, never merge state; skip it on the default branch or with no ticket file.
 
 CI is not this skill's to watch. The gate you ran locally is the bar this run answers for; once the branch is pushed, what the checks do with it is the user's to read, and waiting on them costs a run more than it tells it — in practice they don't settle inside the run at all, since the approval gate needs a person. Push, report the PR, and stop.
 
 Redraw the epic with `cppcho:ticket-dag`: your ticks flip rows to ✅ and can release others to 🟢, and a row still 🟡 or 🔴 behind a finished ticket is a bookkeeping error. When every row is ✅, say so and offer `/cppcho:to-tickets` to archive — offer, don't do; this PR is still open.
+
+## Running tickets in subagents
+
+When the user asks for tickets built in subagents and worktrees, each subagent runs this skill on one ticket, and the parent owes it what a session usually gets from the user and the files:
+
+- **The brief answers every line the plan would stop and ask about.** A background agent cannot ask, so an open question in its brief gets answered by invention. Carry the ticket, the spec, `.scratch/context.md`, the decisions already made, and the mechanism the fake's prefactor ticket chose, copied from that ticket's close-out. If that ticket has not landed, build it first, alone.
+- **The parent does the bookkeeping.** An agent-isolated worktree has no `.scratch` symlink: the subagent can read the files by absolute path into the main checkout but cannot write them. So the brief tells it to skip ticking, the Branch line and the redraw, and to list the criteria it met in its close-out; the parent applies them.
+- **Tickets that would each add or reshape the same piece run one after the other**, the second briefed with the first's Shape line, or they ship one concept under two names.
+- **Remove each agent's worktree once its PR is pushed** (`git worktree remove`), and list any you could not. A leftover keeps its branch checked out, and the next agent on that branch works detached.
+- **The parent's close-out carries every subagent's Shape and Left out / diverged lines verbatim**, then compares the Shape lines with each other. Two new names for one job, two fakes of one dependency, or a parameter added to an existing production function is a finding at the top of the parent's close-out, before any PR is reported done. One parent folded two subagent reports into one close-out and dropped the line saying a production function had gained an injected parameter; the user found it by asking.
+- **When sibling PRs already solve one thing two ways, pick one before either goes to review.** Land the consolidation as commits on those PRs, not a third PR, and name it in the close-out.
 
 ## The close-out
 
@@ -133,15 +144,16 @@ The run ends with this, filled in. A slot you can't fill is a step still to do, 
 
 ```
 **Landed:** what changed, in the words of someone who hasn't reopened the ticket
+**Shape:** new modules, new exports, changed signatures of existing exports | none
 **Left out / diverged:** …
 **Gate:** <the command> — green | red because …
 **Review:** /code-review at <the level the report said it ran> — N findings, M fixed, rest dead: traced wrong because … / out of scope, <ticket> owns it | skipped because the user said "…"
 **Drive:** what you launched and what you saw it do | skipped — surface-free: <files>
 **Commits:** <shas> on <branch>; PR #… | not pushed because …
 **Next:** the ticket the graph points at | epic complete, archive offered
-**Skill revision:** 2026-10-01
+**Skill revision:** 2026-10-20
 ```
 
-Write it for someone who has not re-read the ticket: behaviours and files as they'd say them out loud, none of this skill's vocabulary. The measure is whether they can act on it without opening another file.
+Write it for someone who has not re-read the ticket: behaviours and files as they'd say them out loud, none of this skill's vocabulary. The measure is whether they can act on it without opening another file. Shape is the change without the diff: a reader of two close-outs that said only what the code did had to ask what the difference was between three functions that made one HTTP call.
 
 On a long run, past roughly 150 turns, post two or three lines at each phase boundary saying what's done and what's next. Every "are u done yet" in this skill's history came from a run that had reported nothing since it started.

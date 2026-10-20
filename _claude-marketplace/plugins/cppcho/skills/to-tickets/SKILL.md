@@ -23,13 +23,16 @@ Then read what is already on disk. If `.scratch/epics/<PREFIX>-<slug>/tickets/` 
 - A ticket with any criterion ticked, or that the conversation says is underway, is **frozen** — leave its text and its number alone. When a change of direction invalidates a frozen ticket, don't edit it — **supersede** it (see "When the plan changes").
 - Revise unstarted tickets freely, but leave a `**Branch:**` line alone if one is there. `/cppcho:implement` writes it to say where a slice's code went, and it is not derivable from anything else once dropped.
 - New work becomes new tickets, appended.
-- A ticket written before the `**Repo:**` line existed can have one added, frozen or not. It is the exception to leaving frozen text alone, because it records where the work went rather than what the work is — a frozen ticket's `**Branch:**` line usually names the repository outright, so filling it in is transcription, not a change of plan. Add it where you can read it off the ticket and leave it off where you can't; a guessed repository is worse than an absent one.
+- A ticket written before the `**Repo:**` line existed can have one added, frozen or not. It is one of two exceptions to leaving frozen text alone, because it records where the work went rather than what the work is — a frozen ticket's `**Branch:**` line usually names the repository outright, so filling it in is transcription, not a change of plan. Add it where you can read it off the ticket and leave it off where you can't; a guessed repository is worse than an absent one.
+- An unticked criterion on a frozen ticket that only the real system can prove (step 3) may move to a verification ticket, frozen or not — the other exception, for the same reason: it moves where the proof happens, not what the work is. Strike it in place with a pointer, `~~<criterion>~~ — moved to <PREFIX>-<NN>`, and write it on the verification ticket under the next free number or an existing one that already runs that walkthrough. A ticked one stays where it is: it was proved, and the box is the record.
 
 ## 2. Explore the codebase
 
 If you have not already explored the codebase, do so to understand the current state of the code. Read `.scratch/context.md` if it exists and use its domain glossary vocabulary in ticket titles and descriptions.
 
 Look for opportunities to prefactor the code to make the implementation easier — "make the change easy, then make the easy change." A prefactor becomes its own ticket that blocks the slices needing it.
+
+The fake the spec's boundary calls for is a prefactor too, when more than one ticket tests through it: one ticket builds it and decides, against the code, how a test plugs it in — a new parameter or wrapper, if one is needed, is added here and nowhere else — and its criteria name that mechanism ("a test imports the fake and passes it to …"), so later tickets inherit it instead of inventing one. Every ticket that tests through it is blocked by that one. Left to each ticket, the fake gets built once per session — one epic ended with two fakes of the same service, the second mocking an export the first had renamed.
 
 ## 3. Draft vertical slices
 
@@ -45,6 +48,14 @@ Break the work into **tracer bullet** tickets.
 
 Give each ticket its **blocking edges** — the other tickets that must complete before it can start. A ticket with no blockers can start immediately.
 
+Draw an edge, or merge the tickets, when two of them would each add or reshape the same piece — the same export, the same fake, the same client wrapper — even when neither behaviour needs the other. Tickets with no edge between them get built in parallel sessions, and two sessions shaping one piece produce one concept under two names and a mock of a symbol the sibling renamed; in one epic the behaviours were independent and the code was not, and both PRs needed a refactor pass before review. Two tickets that only edit lines in one file can stay parallel: vertical slices usually all touch the core handler or store, and chaining them for that alone empties the frontier.
+
+**Implementation tickets and verification tickets are different tickets.** An implementation ticket changes code, and every criterion on it is one the session building it can prove before it stops: against a fixture, in a self-test, or on a local run of the changed code. A verification ticket proves the feature on the real system — a round run on the development environment, a reviewer acting in the real database, a message arriving in the real channel, a second machine picking up where the first stopped, a PR opened because a real result cleared a gate. It has `**Repo:** none — verification on development` and is blocked by the implementation tickets it exercises.
+
+Keep them apart because of what a real-system criterion does to an implementation ticket. `/cppcho:implement` builds one ticket per session and ticks as it goes; a criterion it cannot reach from a fixture is still unticked when the PR merges, so the ticket reads as in flight indefinitely, `cppcho:next-actions` keeps offering it, and whoever eventually ticks it does so from a run nobody can repeat — or ticks it on faith. One epic reached eight such tickets, each with its code merged and one or two boxes open, every box waiting on a real round that a separate ticket already described. The criterion was never wrong, only misfiled: moving it to the ticket that runs the round costs nothing and lets the implementation ticket close with its PR.
+
+The spec usually names the seam — "a test fakes a run directory and never reaches the chat, the database or the channel" — and when it doesn't, draw it once for the epic: what a test fakes, and what only the real system shows. Then write every criterion on its side of that line. Cut verification tickets by the walkthrough that proves them together, not one per implementation ticket: one real round through a loop proves the new columns, the links, the gate and the adopt path at once, while a concern that round will not naturally meet (running with a channel left out) gets a ticket of its own. A verification ticket's criteria read as that walkthrough — who does what on the real system, and what they see — and a one-off operation on live data (republishing the pages that already exist) is a step in it, not a behaviour anyone builds.
+
 **Wide refactors are the exception to vertical slicing.** When one mechanical change — renaming a column, retyping a shared symbol — has a **blast radius** fanning across the whole codebase, a single edit breaks thousands of call sites at once and no vertical slice can land green. Sequence it as **expand–contract** instead: one ticket to **expand** (add the new form beside the old, so nothing breaks), then a **migrate** ticket per batch of call sites sized by blast radius (per package, per directory), each blocked by the expand and green on its own because the old form still exists, then a **contract** ticket blocked by every batch to delete the old form. When even the batches can't stay green alone, keep the sequence but let them share an integration branch that all block a final integrate-and-verify ticket — green is promised only there.
 
 ## 4. Settle the shape yourself
@@ -55,7 +66,7 @@ Where a call could reasonably have gone the other way — a slice that could be 
 
 ## 5. Write the tickets
 
-Write one file per ticket under `.scratch/epics/<PREFIX>-<slug>/tickets/<NN>-<ticket-slug>.md`, using the template below — one ticket per file, never a single combined file.
+Write one file per ticket under `.scratch/epics/<PREFIX>-<slug>/tickets/<NN>-<ticket-slug>.md`, using the template below — one ticket per file, never a single combined file. Write them with the Write tool, not a shell chain: Write takes an absolute path and creates the directory, so a failed `mkdir` or `cd` cannot land files somewhere else. One shell chain overwrote the repo's README that way.
 
 A ticket's **id** is `<PREFIX>-<NN>` — the directory supplies the prefix, so filenames keep the bare number and everything written *inside* a file spells the id in full. That is what makes `grep -r PCE-02` find every reference to a ticket from anywhere, including other epics.
 
@@ -90,6 +101,8 @@ A slice spanning three repositories is three PRs and three review waits, so it i
 
 Write each **acceptance criterion** as behaviour observable from outside the code — something a test or a demo can check — because `/cppcho:implement` tests against these and ticks them as it goes. A criterion phrased as an implementation step ("add the column", "wire up the handler") can be ticked while nothing actually works; one phrased as an observable outcome cannot.
 
+Observable is not yet provable. A criterion can be perfectly observable and still observable only on the real system, and on an implementation ticket that is the line from step 3 it must not cross. The tells: it names a real dataset or run ("run against it-02, the plan recovers the known clusters"), another person's action ("a reviewer sets the status"), another machine, a browser or a channel ("the link opens the row", "the digest reached Slack"), a real result deciding a side effect ("pushed as a PR only when the gate says adopt"), a first measured value written into the notes, or a one-off operation on live data. Each of those is a step of a verification ticket's walkthrough, so write it there. The fixture-level twin usually already sits next to it on the implementation ticket ("a fixture run yields a plan matching the expected file"); when it doesn't, write that twin and keep it.
+
 Avoid specific file paths or code snippets in tickets — they go stale fast. Exception: if a snippet encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it. Trim to the decision-rich parts — not a working demo, just the important bits.
 
 Finally, write `.scratch/epics/<PREFIX>-<slug>/tickets/README.md` holding the blocking graph and nothing else:
@@ -110,7 +123,7 @@ The graph is also the handover: it says the tickets exist and where the frontier
 
 ## When the plan changes
 
-Decisions move after tickets are cut — a spec revision, a discovery mid-build, a change of heart, a drift finding handed over by `/cppcho:reconcile`. Reconciling the epic is this skill's job: re-read the spec and every ticket, then route each affected ticket by its state. Unstarted tickets revise freely, as above. For an in-flight ticket the change invalidates, the graceful move is to **supersede** it, never to rewrite it — its ticked criteria are the only record of work actually done, and a session may still be holding its text.
+Decisions move after tickets are cut — a spec revision, a discovery mid-build, a change of heart, a drift finding handed over by `/cppcho:reconcile`. Reconciling the epic is this skill's job: re-read the spec and every ticket, then route each affected ticket by its state. Unstarted tickets revise freely, as above. For an in-flight ticket the change invalidates, the graceful move is to **supersede** it, never to rewrite it — its ticked criteria are the only record of work actually done, and a session may still be holding its text. A ticket whose PR has merged with boxes still open is a different case and usually not a change of plan at all: the open boxes are real-system criteria that were misfiled, so move them (step 1) and leave the ticket to close on its own.
 
 To supersede a ticket:
 
