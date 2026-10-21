@@ -16,7 +16,8 @@
 # built-in workspace token because herdr puts a " · " between any two row tokens
 # but the one after state_icon. $title has no TTL, since an expired one would
 # leave the row nameless, so the loop rebuilds it every couple of seconds to
-# follow renames, new spaces and an expired $pr.
+# follow renames, new spaces and an expired $pr. Every pane carries a copy of
+# its space's $title too, since the agents panel only reads pane tokens.
 #
 # First match wins:
 #   🟣 merged  🚫 closed  💤 draft  💥 conflict  🔥 CI failing
@@ -126,19 +127,27 @@ pass() {
     wait
 }
 
-# Rewrite $title on every space (or only $1) whose "<$pr> <label>" changed.
+# Rewrite $title on every space (or only $1), and on each of its panes, where
+# "<$pr> <label>" changed.
 sync_titles() {
-    local ws title
-    while IFS=$'\t' read -r ws title; do
-        herdr workspace report-metadata "$ws" --source pr-title --seq "$(seq_now)" \
+    local spaces_json panes_json kind id title
+    spaces_json=$(herdr workspace list 2>/dev/null) || return
+    panes_json=$(herdr pane list 2>/dev/null) || panes_json='{}'
+    while IFS=$'\t' read -r kind id title; do
+        herdr "$kind" report-metadata "$id" --source pr-title --seq "$(seq_now)" \
             --token "title=$title" >/dev/null 2>&1
-    done < <(herdr workspace list 2>/dev/null | jq -r --arg only "${1:-}" '
-        (.result.workspaces // [])[]
-        | select($only == "" or .workspace_id == $only)
-        | ((.tokens.pr // "") as $pr
-           | (if $pr == "" then "" else "\($pr) " end) + (.label // "")) as $want
-        | select(.tokens.title != $want)
-        | "\(.workspace_id)\t\($want)"' 2>/dev/null)
+    done < <(jq -rn --argjson s "$spaces_json" --argjson p "$panes_json" --arg only "${1:-}" '
+        ($s.result.workspaces // []) as $spaces
+        | ($spaces
+           | map(select($only == "" or .workspace_id == $only)
+                 | {key: .workspace_id,
+                    value: ((.tokens.pr // "") as $pr
+                            | (if $pr == "" then "" else "\($pr) " end) + (.label // ""))})
+           | from_entries) as $want
+        | ($spaces[] | ["workspace", .workspace_id, .tokens.title, $want[.workspace_id]]),
+          (($p.result.panes // [])[] | ["pane", .pane_id, .tokens.title, $want[.workspace_id]])
+        | select(.[3] != null and .[2] != .[3])
+        | "\(.[0])\t\(.[1])\t\(.[3])"' 2>/dev/null)
 }
 
 case "$mode" in

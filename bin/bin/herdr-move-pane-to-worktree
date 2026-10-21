@@ -20,7 +20,7 @@ cwd=$(herdr pane list --workspace "$ws" \
   | jq -r --arg p "$pane" '.result.panes[] | select(.pane_id == $p) | .cwd')
 [[ -d "$cwd" ]] || hold "cannot resolve cwd of $pane"
 here=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || hold "not inside a git repository"
-main=$(git -C "$cwd" worktree list --porcelain | head -1 | sed 's/^worktree //')
+main=$(git -C "$cwd" worktree list --porcelain | sed -n '1s/^worktree //p')
 
 # Same row format as `gwt switch`, minus the worktree the pane already sits in
 # and Claude Code's own .claude/worktrees checkouts, which prefix+f also hides.

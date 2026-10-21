@@ -54,9 +54,11 @@ remote_matches() {
     return 1
 }
 
-# Main worktree of the repo at <dir> (gwt is happiest anchored there).
+# Main worktree of the repo at <dir> (gwt is happiest anchored there). sed reads
+# the whole list rather than `head -1`, which SIGPIPEs git under pipefail once
+# the repo has enough worktrees.
 main_worktree_of() {
-    git -C "$1" worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //'
+    git -C "$1" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p'
 }
 
 # Echo the path of a local clone of <owner/repo>, or nothing. Checks the current

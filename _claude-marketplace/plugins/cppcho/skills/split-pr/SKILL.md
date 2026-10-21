@@ -101,6 +101,8 @@ Stop and show it before creating anything:
 | # | PR title | Base | Contents | ~Lines (tests) |
 |---|---|---|---|---|
 
+With it, give each slice's **manifest**: the files it touches and the symbols it introduces — types, fields, parameters, exports, config keys — each with its caller in that slice. A symbol whose first caller sits in a later slice moves to that slice. The build checks every slice against its manifest.
+
 Under the table, only what the user needs to decide: what the thin path does end to end, why a boundary falls where it does when it is not obvious, any slice that breaks the size guidance and why, deviations from the WIP branch (step 2), each supporting change and the slice that first needs it, preconditions (deploy config, an unreleased dependency), and the WIP files deliberately left out because they belong to another feature or the user scoped them out. Then ask to proceed.
 
 Approval covers building, pushing and opening PRs for the slices it names. "Do 1 and 2" approves those two: build them, stop, and leave the rest as the plan for later. When the user picks a subset that is not the bottom of the stack ("1, 7 and 8"), re-show the reduced table first with what each kept slice gains or loses from the missing ones — the re-homing rule above. A question in the plan that the approval does not answer ("…with the ADR in PR 1?") is not a yes: take the conservative option, leave the thing out, and say so.
@@ -110,6 +112,8 @@ Save the approved plan, what was scoped out and why, and the deviations to `.scr
 ## 5. Build
 
 Work in a new git worktree off the base, so the user's WIP checkout is never touched. Install its dependencies with the repo's package manager before the first gate, or link the WIP checkout's where installs are slow, in a way git ignores. Integration and end-to-end tests may need a port or service another worktree already holds; check before blaming the slice. Branch each slice off the previous one.
+
+When subagents build slices, give each one its slice's manifest and the symbols of the later slices it must keep out, and run the leak check (item 6) yourself on what it returns.
 
 For each slice:
 
@@ -127,6 +131,7 @@ For each slice:
 6. **Gate** — build, lint and the tests for what changed, using the repo's own commands (README, Makefile, `package.json` scripts, agent rules), with commit hooks running: never `--no-verify`. A slice that does not build on its own is not self-contained, whatever its diff looks like. Report plainly what you could not run locally and why. Then three checks, each with its result in the slice's build notes:
    - **Each behaviour has a guard.** For every behaviour the slice adds, name the test that fails when it breaks, and break the slice's key line once to confirm one does. Write the missing test before moving on.
    - **Each supporting file earns its place.** Revert it to the base and re-run: "reverted `jest.setup.js` → red". A file whose revert leaves the gate green moves to the slice that needs it. Env or config a file reads directly at runtime stays with its reader even though no test fails without it — unless its value only restates the code's default, in which case it has no reason to exist (step 2).
+   - **Nothing from a later slice leaked in.** Grep the slice's diff for every symbol the later slices' manifests introduce; each hit is removed before the PR opens. Leaks hide in files copied at their final state and in tests, not only in trimmed files.
    - **Nothing changed that the plan did not say.** A test rewritten to new semantics, a planned entry dropped, a file moved between slices, a WIP behaviour you had to alter: stop and tell the user before pushing, rather than in the final report.
 7. **Commit** in the repo's convention, one commit per slice.
 
@@ -134,7 +139,7 @@ Then **verify the tip.** List the feature's files and diff them between the top 
 
 ## 6. Publish
 
-Push each branch and open the PRs bottom-up, each against the one below it and the lowest against the base, so later bodies can cite earlier numbers; edit the earlier bodies afterwards if they should cite later ones. Match the draft status of the PR below unless the user says otherwise. Use the repo's PR template if it has one. Keep each description to what the slice is for, where it sits in the stack, and anything a reviewer or deployer must know (a precondition, a decision they would otherwise stop and question). The per-file walkthrough is the diff's job.
+Push each branch and open the PRs bottom-up, each against the one below it and the lowest against the base, so later bodies can cite earlier numbers; edit the earlier bodies afterwards if they should cite later ones. Match the draft status of the PR below unless the user says otherwise. Write each body in the standard PR-description shape (intent, as-is → to-be, how to verify, evidence, where to look, terminology), scoped to this slice alone, and open it with one line on where the slice sits in the stack — what it builds on and what comes next — plus anything a deployer must do first (a precondition, config in another repo). The gate output from step 6 is the slice's evidence. The per-file walkthrough is the diff's job.
 
 End with the stack as a table (number, base, size), every PR's URL, the worktree path, and the slices of the plan still unbuilt. The user usually reviews each new slice straight away; name the PR, not the WIP checkout, as the thing to review.
 
@@ -145,7 +150,7 @@ The user often reshapes the split after seeing the PRs. Restack in place rather 
 - The final state is now the stack's tip, not the WIP branch, wherever the two differ on purpose — review fixes, a scope cut, a rename. List those differences before rebuilding, and keep them.
 - Keep a PR where its slice still exists, even if its contents change: its number, review history and links survive. Rewrite its title and body to match.
 - Rebuild a changed slice, then move everything above it with `git rebase --onto <new-parent> <old-parent-sha>`, or `git rebase --update-refs` to carry every slice branch along at once. Record the old SHAs before you start. A conflict there is almost always between two versions of a file where the upper slice's version is the more final one: take it, re-apply the change you are propagating, continue.
-- Push with `git push --force-with-lease`. Never a bare `--force`: the lease is what stops you overwriting a commit someone else pushed to the slice.
+- Push with `git push --force-with-lease`. Never a bare `--force`: the lease is what stops you overwriting a commit someone else pushed to the slice. If amend or force-push is blocked (a hook, a permission rule), do not work around it: add the change as a follow-up commit on the slice, merge it up into each slice above, and tell the user.
 - Close a PR whose slice disappeared only with the user's go-ahead, and delete its branch only once it is closed.
 - Re-run the gate on every rebuilt slice and re-verify the tip. When the user scopes the restack to some slices ("only update the first 3"), rebuild those and report which PRs above are now stale.
 

@@ -1,6 +1,6 @@
 ---
 name: reconcile
-description: Checks a local epic's tickets and spec against the code they describe, and reports the drift — tickets a parallel epic already satisfied, tickets the code invalidated, spec decisions the code no longer follows, and bookkeeping that disagrees with itself. Use when an epic has sat while other work landed, before picking a ticket up, or to sweep every epic for self-contradiction.
+description: Checks a local epic's tickets and spec against the code they describe, and reports the drift — tickets a parallel epic already satisfied, tickets the code invalidated, spec decisions the code no longer follows, bookkeeping that disagrees with itself, and Branch lines whose PRs have since merged or closed. Use when an epic has sat while other work landed, before picking a ticket up, when PRs have merged, or to sweep every epic for self-contradiction.
 argument-hint: "[epic-prefix|ticket-id]"
 ---
 
@@ -16,7 +16,7 @@ The argument picks the depth. All three read only this repo: the tickets, the sp
 
 | argument | scope |
 | --- | --- |
-| none | **Sweep** — the bookkeeping pass (step 1) over every epic. File-vs-file only, no code read. |
+| none | **Sweep** — bookkeeping and branches (steps 1–2) over every epic. No code read. |
 | `PCE` | **Audit** — steps 1–5 for one epic. |
 | `PCE-02` | **Freshness** — step 3 for that one ticket, reported in a line or two. This is the mode `/cppcho:implement` calls before it plans. |
 
@@ -31,7 +31,7 @@ The argument picks the depth. All three read only this repo: the tickets, the sp
 
 ## 1. Bookkeeping
 
-Read every ticket and the `tickets/README.md` index, and look for the epic disagreeing with itself. All of these are decidable from the files alone, which is what makes the no-argument sweep cheap enough to run over every epic at once:
+Read every ticket and the `tickets/README.md` index, and look for the epic disagreeing with itself. All of these are decidable from the files alone:
 
 - A ticket with ticked criteria whose **blocker** has none — work landed out of order, so either the edge is wrong or the ticks are.
 - A **Blocked by** naming an id that no file carries.
@@ -45,9 +45,15 @@ Report these as found. Fixing them is graph surgery, so it belongs to `/cppcho:t
 
 ## 2. Branches
 
-For each `**Branch:**` PR in the epic, ask `gh pr view <url> --json state,mergedAt` once. Merge state is what decides whether the next ticket stacks on that branch or builds on merged code, and a ticket whose PR merged months ago is the likeliest place for the code to have moved out from under its siblings.
+For each `**Branch:**` PR in the epic, ask `gh pr view <url> --json state,mergedAt,baseRefName` once. Merge state is what decides whether the next ticket stacks on that branch or builds on merged code, and a ticket whose PR merged months ago is the likeliest place for the code to have moved out from under its siblings. The sweep runs this too: a call per PR is cheap, and a Branch line that still reads as open after its PR merged is the drift readers trip over first, since `cppcho:ticket-dag` and `cppcho:next-actions` take that line as written.
 
-This is the one skill in the ticket family that makes network calls. `cppcho:next-actions` deliberately doesn't — it's a glance, this is an audit.
+Hold each answer against the ticket:
+
+- **Merged, but the Branch line doesn't say so** → ⚠️, routed to `/cppcho:to-tickets` to record `merged <date>` on the line. A PR merged into another slice's branch rather than the base records that too, so it isn't read as on main before its carrier is.
+- **Merged with criteria still unticked** → read the open criteria before deciding. One that only the real system can prove (a run on development, a reviewer acting in the real database, a message in the real channel, another machine) is misfiled rather than unfinished → ⚠️, routed to `/cppcho:to-tickets` to move it onto a verification ticket. Any other → ❓: either the work shipped unverified or the ticks were never written, and only a human can say which. Name the open criteria either way.
+- **Closed unmerged on a ticked ticket** → ❓. The ticks claim work no branch carries.
+
+An open PR on an in-flight ticket, or a merged one on a ticked ticket whose line already says so, is not a finding.
 
 ## 3. Verdicts
 
