@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Clone a git repo to ~/dev/ and open it: a tmux session, or a herdr space when
-# run inside herdr (the sessionizer dispatches on $HERDR_PANE_ID).
+# Clone a git repo to ~/dev/.
 
 url="$1"
 if [[ -z "$url" ]]; then
@@ -17,10 +16,7 @@ dest="$HOME/dev/$repo"
 
 if [[ -d "$dest" ]]; then
     echo "Directory already exists: $dest"
-    echo "Switching to existing session..."
-else
-    git clone "$url" "$dest" || exit 1
+    exit 0
 fi
 
-# Reuse the sessionizer to create/switch the session (or herdr space)
-exec ~/bin/tmux-sessionizer "$dest"
+git clone "$url" "$dest"
