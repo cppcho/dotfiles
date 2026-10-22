@@ -72,6 +72,8 @@ Slice along the feature's paths, not its layers. The bottom PR is the **thinnest
 
 **One behaviour per PR above the path.** Order them by dependency first, then by what the user most wants working early. A behaviour that only makes sense beside another is one slice with it.
 
+**Commits are not boundaries.** Derive slices from the final-state diff's behaviours and call graph. A WIP commit or merged sub-PR may hold several behaviours or a fraction of one. Use commits only to find hunks and stale lines, never to decide where one slice ends. When a slice lines up with a commit, say which behaviour puts the boundary there, not which commit.
+
 **Diagnostics, tooling and docs go last or alone.** Debug overrides and log-only metrics are behaviours like any other but nobody's path depends on them, so they sit at the top of the stack — together with every field and parameter they need in lower files. Developer tooling and project docs or agent rules get their own PR, or stay out, unless the user asks for them in a feature slice. Seed and placeholder content rides with the first slice that reads it, listed in the plan with its size so the user can trim it.
 
 **When the thin path is too big to review.** First make it thinner — usually the path through fewer branches or a simpler case. If it still far exceeds the size guidance, peel the external adapter off into its own PR beneath it: it is reviewed against someone else's contract rather than against the feature, and it stays unwired until the path above calls it. Say so in the plan; peel off further layers only when the user agrees.

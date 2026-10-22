@@ -4,6 +4,8 @@
 # https://ghostty.org/docs/config/reference
 
 font-family = "IosevkaTerm Nerd Font"
+# Iosevka 34+ has a one-colour ✅ glyph that would win over the colour emoji.
+font-codepoint-map = U+2705=Apple Color Emoji
 keybind = shift+enter=text:\x1b\r
 window-new-tab-position = end
 confirm-close-surface = false
