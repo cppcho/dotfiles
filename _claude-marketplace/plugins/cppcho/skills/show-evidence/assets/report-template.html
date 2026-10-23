@@ -1,0 +1,195 @@
+<!--
+  show-evidence report template. Copy it next to the shots/ folder, replace every
+  {{…}} and every example block, repeat .card per variant, and delete sections
+  that have nothing to say. Screenshots are referenced as relative shots/… paths
+  and published as the artifact's supporting files.
+-->
+<title>{{Short evidence title}}</title>
+<style>
+:root{
+  --bg:#f7f7f5; --surface:#ffffff; --border:#e3e1dc;
+  --ink:#1b1b19; --ink-dim:#65625c;
+  --accent:#2f5bd3;
+  --ok:#0a7a3d; --ok-bg:#e7f6ec;
+  --bad:#b42318; --bad-bg:#fdecea;
+  --note:#8a5a00; --note-bg:#fcf1d9;
+  --mono-bg:#f0eee9;
+  --radius:12px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141413; --surface:#1c1c1a; --border:#2f2e2b;
+    --ink:#f1efe9; --ink-dim:#a6a299;
+    --accent:#7d9cff;
+    --ok:#56d08a; --ok-bg:#10281a;
+    --bad:#ff7b6e; --bad-bg:#2e1412;
+    --note:#e5b24f; --note-bg:#2a220c;
+    --mono-bg:#262522;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141413; --surface:#1c1c1a; --border:#2f2e2b;
+  --ink:#f1efe9; --ink-dim:#a6a299;
+  --accent:#7d9cff;
+  --ok:#56d08a; --ok-bg:#10281a;
+  --bad:#ff7b6e; --bad-bg:#2e1412;
+  --note:#e5b24f; --note-bg:#2a220c;
+  --mono-bg:#262522;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--ink); font:15px/1.6 system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif; padding:0 16px}
+h1,h2{margin:0; text-wrap:balance}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92em}
+a{color:var(--accent)}
+.wrap{max-width:820px; margin:0 auto; padding:32px 0 64px; display:flex; flex-direction:column; gap:28px}
+
+.prlink{display:block; background:var(--surface); border:1.5px solid var(--accent); border-radius:var(--radius); padding:14px 18px; text-decoration:none}
+.prlink .k{display:block; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-dim)}
+.prlink .url{font-family:ui-monospace,Menlo,monospace; font-size:15px; word-break:break-all}
+
+.hero h1{font-size:clamp(24px,5vw,32px)}
+.hero p{margin:8px 0 0; color:var(--ink-dim); max-width:65ch}
+.tally{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+
+.meta{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+.meta div{background:var(--surface); padding:11px 14px; min-width:0}
+.meta .k{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-dim)}
+.meta .v{font-family:ui-monospace,Menlo,monospace; font-size:13px; word-break:break-word}
+
+section{display:flex; flex-direction:column; gap:14px}
+section > h2{font-size:20px}
+section > .lede{margin:-6px 0 0; color:var(--ink-dim); font-size:14px}
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+.card .shot{display:block; background:var(--mono-bg); border-bottom:1px solid var(--border)}
+.card .shot img{display:block; width:100%; height:auto}
+.card .noshot{padding:14px 18px; background:var(--mono-bg); border-bottom:1px solid var(--border); color:var(--ink-dim); font-size:13px}
+.card .body{padding:14px 18px; display:flex; flex-direction:column; gap:8px}
+.card .top{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
+.card .title{font-weight:600}
+.card .action{margin:0; font-size:14px; color:var(--ink-dim)}
+.card .action b{color:var(--ink)}
+.card dl{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:14px}
+.card dt{color:var(--ink-dim)}
+.card dd{margin:0; min-width:0}
+
+.badge{font-size:12px; font-weight:600; padding:2px 10px; border-radius:99px; white-space:nowrap}
+.badge.ok{color:var(--ok); background:var(--ok-bg)}
+.badge.bad{color:var(--bad); background:var(--bad-bg)}
+.badge.note{color:var(--note); background:var(--note-bg)}
+
+.list{border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+.list > div{background:var(--surface); padding:12px 16px; border-bottom:1px solid var(--border); font-size:14px}
+.list > div:last-child{border-bottom:none}
+
+table{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; font-size:14px}
+th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top}
+th{font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-dim)}
+.tablewrap{overflow-x:auto}
+
+pre{margin:0; background:var(--mono-bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px; overflow-x:auto; font:12.5px/1.6 ui-monospace,Menlo,monospace}
+pre .c{color:var(--ink-dim)}
+
+footer{border-top:1px solid var(--border); padding-top:10px; font-size:12px; color:var(--ink-dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+</style>
+
+<div class="wrap">
+
+  <a class="prlink" href="{{PR URL}}">
+    <span class="k">Pull request</span>
+    <span class="url">{{PR URL}}</span>
+  </a>
+
+  <header class="hero">
+    <h1>{{Short evidence title}}</h1>
+    <p>{{One or two sentences: what the change does, in words a reader who never saw the PR follows.}}</p>
+    <div class="tally">
+      <span class="badge ok">{{n}} as expected</span>
+      <span class="badge bad">{{n}} mismatch</span>
+      <span class="badge note">{{n}} not shown</span>
+    </div>
+  </header>
+
+  <!-- Where it ran -->
+  <div class="meta">
+    <div><div class="k">Checkout</div><div class="v">{{worktree @ short sha}}</div></div>
+    <div><div class="k">Build mode</div><div class="v">{{e.g. integration build, mocked backend}}</div></div>
+    <div><div class="k">URL</div><div class="v">{{http://localhost:PORT/path}}</div></div>
+    <div><div class="k">Browser</div><div class="v">{{visible chrome-devtools MCP window}}</div></div>
+  </div>
+
+  <section>
+    <h2>Try it yourself</h2>
+    <p class="lede">{{How the open window brings up each variant, and how to reset.}}</p>
+    <div class="tablewrap"><table>
+      <tr><th>Variant</th><th>Marker or action</th></tr>
+      <tr><td>{{variant}}</td><td><code>{{marker}}</code></td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Variants</h2>
+
+    <!-- One card per variant, in the order of the variant list. Badge: ok / bad / note. -->
+    <div class="card">
+      <a class="shot" href="shots/01-{{slug}}.png"><img src="shots/01-{{slug}}.png" alt="{{what the screenshot shows}}"></a>
+      <div class="body">
+        <div class="top"><span class="title">1 · {{Variant name}}</span><span class="badge ok">As expected</span></div>
+        <p class="action">{{The action that produced it, with the input in <b>bold</b>.}}</p>
+        <dl>
+          <dt>Expected</dt><dd>{{expected}}</dd>
+          <dt>Observed</dt><dd>{{what was read back from the page}}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- A variant with no screenshot says why in place of the image. -->
+    <div class="card">
+      <div class="noshot">No screenshot: {{reason}}</div>
+      <div class="body">
+        <div class="top"><span class="title">2 · {{Variant name}}</span><span class="badge note">Not shown</span></div>
+        <dl>
+          <dt>Expected</dt><dd>{{expected}}</dd>
+          <dt>Why not</dt><dd>{{reason, and what it would take}}</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Trying to break it</h2>
+    <div class="list">
+      <div><span class="badge note">{{held / broke}}</span> {{action and result; whether it predates the change}}</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Seen on the way, not this change's</h2>
+    <div class="list">
+      <div>{{pre-existing issue, with a one-line cause}}</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Left running or changed</h2>
+    <pre><span class="c"># {{what is running on which port}}</span>
+{{command}}
+
+<span class="c"># LOCAL ONLY edit: revert with</span>
+{{git checkout -- path}}</pre>
+  </section>
+
+  <section>
+    <h2>Reproduce from scratch</h2>
+    <pre>{{shortest steps, including the gate override}}</pre>
+  </section>
+
+  <footer>
+    <span>cppcho:show-evidence · skill revision {{revision}}</span>
+    <span>{{repo}} · {{branch}}</span>
+  </footer>
+
+</div>
