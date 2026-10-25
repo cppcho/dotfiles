@@ -4,6 +4,8 @@
 # https://ghostty.org/docs/config/reference
 
 font-family = "IosevkaTerm Nerd Font"
+# CJK fallback; without it macOS picks a serif (Mincho-style) font for Japanese
+font-family = "Noto Sans Mono CJK JP"
 keybind = shift+enter=text:\x1b\r
 window-new-tab-position = end
 confirm-close-surface = false
