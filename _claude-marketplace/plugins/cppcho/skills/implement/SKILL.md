@@ -55,7 +55,7 @@ Each slice ships with tests that fail without it. Write them wherever in the cyc
 
 A slice with nothing worth pinning — a mechanical rename, generated code, config nothing reads — is answered by the gate and the drive instead. An awkward test is a design signal, and a new seam changes what the spec committed to, so agree it first. A parameter or wrapper added so that a test can reach production code is a new seam, and it is added once per boundary, in the prefactor ticket that builds the fake; every other ticket imports it. When nobody can be asked — a background run — fake the dependency the spec named from the outside, with what a test already reaches without editing production code: replace the module import (`jest.mock`, `vi.mock`), intercept the HTTP call (`msw`, `nock`, `httptest`), or point an env var at a stub. If none of those reaches it, stop and report it under Left out / diverged rather than add a hook. Two tickets that each add their own hook leave the module with two ways of doing the same thing.
 
-Keep a comment only if you can name the wrong conclusion a reader draws without it. Narration, restated field meanings and failure stories don't pass.
+Keep a comment only if you can name the wrong conclusion a reader new to the file draws without it, or the tracing it saves them: a rule like an ordering or a tie-break that is spread across several branches is worth a line even though the code implies it. Narration, restated field meanings and failure stories don't pass.
 
 Within one ticket, do the work yourself. A subagent editing in parallel, or re-checking what the plan's commands can check, costs more than it returns here. Building several tickets at once, when the user asks for it, is covered under Running tickets in subagents.
 

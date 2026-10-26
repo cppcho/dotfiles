@@ -77,6 +77,26 @@
         "Report names the rule each edit failed; edits left uncommitted"
       ],
       "files": []
+    },
+    {
+      "id": 5,
+      "name": "rule-summary-on-unexported-helper",
+      "prompt": "/cppcho:check-comments (no argument). Base branch: main.",
+      "fixture": "fixtures/setup.sh cards feat/card-order <dest> — synthetic Go cards package modelled on a real card-selection helper: three comments that state a selection rule the code only implies (an unexported two-pass helper, a tie-break on a list, a flag's 'wherever it sits' contract), against two restatements and one loop retold step by step",
+      "ground_truth_note": "From a 2026-10-26 session: the user asked for a two-pass comment on a card-selection function to state its logic clearly, then judged check-comments too strict. On the real code the comment survived only because the function was exported; this fixture makes the helper unexported, so only a rule-summary keeper can save it. The lastOf trim is the over-keeping guard: a summary of a loop that reads in one pass still goes.",
+      "expected_output": "The three rule statements kept; the two restatements deleted; lastOf's second sentence trimmed with its godoc summary kept.",
+      "assertions": [
+        "KEEPS toWrite's two-pass doc comment (both numbered passes survive, tightening allowed) — the tie between 'last of each kind' and 'first that hides others' takes three loops to recover",
+        "KEEPS the kinds tie-break sentence (\"When two kinds hide others, the one listed first wins\")",
+        "KEEPS the hidesOthers field comment's 'wherever it sits in kinds' clause",
+        "DELETES \"Loop over every kind.\"",
+        "DELETES \"Return the cards.\"",
+        "TRIMS lastOf's second sentence (\"It walks drawn from the end and returns the first card...\") — a retelling of a loop that reads in one pass",
+        "KEEPS lastOf's godoc summary line",
+        "cards.go still parses and is gofmt-clean",
+        "Edits left uncommitted"
+      ],
+      "files": []
     }
   ]
 }
