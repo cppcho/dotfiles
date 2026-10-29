@@ -30,7 +30,7 @@ claude: ## Install/update Claude Code marketplace and plugin
 BREW_BASH   := $(shell brew --prefix)/bin/bash
 AGENTS_DIR  := $(HOME)/Library/LaunchAgents
 UID         := $(shell id -u)
-AGENTS      := com.cppcho.herdr-tab-autoname com.cppcho.herdr-pr-status
+AGENTS      := com.cppcho.herdr-tab-autoname com.cppcho.herdr-pr-status com.cppcho.herdr-claude-summary
 
 launchd: ## Render & load launchd agents from _launchd/
 	@mkdir -p $(AGENTS_DIR) $(HOME)/Library/Logs

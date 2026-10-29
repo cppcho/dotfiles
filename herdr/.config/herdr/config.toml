@@ -181,24 +181,27 @@ prompt_new_tab_name = false
 
 status_indicators = "dots"
 
-# Identify agent panes by Claude's self-generated session name instead of the
-# tab/agent labels. Claude writes that name to the terminal title; herdr exposes
-# it as terminal_title_stripped (leading spinner glyph removed).
+# Agent rows: the repo the agent works in (not the worktree), the branch, then
+# what the session is working on.
 [ui.sidebar.agents]
 rows = [
-  # The pane's copy of its space's $title (see [ui.sidebar.spaces]), styled
-  # like the built-in workspace token it replaces.
+  # $title is "<PR status emoji> <repo name>" and $branch " <checkout's branch>",
+  # both reported on every pane by ~/bin/herdr-pr-status. $summary is a Haiku
+  # one-liner from ~/bin/herdr-claude-summary, refreshed while the agent is idle.
+  # The agents panel dims custom tokens by default, so pin readable colors.
   ["state_icon", { token = "$title", fg = "#cdd6f4", bold = true }],
-  # The agents panel styles this token dim overlay0 no matter which pane is
-  # active, so pin a readable grey instead of leaving it at the dim default.
-  [{ token = "terminal_title_stripped", fg = "#7f849c", dim = false }],
+  [{ token = "$branch", fg = "#7f849c", dim = false }],
+  [{ token = "$summary", fg = "#7f849c", dim = false }],
 ]
 
-# $title is "<PR status emoji> <label>", reported by ~/bin/herdr-pr-status. It
-# stands in for the workspace token because herdr separates adjacent tokens with
-# " · ". Custom tokens render dim grey, so pin the unfocused-name color.
+# $main and $wt are "<PR status emoji> <label>", reported by ~/bin/herdr-pr-status.
+# A space has exactly one: $main for a repo's main checkout, shown bright, and
+# $wt for a linked worktree, shown dimmer so main checkouts stand out.
 [ui.sidebar.spaces]
-rows = [["state_icon", { token = "$title", fg = "#a6adc8" }], ["branch", "git_status"]]
+rows = [
+  ["state_icon", { token = "$main", fg = "#cdd6f4", bold = true }, { token = "$wt", fg = "#9399b2" }],
+  ["branch", "git_status"],
+]
 
 [ui.toast]
 delivery = "herdr"
