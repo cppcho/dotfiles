@@ -19,8 +19,8 @@
 # seconds to follow renames, new spaces and an expired $pr.
 #
 # First match wins:
-#   🟣 merged  🚫 closed  💤 draft  💥 conflict  🔥 CI failing
-#   🔴 changes requested  🟢 approved  🔄 CI running  🟡 waiting for review
+#   🟣 merged  🪦 closed  🚧 draft  💥 conflict  🚨 CI failing
+#   🔴 changes requested  🟢 approved  ⏳ CI running  🟡 waiting for review
 #
 # Env:
 #   HERDR_PR_STATUS_INTERVAL   GitHub poll seconds (default 180)
@@ -82,13 +82,13 @@ pr_emoji() {
               else .conclusion end]) as $checks
         | def any_of($s): any($checks[]; IN($s[]));
           if .state == "MERGED" then "🟣"
-          elif .state == "CLOSED" then "🚫"
-          elif .isDraft then "💤"
+          elif .state == "CLOSED" then "🪦"
+          elif .isDraft then "🚧"
           elif .mergeable == "CONFLICTING" then "💥"
-          elif any_of(["FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"]) then "🔥"
+          elif any_of(["FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"]) then "🚨"
           elif .reviewDecision == "CHANGES_REQUESTED" then "🔴"
           elif .reviewDecision == "APPROVED" then "🟢"
-          elif any_of(["PENDING", "EXPECTED"]) then "🔄"
+          elif any_of(["PENDING", "EXPECTED"]) then "⏳"
           else "🟡" end' <<<"$json"
 }
 

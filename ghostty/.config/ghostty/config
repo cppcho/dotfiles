@@ -4,8 +4,11 @@
 # https://ghostty.org/docs/config/reference
 
 font-family = "IosevkaTerm Nerd Font"
-# Iosevka 34+ has a one-colour ✅ glyph that would win over the colour emoji.
+# Iosevka 34+ has one-colour glyphs for some emoji (✅, ⏳) that would win
+# over the colour emoji. The rest are the herdr PR status emoji
+# (~/bin/herdr-pr-status), pinned so a font update can't turn them grey.
 font-codepoint-map = U+2705=Apple Color Emoji
+font-codepoint-map = U+23F3,U+1F7E3,U+1FAA6,U+1F6A7,U+1F4A5,U+1F6A8,U+1F534,U+1F7E2,U+1F7E1=Apple Color Emoji
 keybind = shift+enter=text:\x1b\r
 window-new-tab-position = end
 confirm-close-surface = false
