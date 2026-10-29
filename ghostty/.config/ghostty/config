@@ -3,7 +3,7 @@
 #
 # https://ghostty.org/docs/config/reference
 
-font-family = "IosevkaTerm Nerd Font"
+font-family = "Iosevka Term"
 # Iosevka 34+ has one-colour glyphs for some emoji (✅, ⏳) that would win
 # over the colour emoji. The rest are the herdr PR status emoji
 # (~/bin/herdr-pr-status), pinned so a font update can't turn them grey.

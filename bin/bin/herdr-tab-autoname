@@ -2,10 +2,11 @@
 # herdr-tab-autoname — tmux-style automatic-rename for herdr TABS.
 #
 # Renames each tab to the foreground process running in its active pane
-# (nvim, claude, git, …). Bare-shell tabs show their position number
-# within the workspace (gap-free, unlike herdr's own tab number), and a tab
-# reverts to its number when its command exits. Workspace labels are left
-# untouched, so herdr-sessionizer's label matching keeps working.
+# (nvim, claude, git, …). A Claude tab shows "claude: <its pane's $summary>"
+# once ~/bin/herdr-claude-summary has reported one. Bare-shell tabs show their
+# position number within the workspace (gap-free, unlike herdr's own tab
+# number), and a tab reverts to its number when its command exits. Workspace
+# labels are left untouched, so herdr-sessionizer's label matching keeps working.
 #
 # herdr has no hooks, so this polls the socket API. Run it as a background
 # daemon (see ~/Library/LaunchAgents/com.cppcho.herdr-tab-autoname.plist):
@@ -13,8 +14,9 @@
 #   herdr-tab-autoname --dry      # print proposed renames once, apply nothing
 #   herdr-tab-autoname --once     # one pass, apply
 #
-# Manual renames are preserved: once a tab's label differs from both its number
-# and the last name we set, we stop managing it (like tmux allow-rename off).
+# Manual renames are preserved: once a tab's label differs from its number, the
+# last name we set and the name we would set now, we stop managing it (like
+# tmux allow-rename off).
 #
 # Env:
 #   HERDR_TAB_AUTONAME_INTERVAL   poll seconds (default 2)
@@ -67,7 +69,7 @@ pane_label() {
 declare -A last_set   # tab_id -> last label we assigned
 
 pass() {
-    local tabs panes tab cur num pane label
+    local tabs panes tab cur num pane summary cmd label
     tabs=$(herdr tab list 2>/dev/null) || return
     panes=$(herdr pane list 2>/dev/null) || return
     [[ -z $tabs || -z $panes ]] && return
@@ -78,19 +80,24 @@ pass() {
     while IFS=$'\t' read -r tab num cur; do
         [[ -z $tab ]] && continue
 
-        # Preserve manual renames: only manage tabs still on their default
-        # numeric label or on a name we set ourselves.
-        if [[ ! $cur =~ ^[0-9]+$ && $cur != "${last_set[$tab]:-}" ]]; then
-            continue
-        fi
-
         # Representative pane: the tab's focused pane, else its first pane.
-        pane=$(jq -r --arg t "$tab" '
+        IFS=$'\t' read -r pane summary < <(jq -r --arg t "$tab" '
             [(.result.panes // [])[] | select((.tab_id|tostring)==$t)] as $ps
-            | (($ps[] | select(.focused)) // $ps[0]).pane_id // empty' 2>/dev/null <<<"$panes")
+            | (($ps[] | select(.focused)) // $ps[0]) // empty
+            | "\(.pane_id)\t\(.tokens.summary // "")"' 2>/dev/null <<<"$panes")
         [[ -z $pane ]] && continue
 
-        label=$(pane_label "$pane")
+        cmd=$(pane_label "$pane")
+        label=$cmd
+        [[ $cmd == claude && -n $summary ]] && label="claude: $summary"
+
+        # Preserve manual renames: only manage tabs still on their default
+        # numeric label, on a name we set ourselves, or on a name we would set
+        # now (so a restarted daemon picks its old tabs back up).
+        if [[ ! $cur =~ ^[0-9]+$ && $cur != "${last_set[$tab]:-}" \
+              && ( -z $cmd || ( $cur != "$cmd" && $cur != "$label" ) ) ]]; then
+            continue
+        fi
 
         # Bare shell: show the tab's position within its workspace. Unlike
         # herdr's own .number, this is renumbered each pass so it stays
