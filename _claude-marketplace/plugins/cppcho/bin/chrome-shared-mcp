@@ -1,0 +1,21 @@
+#!/bin/bash
+# Runs chrome-devtools-mcp against one Chrome shared by every Claude session.
+# Starts that Chrome when none is listening, so the first session to need it brings it up.
+set -u
+# Not 9222: the everyday Chrome takes that port when remote debugging is on in chrome://inspect.
+PORT="${CHROME_SHARED_PORT:-9333}"
+PROFILE="${CHROME_SHARED_PROFILE:-$HOME/.cache/chrome-devtools-mcp/shared-profile}"
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+URL="http://127.0.0.1:$PORT"
+
+alive() { curl -sf --max-time 1 "$URL/json/version" >/dev/null; }
+
+if ! alive; then
+  # A debugging port, not a pipe, so later sessions can attach to the same browser.
+  nohup "$CHROME" --remote-debugging-port="$PORT" --user-data-dir="$PROFILE" \
+    --no-first-run --no-default-browser-check >/dev/null 2>&1 &
+  disown
+  for _ in $(seq 1 50); do alive && break; sleep 0.2; done
+fi
+
+exec npx -y chrome-devtools-mcp@1.11.0 --browserUrl="$URL"

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# herdr-claude <dir> <prompt> — start an interactive Claude Code session on
-# <prompt> in a new tab of the herdr space rooted at <dir>, opening the space
-# if none is live. Meant to be called from outside herdr (the Alfred "Ask
+# herdr-claude <dir> <prompt> — send <prompt> to the Claude Code session herdr
+# knows as "alfred", starting it in a new tab of the herdr space rooted at <dir>
+# when none is live. Meant to be called from outside herdr (the Alfred "Ask
 # Claude" workflow), so the session stays visible and can ask for approvals.
+#
+# The name follows the agent, not the tab: quitting Claude in that tab clears
+# it, and the next prompt starts a fresh session.
 set -euo pipefail
 
 # Alfred runs scripts with a bare PATH.
@@ -11,15 +14,23 @@ export PATH="$HOME/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 dir="${1:?usage: herdr-claude <dir> <prompt>}"
 prompt="${2:?usage: herdr-claude <dir> <prompt>}"
 dir="${dir/#\~/$HOME}"
+name="${HERDR_CLAUDE_AGENT:-alfred}"
 model="${HERDR_CLAUDE_MODEL:-sonnet}"
 
-# Focuses (or creates) the space and raises the terminal.
-herdr-open-dir "$dir"
-wsid=$(herdr workspace list | jq -r 'first(.result.workspaces[] | select(.focused) | .workspace_id) // empty')
-[[ -n $wsid ]] || { echo "herdr-claude: no focused herdr space" >&2; exit 1; }
+if herdr agent get "$name" >/dev/null 2>&1; then
+    herdr agent focus "$name" >/dev/null
+    open -a Ghostty 2>/dev/null || true
+else
+    # Focuses (or creates) the space and raises the terminal.
+    herdr-open-dir "$dir"
+    wsid=$(herdr workspace list | jq -r 'first(.result.workspaces[] | select(.focused) | .workspace_id) // empty')
+    [[ -n $wsid ]] || { echo "herdr-claude: no focused herdr space" >&2; exit 1; }
 
-pane=$(herdr tab create --workspace "$wsid" --cwd "$dir" --focus |
-    jq -r '.result.root_pane.pane_id')
+    pane=$(herdr tab create --workspace "$wsid" --cwd "$dir" --label "$name" --focus |
+        jq -r '.result.root_pane.pane_id')
+    herdr agent start "$name" --kind claude --pane "$pane" -- --model "$model" >/dev/null
+fi
 
-# The new shell may not be at its prompt yet; it reads the typed line once it is.
-herdr pane run "$pane" "claude --model $model $(printf '%q' "$prompt")" >/dev/null
+# Rejected with agent_blocked while Claude waits on an approval; the session is
+# focused by now, so that dialog is on screen to answer first.
+herdr agent prompt "$name" "$prompt" >/dev/null

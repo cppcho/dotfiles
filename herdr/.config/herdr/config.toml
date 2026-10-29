@@ -150,6 +150,14 @@ height = "60%"
 description = "move this pane to another worktree's space (most recently opened first)"
 
 [[keys.command]]
+key = "prefix+/"
+type = "popup"
+command = "~/bin/herdr-session-search"
+width = "90%"
+height = "85%"
+description = "find a past Claude session by content (all repos + worktrees) and resume it"
+
+[[keys.command]]
 key = "prefix+shift+i"
 type = "shell"
 command = "~/bin/herdr-close-idle-tabs"
