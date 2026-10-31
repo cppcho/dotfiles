@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# herdr-claude-summary — give each idle Claude pane a one-line summary of what
+# its session is working on, as the pane's $summary token (shown under the
+# agent's name in the herdr agents sidebar).
+#
+#   herdr-claude-summary          # run forever (the launchd agent)
+#   herdr-claude-summary --once   # one pass
+#   herdr-claude-summary --dry    # print the summaries one pass would report
+#
+# A pass only summarizes panes that are idle, and only when the
+# session's transcript changed since its last summary, so a session costs one
+# Haiku call per stretch of work rather than one per turn.
+#
+# Env:
+#   HERDR_CLAUDE_SUMMARY_INTERVAL   seconds between passes (default 180)
+#   HERDR_CLAUDE_SUMMARY_MODEL      model alias (default haiku)
+set -uo pipefail
+
+export PATH="$HOME/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+interval="${HERDR_CLAUDE_SUMMARY_INTERVAL:-180}"
+model="${HERDR_CLAUDE_SUMMARY_MODEL:-haiku}"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/herdr-claude-summary"
+mkdir -p "$state_dir"
+
+mode="loop"
+case "${1:-}" in
+    --once) mode="once" ;;
+    --dry) mode="dry" ;;
+esac
+
+# The user's prompts only, oldest first: the first two, which usually state the
+# session's goal, then the last eight. Responses are left out because their
+# detail (one review finding, one failing test) pulls the summary off the goal.
+prompts() {
+    jq -r '
+        select(.type == "user" and (.isMeta | not))
+        | (.message.content
+           | if type == "string" then .
+             else [.[]? | select(.type == "text") | .text] | join(" ") end) as $text
+        | select($text != "" and ($text | startswith("<") | not))
+        | "- \($text[:500] | gsub("\n"; " "))"' "$1" 2>/dev/null
+}
+
+conversation() {
+    local all
+    all=$(prompts "$1")
+    [[ -n $all ]] || return
+    if (( $(wc -l <<<"$all") > 10 )); then
+        head -n 2 <<<"$all"
+        printf -- '- ...\n'
+        tail -n 8 <<<"$all"
+    else
+        printf '%s\n' "$all"
+    fi
+}
+
+# One isolated Haiku call: no hooks, plugins, MCP servers or tools, no saved
+# session, and HERDR_ENV cleared so nothing reports into herdr. The prompt goes
+# in on stdin because --tools would swallow a trailing argument.
+ask() {
+    printf '%s\n' "$1" |
+        env -u HERDR_ENV -u HERDR_PANE_ID claude -p --model "$model" \
+            --no-session-persistence --setting-sources "" --strict-mcp-config --tools "" \
+            2>/dev/null | head -n 1
+}
+
+# The sidebar fits about 30 columns, so a longer reply gets one retry asking
+# for a shorter phrase; herdr truncates whatever still overflows.
+summarize() {
+    local transcript="$1" text line
+    text=$(conversation "$transcript")
+    [[ -n $text ]] || return
+    line=$(ask "Below are the prompts a user sent to a coding agent in one session, oldest first. Name the overall task of the session in at most 26 characters (about 4 words), so it fits a narrow sidebar (e.g. \"Review PR 106\" or \"Fix login token redirect\"). Write it in English even if the prompts are in another language. Sentence case, no trailing period, no quotes, no prefix. Reply with the phrase only.
+
+$text")
+    if (( ${#line} > 30 )); then
+        line=$(ask "Shorten this task name to at most 26 characters, keeping its meaning. Reply with the shortened name only: $line")
+    fi
+    printf '%s' "$line"
+}
+
+pass() {
+    local pane session transcript sig summary
+    while IFS=$'\t' read -r pane session; do
+        transcript=$(ls ~/.claude/projects/*/"$session".jsonl 2>/dev/null | head -n 1)
+        [[ -n $transcript ]] || continue
+        sig=$(stat -f '%m %z' "$transcript")
+        [[ $mode != dry && $(cat "$state_dir/$session" 2>/dev/null) == "$sig" ]] && continue
+
+        summary=$(summarize "$transcript")
+        [[ -n $summary ]] || continue
+        if [[ $mode == dry ]]; then
+            printf '%s\t%s\n' "$pane" "$summary"
+        else
+            herdr pane report-metadata "$pane" --source claude-summary \
+                --token "summary=$summary" >/dev/null 2>&1 \
+                && printf '%s' "$sig" >"$state_dir/$session"
+        fi
+    done < <(herdr pane list 2>/dev/null | jq -r '
+        (.result.panes // [])[]
+        | select(.agent == "claude" and .agent_session.value
+                 and (.agent_status == "idle" or .agent_status == "done"))
+        | "\(.pane_id)\t\(.agent_session.value)"' 2>/dev/null)
+}
+
+case "$mode" in
+    once | dry) pass ;;
+    loop)
+        while :; do
+            pass
+            sleep "$interval"
+        done
+        ;;
+esac

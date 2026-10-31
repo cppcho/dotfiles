@@ -157,6 +157,12 @@ return {
       auto_close_on_empty = true,
       -- Files marked reviewed with w in the file panel survive restarts.
       persist_selections = { enabled = true },
+      -- <leader>gv (or g<C-x>) switches between side-by-side and unified.
+      view = {
+        cycle_layouts = {
+          default = { "diff2_horizontal", "diff1_inline" },
+        },
+      },
       file_panel = {
         show_branch_name = true,
         always_show_sections = true,
@@ -167,9 +173,26 @@ return {
       default_args = {
         DiffviewOpen = { "--imply-local" },
       },
+      hooks = {
+        -- enhanced_diff_hl dims DiffviewDiffDelete to Comment for side-by-side
+        -- filler lines, but the unified layout draws deleted lines with that
+        -- same group, so they lose their red. Restore it in that window only.
+        diff_buf_win_enter = function(_, winid, ctx)
+          if ctx.layout_name ~= "diff1_inline" then return end
+          local winhl = vim.wo[winid].winhighlight
+          vim.wo[winid].winhighlight = (winhl == "" and "" or winhl .. ",") .. "DiffviewDiffDelete:DiffDelete"
+        end,
+      },
       keymaps = {
+        view = {
+          { "n", "<leader>gv", actions.cycle_layout, { desc = "Cycle diff layout" } },
+        },
+        file_panel = {
+          { "n", "<leader>gv", actions.cycle_layout, { desc = "Cycle diff layout" } },
+        },
         file_history_panel = {
           { "n", "D", actions.open_in_diffview, { desc = "Open the entry in a diffview" } },
+          { "n", "<leader>gv", actions.cycle_layout, { desc = "Cycle diff layout" } },
         },
       },
     }

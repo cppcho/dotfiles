@@ -3,5 +3,11 @@
   "description": "Personal Claude Code skills",
   "author": {
     "name": "cppcho"
+  },
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "bash",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/chrome-shared-mcp"]
+    }
   }
 }

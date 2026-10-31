@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# herdr-session-search — find a past Claude Code session by what it said, across
+# every repo and worktree, and resume it in its own space. Bound to prefix+/
+# with type = "popup" (fzf needs a tty).
+#
+# Transcripts live in ~/.claude/projects/<cwd-with-dashes>/<id>.jsonl, and
+# `claude --resume <id>` only finds one from the cwd it ran in, so the pick
+# opens a new tab in that cwd's space and resumes there.
+#
+# Space-separated terms must all appear (case-insensitive, literal). Rows are
+# newest first; hits counts the lines matching the first term, so the session
+# that did the work usually outranks ones that only mention it.
+#
+#   herdr-session-search            the picker
+#   herdr-session-search --list Q   rows for query Q (fzf reload)
+set -euo pipefail
+
+root="$HOME/.claude/projects"
+
+list() {
+    local -a terms files
+    read -ra terms <<<"${1:-}"
+    if ((${#terms[@]} == 0)); then
+        mapfile -t files < <(ls -t "$root"/*/*.jsonl 2>/dev/null | head -n 150)
+    else
+        mapfile -t files < <(rg -l -i -F --glob '*.jsonl' --glob '!**/subagents/**' -- "${terms[0]}" "$root" || true)
+        local t
+        for t in "${terms[@]:1}"; do
+            ((${#files[@]})) || break
+            mapfile -t files < <(rg -l -i -F -- "$t" "${files[@]}" || true)
+        done
+    fi
+    ((${#files[@]})) || return 0
+    python3 -I - "${terms[0]:-}" "${files[@]}" <<'EOF'
+import json, os, sys, time
+term, files = sys.argv[1].lower(), sys.argv[2:]
+skip = ("<local-command", "<command-name>/clear", "<scheduled", "<task-notification", "[SYSTEM")
+rows = []
+for f in files:
+    cwd = first = None
+    hits = 0
+    with open(f, errors="ignore") as fh:
+        for i, line in enumerate(fh):
+            if term and term in line.lower():
+                hits += 1
+            if (cwd and first) or i > 400:
+                if not term:
+                    break
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            cwd = cwd or d.get("cwd")
+            c = d.get("message", {}).get("content") if d.get("type") == "user" else None
+            if not first and isinstance(c, str) and not c.startswith(skip):
+                first = " ".join(c.split())[:140]
+    if not cwd:
+        continue
+    m = os.path.getmtime(f)
+    sid = os.path.basename(f)[:-6]
+    label = os.path.basename(cwd)
+    gone = "" if os.path.isdir(cwd) else " ✗"
+    shown = f"{time.strftime('%m-%d %H:%M', time.localtime(m))}  {hits:>4}  {label[:34] + gone:<36}  {first or '-'}"
+    rows.append((m, f"{shown}\t{f}\t{cwd}\t{sid}"))
+for _, r in sorted(rows, reverse=True):
+    print(r)
+EOF
+}
+
+# Where the first term appears, as message text rather than raw JSON.
+preview() {
+    local file=$1 cwd=$2 sid=$3 q=${4:-}
+    printf '%s\nclaude --resume %s\n\n' "$cwd" "$sid"
+    python3 -I - "${q%% *}" "$file" <<'EOF'
+import json, sys
+term, f = sys.argv[1].lower(), sys.argv[2]
+
+def texts(c):
+    if isinstance(c, str):
+        yield c
+    elif isinstance(c, list):
+        for x in c:
+            if isinstance(x, dict):
+                for k in ("text", "content", "input"):
+                    v = x.get(k)
+                    if isinstance(v, (str, list)):
+                        yield from texts(v)
+                    elif isinstance(v, dict):
+                        yield json.dumps(v, ensure_ascii=False)
+
+shown = 0
+for line in open(f, errors="ignore"):
+    if term and term not in line.lower():
+        continue
+    try:
+        d = json.loads(line)
+    except ValueError:
+        continue
+    who = {"user": "you", "assistant": "claude"}.get(d.get("type"))
+    if not who:
+        continue
+    for t in texts(d.get("message", {}).get("content")):
+        t = " ".join(t.split())
+        i = t.lower().find(term) if term else 0
+        if i < 0:
+            continue
+        a = max(0, i - 90)
+        print(f"{d.get('timestamp', '')[5:16]} {who}: {'…' if a else ''}{t[a:i + 110]}")
+        shown += 1
+        break
+    if shown >= 40:
+        break
+EOF
+}
+
+case "${1:-}" in
+    --list) list "${2:-}"; exit 0 ;;
+    --preview) shift; preview "$@"; exit 0 ;;
+esac
+
+# This pane closes the moment the script exits, so hold any message.
+hold() { echo "$1"; read -rsn1 -t 10 || true; exit 0; }
+
+self="$HOME/bin/herdr-session-search"
+pick=$(fzf --disabled --no-sort --ansi --delimiter=$'\t' --with-nth=1 \
+    --prompt='Claude sessions > ' \
+    --header='date  hits  dir (✗ = gone)  first prompt · all terms must match' \
+    --bind "start:reload:$self --list {q}" \
+    --bind "change:reload:sleep 0.2; $self --list {q}" \
+    --preview "$self --preview {2} {3} {4} {q}" \
+    --preview-window=down,45%,wrap) || exit 0
+[[ -n $pick ]] || exit 0
+IFS=$'\t' read -r _ file cwd sid <<<"$pick"
+
+[[ -d $cwd ]] || hold "$cwd no longer exists — the transcript is still at $file"
+
+resolved=$("$HOME/bin/herdr-workspace-for" --focus "$cwd") || hold "cannot open a space for $cwd"
+IFS=$'\t' read -r wsid root_pane <<<"$resolved"
+pane=$(herdr tab create --workspace "$wsid" --cwd "$cwd" --label resume --focus |
+    jq -r '.result.root_pane.pane_id')
+herdr pane run "$pane" "claude --resume $sid" >/dev/null
+# A fresh space comes with an empty root shell; the resume tab replaces it.
+[[ -n ${root_pane:-} ]] && herdr pane close "$root_pane" >/dev/null
+exit 0

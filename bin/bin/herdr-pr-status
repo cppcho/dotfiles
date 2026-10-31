@@ -10,18 +10,17 @@
 # has one), not the worktree directory, so switching branches in a worktree
 # switches the emoji.
 #
-# Two workspace tokens: $pr holds the emoji, with a TTL of a few poll intervals
-# so a dead poller drops it rather than leaving it stale; $title is "<emoji>
-# <label>", the sidebar's name. The sidebar shows $title in place of the
-# built-in workspace token because herdr puts a " · " between any two row tokens
-# but the one after state_icon. $title has no TTL, since an expired one would
-# leave the row nameless, so the loop rebuilds it every couple of seconds to
-# follow renames, new spaces and an expired $pr. Every pane carries a copy of
-# its space's $title too, since the agents panel only reads pane tokens.
+# $pr holds the emoji, with a TTL of a few poll intervals so a dead poller drops
+# it rather than leaving it stale. The sidebar names come from $main/$wt on
+# spaces and $title on panes, all "<emoji> <name>" (see sync_titles). They stand
+# in for the built-in workspace token because herdr puts a " · " between any two
+# row tokens but the one after state_icon. They have no TTL, since an expired
+# one would leave the row nameless, so the loop rebuilds them every couple of
+# seconds to follow renames, new spaces and an expired $pr.
 #
 # First match wins:
-#   🟣 merged  🚫 closed  💤 draft  💥 conflict  🔥 CI failing
-#   🔴 changes requested  🟢 approved  🔄 CI running  🟡 waiting for review
+#   🟣 merged  🪦 closed  🚧 draft  💥 conflict  🚨 CI failing
+#   🔴 changes requested  🟢 approved  ⏳ CI running  🟡 waiting for review
 #
 # Env:
 #   HERDR_PR_STATUS_INTERVAL   GitHub poll seconds (default 180)
@@ -83,13 +82,13 @@ pr_emoji() {
               else .conclusion end]) as $checks
         | def any_of($s): any($checks[]; IN($s[]));
           if .state == "MERGED" then "🟣"
-          elif .state == "CLOSED" then "🚫"
-          elif .isDraft then "💤"
+          elif .state == "CLOSED" then "🪦"
+          elif .isDraft then "🚧"
           elif .mergeable == "CONFLICTING" then "💥"
-          elif any_of(["FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"]) then "🔥"
+          elif any_of(["FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"]) then "🚨"
           elif .reviewDecision == "CHANGES_REQUESTED" then "🔴"
           elif .reviewDecision == "APPROVED" then "🟢"
-          elif any_of(["PENDING", "EXPECTED"]) then "🔄"
+          elif any_of(["PENDING", "EXPECTED"]) then "⏳"
           else "🟡" end' <<<"$json"
 }
 
@@ -127,27 +126,50 @@ pass() {
     wait
 }
 
-# Rewrite $title on every space (or only $1), and on each of its panes, where
-# "<$pr> <label>" changed.
+# Sync the name tokens on every space (or only $1) and on each of its panes,
+# writing only the ones that changed. A space gets $main when it is the repo's
+# main checkout and $wt when it is a linked worktree, so the sidebar can style
+# the two apart; the other is cleared. Panes get $title with the repo name
+# rather than the worktree's label, so an agent reads as the project it is in,
+# and $branch (" <branch>", the Nerd Font Octicons git-branch glyph), since
+# herdr's branch token only works on space rows.
 sync_titles() {
-    local spaces_json panes_json kind id title
+    local spaces_json panes_json branches_json kind id token value ws dir
     spaces_json=$(herdr workspace list 2>/dev/null) || return
     panes_json=$(herdr pane list 2>/dev/null) || panes_json='{}'
-    while IFS=$'\t' read -r kind id title; do
-        herdr "$kind" report-metadata "$id" --source pr-title --seq "$(seq_now)" \
-            --token "title=$title" >/dev/null 2>&1
-    done < <(jq -rn --argjson s "$spaces_json" --argjson p "$panes_json" --arg only "${1:-}" '
-        ($s.result.workspaces // []) as $spaces
+    branches_json=$(while IFS=$'\t' read -r ws dir; do
+        printf '%s\t%s\n' "$ws" "$(git -C "$dir" symbolic-ref --short -q HEAD \
+            || git -C "$dir" rev-parse --short -q HEAD 2>/dev/null)"
+    done < <(jq -r '(.result.workspaces // [])[] | select(.worktree.checkout_path)
+        | "\(.workspace_id)\t\(.worktree.checkout_path)"' <<<"$spaces_json" 2>/dev/null) \
+        | jq -Rn '[inputs | split("\t") | {key: .[0], value: (.[1] // "")}] | from_entries')
+    while IFS=$'\t' read -r kind id token value; do
+        if [[ -n $value ]]; then
+            herdr "$kind" report-metadata "$id" --source pr-title --seq "$(seq_now)" \
+                --token "$token=$value" >/dev/null 2>&1
+        else
+            herdr "$kind" report-metadata "$id" --source pr-title --seq "$(seq_now)" \
+                --clear-token "$token" >/dev/null 2>&1
+        fi
+    done < <(jq -rn --argjson s "$spaces_json" --argjson p "$panes_json" --argjson b "${branches_json:-"{}"}" --arg only "${1:-}" '
+        def named($pr; $name): (if $pr == "" then "" else "\($pr) " end) + $name;
+        ($s.result.workspaces // [])
+        | map(select($only == "" or .workspace_id == $only)) as $spaces
         | ($spaces
-           | map(select($only == "" or .workspace_id == $only)
-                 | {key: .workspace_id,
-                    value: ((.tokens.pr // "") as $pr
-                            | (if $pr == "" then "" else "\($pr) " end) + (.label // ""))})
-           | from_entries) as $want
-        | ($spaces[] | ["workspace", .workspace_id, .tokens.title, $want[.workspace_id]]),
-          (($p.result.panes // [])[] | ["pane", .pane_id, .tokens.title, $want[.workspace_id]])
-        | select(.[3] != null and .[2] != .[3])
-        | "\(.[0])\t\(.[1])\t\(.[3])"' 2>/dev/null)
+           | map({key: .workspace_id, value: named(.tokens.pr // ""; .worktree.repo_name // .label // "")})
+           | from_entries) as $repo
+        | ($spaces[]
+           | named(.tokens.pr // ""; .label // "") as $name
+           | (.worktree.is_linked_worktree // false) as $wt
+           | ["workspace", .workspace_id, "main", .tokens.main, (if $wt then "" else $name end)],
+             ["workspace", .workspace_id, "wt", .tokens.wt, (if $wt then $name else "" end)]),
+          (($p.result.panes // [])[]
+           | select($repo[.workspace_id] != null)
+           | ["pane", .pane_id, "title", .tokens.title, $repo[.workspace_id]],
+             ["pane", .pane_id, "branch", .tokens.branch,
+              ($b[.workspace_id] // "" | if . == "" then "" else " \(.)" end)])
+        | select((.[3] // "") != .[4])
+        | "\(.[0])\t\(.[1])\t\(.[2])\t\(.[4])"' 2>/dev/null)
 }
 
 case "$mode" in

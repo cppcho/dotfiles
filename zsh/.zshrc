@@ -121,8 +121,3 @@ autoload -U promptinit; promptinit
 PURE_CMD_MAX_EXEC_TIME=10
 prompt pure
 
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/cppcho/.docker/completions $fpath)
-autoload -Uz compinit
-compinit
-# End of Docker CLI completions
