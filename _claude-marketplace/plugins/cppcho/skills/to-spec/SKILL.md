@@ -27,7 +27,24 @@ Stop once the spec is written — don't start implementing it. `/cppcho:to-ticke
 
 ## Linear mode
 
-Everything above is **local mode**: the epic lives under `.scratch/epics/`. When the user points this skill at Linear — a team, a project URL, or "in Linear" — the epic lives in Linear instead and the spec is written into a project or parent issue description. The shared rules (how the modes are told apart, the two epic shapes, where the spec goes, the stamp line, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode. Say the mode and the home in one line first, as that file asks. Nothing in local mode changes.
+Everything above is **local mode**: the epic lives under `.scratch/epics/`. When the user points this skill at Linear, the epic lives in Linear instead and the spec is written into a project or parent issue description. The shared rules — how the modes are told apart, the two epic shapes, where the spec goes, the stamp line, the tools — are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode. Nothing in local mode changes.
+
+**What the argument decides.** The target names the shape:
+
+- A **team** (name or key: `"Linear Test"`, `MVNOALL`) → a new **project** in that team. A new feature of its own.
+- A **project** (URL or `P-TEAM-123`) → a new **parent issue** inside it. A sub-feature of a project the team already plans in.
+- An existing **project or parent issue that already holds a spec** → revise that description in place.
+- "In Linear" with no target → ask one question — project or parent issue, and in which team or project — and write nothing until it is answered.
+
+Process steps 1 and 2 are unchanged: explore the repo, read `.scratch/context.md`, settle the testing boundary. Step 3 changes:
+
+1. **Say the mode and the home first**, in one line, before any Linear call that writes: `Linear epic as a project in <team>` or `Linear epic as a parent issue under <project>`. Nothing is created under `.scratch/epics/` and no prefix is coined; the epic's id is the project identifier or the parent issue id Linear assigns.
+2. **Project.** Read the team's project template (`list_templates` with `type: project` for the team, then `get_template`). Fill its headings from the spec as the reference's §4 says — the "what" heading from Solution, the "why" from Problem Statement, the "notes" from Out of Scope and Further Notes, any deadline or label heading left as the template wrote it — then add `## User Stories` and `## Implementation Decisions` below. Create with `save_project`: `name` is the feature title, `addTeams` the team, `template` the template name, `description` the filled text (a description passed with a template replaces the template body, which is what filling it means). A team with no project template gets the spec's own sections as the description.
+3. **Parent issue.** Read the project (`get_project`) for its lead team. Create with `save_issue`: `team` that team, `project` the project, `title` the feature title, `assignee` `me`, `description` the spec as the template above writes it — Problem Statement, Solution, User Stories, Implementation Decisions, Out of Scope, Further Notes — with nothing that only makes sense on disk: no `spec.md` link, no local path, no prefix.
+4. **Revise.** When the target already holds a spec, read its description first and treat it as established context exactly as for an existing `spec.md`: carry every decision that still holds, revise only what this conversation changed, write a snapshot with no change notes. Keep a `**Reconciled:**` line at the very top if one is there. Write the whole description back (`save_project` / `save_issue` with `description`), since a spec rewrite is a snapshot, not an edit.
+5. Close as in local mode: the URL of what was written and the one line naming the testing boundary. `/cppcho:to-tickets <that URL>` cuts the tickets from it.
+
+A conversation that merely mentions a Linear issue — "related: MVNOALL-1425", a pasted link — with no Linear target in the argument is local mode: write `spec.md` and make no Linear call. When the Linear MCP tools are not available, stop and say so in one line rather than writing a local epic the user did not ask for.
 
 <spec-template>
 

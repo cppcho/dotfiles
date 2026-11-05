@@ -116,12 +116,12 @@ The glyph vocabulary is the one `ticket-dag` defines, so the two modes read alik
 Nothing in these skills moves an issue's status by hand. The team's GitHub integration moves it when a branch or PR names the issue, so:
 
 - `/cppcho:implement` puts the issue identifier in the PR title (`[TEAM-123] …`), which is what the integration keys on, and leaves the branch name as the repo's convention wants it.
-- The integration attaches the PR to the issue. At close-out, if the issue carries no attachment for the PR yet, `implement` adds one with `create_attachment` so the issue always links to the code that carries it.
+- The integration attaches the PR to the issue. At close-out, if the issue carries no attachment for the PR yet, `implement` adds one as a link (`save_issue` with `links: [{url, title}]`) so the issue always links to the code that carries it. `create_attachment` is for file uploads and is not used.
 - `ticket-dag`'s `PRs:` line and `reconcile`'s branch step read PR attachments, and ask `gh` for merge state only where the local rules already allow it.
 
 ## 11. Tools
 
-The skills use the `linear` plugin's MCP tools: `whoami`, `list_issues`, `get_issue` (with relations and attachments), `save_issue`, `save_project`, `get_project`, `list_templates` / `get_template`, `list_issue_statuses`, `list_issue_labels`, `create_attachment`, `save_comment`. Issue identifiers, project identifiers, team names and `me` are accepted as references, so ids rarely need looking up first.
+The skills use the `linear` plugin's MCP tools: `whoami`, `get_team`, `list_issues`, `get_issue` (with relations and attachments), `save_issue` (create, update, `patch`, `blocks` / `blockedBy`, `links`), `save_project` (create, update, `patch`, `template`), `get_project`, `list_templates` / `get_template`, `list_issue_statuses`, `list_issue_labels`, `save_comment`. Issue identifiers, project identifiers, team names and `me` are accepted as references, so ids rarely need looking up first. A skill loads only the tools it calls (`ToolSearch` with `select:`) rather than the whole set.
 
 When those tools are not available in the session, a skill in Linear mode **stops and says so** in one line. It never falls back to writing a local epic the user did not ask for.
 
