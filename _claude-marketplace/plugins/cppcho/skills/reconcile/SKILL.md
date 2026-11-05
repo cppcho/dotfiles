@@ -130,7 +130,7 @@ The freshness mode stamps nothing — one ticket is not an audit.
 
 Everything above is **local mode** and reads ticket files. Given a Linear project URL, a parent issue id or a ticket id, this skill audits the Linear epic instead: bookkeeping from statuses, relations and PR attachments, the same code verdicts, and the stamp written at the top of the spec description. The shared rules — resolving the epic, status and glyphs, frozen and superseded tickets, PR attachments, the tools — are in [`references/linear-mode.md`](../../references/linear-mode.md). Nothing in local mode changes.
 
-**Modes.** A project URL or parent issue id is an **audit** of that epic (steps 1–6). A ticket id whose issue is a sub-issue, or a top-level issue, is **freshness** for that one ticket (step 3 only, no stamp) — it does not resolve upward; pass the epic when you want the audit. There is no argument-less sweep over Linear: the local sweep stays what no argument means.
+**Modes.** A project URL or `P-TEAM-123` is an **audit** of that epic (steps 1–6). An issue id is read first (`get_issue`): an issue that **has sub-issues** is a parent-issue epic and gets the audit; an issue with none is a ticket and gets **freshness** (step 3 only, no stamp). A ticket id never resolves upward here, unlike in `ticket-dag`, because freshness is a mode of its own — pass the project or the parent when you want the audit. There is no argument-less sweep over Linear: the local sweep stays what no argument means.
 
 **Step 1 — bookkeeping, from Linear.** `list_issues` for the epic (top-level issues of the project, or sub-issues of the parent), every state, then `get_issue` with relations and attachments for each. The contradictions Linear can show:
 

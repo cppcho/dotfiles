@@ -36,9 +36,9 @@ An epic is one of two things, chosen by the user per feature:
 
 A feature of its own is usually a project. A sub-feature of a project the team already plans in is usually a parent issue inside it, so it does not become a project nobody else wants in the overview.
 
-**Resolving the epic from an argument.** A project URL or `P-TEAM-123` is the epic. An issue id resolves upward: an issue with a parent resolves to that parent; a top-level issue resolves to its project. Say which epic the argument resolved to.
+**Resolving the epic from an argument.** A project URL or `P-TEAM-123` is the epic. An issue id resolves upward: an issue with a parent resolves to that parent; a top-level issue with sub-issues is itself a parent-issue epic; any other top-level issue resolves to its project. Say which epic the argument resolved to. `reconcile` is the one exception: there a lone ticket id means a freshness check of that ticket, so it does not resolve upward — pass the project or the parent to audit.
 
-**Other people's issues.** Every open issue in the project, or under the parent, belongs to the epic — including ones QA or a PdM filed by hand. They draw and list like any ticket, usually as roots with no edges. The epic is what Linear holds, not only what the skills wrote.
+**Other people's issues.** Every issue in the project, or under the parent, belongs to the epic in whatever state it is in — including ones QA or a PdM filed by hand. They draw and list like any ticket, usually as roots with no edges. The epic is what Linear holds, not only what the skills wrote.
 
 **Sub-issues inside a project.** `list_issues` filtered by project also returns the sub-issues of every parent issue in it. A project-shaped epic reads only the **top-level** issues (`parentId` empty); a top-level issue that has sub-issues is a nested parent-issue epic, drawn as one row with its sub-issue count and named in the footer as an epic that draws on its own. A parent-issue-shaped epic reads only the issues whose `parentId` is that issue.
 
@@ -78,7 +78,7 @@ The title is the ticket title. **Prefix style is read from the siblings:** look 
 ## 6. Creating tickets
 
 - One issue per ticket, in the project (shape: project) or as a sub-issue of the parent (shape: parent issue).
-- **Created in the team's unstarted state** (`Todo` in most teams: the state of type `unstarted`, read with `list_issue_statuses`). A cut ticket is an approved plan; the team's `backlog`-type state holds the unplanned and is left alone.
+- **Created in the team's unstarted state** (`Todo` in most teams). `save_issue` and `save_project` accept a state *type* as `state` — `"unstarted"`, `"canceled"`, `"completed"` — and resolve it to the team's state of that type, so no name lookup is needed; `list_issue_statuses` is for reading a team's names and order, as §7 needs. A cut ticket is an approved plan; the team's `backlog`-type state holds the unplanned and is left alone.
 - **Assigned to the running user** (`whoami`). The Linear sweep in `next-actions` lists issues assigned to me, so an unassigned ticket would vanish from it. The user reassigns in Linear when handing one over.
 - **Blocking edges are `blocks` relations.** Create tickets in dependency order, blockers first, so every relation can be written as the dependent is created. A blocker in another epic is an ordinary relation to that issue; Linear relations are global.
 - No estimate, no milestone, no label beyond what the team's template applies. Those are the team's to set by hand.
@@ -123,7 +123,7 @@ Nothing in these skills moves an issue's status by hand. The team's GitHub integ
 
 - `/cppcho:implement` puts the issue identifier in the PR title (`[TEAM-123] …`), which is what the integration keys on, and leaves the branch name as the repo's convention wants it.
 - The integration attaches the PR to the issue. At close-out, if the issue carries no attachment for the PR yet, `implement` adds one as a link (`save_issue` with `links: [{url, title}]`) so the issue always links to the code that carries it. `create_attachment` is for file uploads and is not used.
-- `ticket-dag`'s `PRs:` line and `reconcile`'s branch step read PR attachments, and ask `gh` for merge state only where the local rules already allow it.
+- `ticket-dag`'s `PRs:` line and `reconcile`'s branch step read PR attachments. Who asks `gh` for merge state follows the local rules unchanged: `reconcile` always, `next-actions` only with `--verify` or when merge state is the question, `ticket-dag` never.
 
 ## 11. Tools
 
