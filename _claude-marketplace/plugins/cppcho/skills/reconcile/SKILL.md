@@ -8,7 +8,7 @@ argument-hint: "[epic-prefix|ticket-id]"
 
 Answer one question: **is this local epic still true?** Tickets are written once and read for weeks while parallel epics land code underneath them, so an outstanding ticket is a claim about the codebase that nothing has re-checked since the day it was cut.
 
-Epic and ticket here mean the files under `.scratch/epics/<PREFIX>-<slug>/` — never a Jira or Linear issue.
+Epic and ticket here mean the files under `.scratch/epics/<PREFIX>-<slug>/` — never a Jira issue, and a Linear project or issue only in **Linear mode**, described at the end.
 
 ## Modes
 
@@ -125,3 +125,7 @@ After an audit, record it under the spec's H1:
 The date, the commit the code was read at, and **the tickets actually checked**. A bare stamp claims the whole epic is fresh when perhaps three tickets were read; naming the scope makes the line unable to overclaim, and lets the next run scope its reading to what changed since that commit.
 
 The freshness mode stamps nothing — one ticket is not an audit.
+
+## Linear mode
+
+Everything above is **local mode** and reads ticket files. Given a Linear project URL, a parent issue id or a ticket id, this skill audits the Linear epic instead: bookkeeping from statuses, relations and PR attachments, the same code verdicts, and the stamp written at the top of the spec description. The shared rules (resolving the epic, status and glyphs, frozen and superseded tickets, PR attachments, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md). Nothing in local mode changes.

@@ -6,7 +6,7 @@ argument-hint: "[epic-prefix|tickets-path]"
 
 # Ticket DAG
 
-Render a local epic — `.scratch/epics/<PREFIX>-<slug>/tickets/` — as one diagram: rails on the left carrying the blocking edges, one line per ticket carrying its id, title, a one-line summary, the repository it changes when that isn't the epic's own, and a size estimate. Epic and ticket here mean these files on disk, never a Jira or Linear issue.
+Render a local epic — `.scratch/epics/<PREFIX>-<slug>/tickets/` — as one diagram: rails on the left carrying the blocking edges, one line per ticket carrying its id, title, a one-line summary, the repository it changes when that isn't the epic's own, and a size estimate. Epic and ticket here mean these files on disk, never a Jira issue — and a Linear project or issue only in **Linear mode**, described at the end.
 
 The point is to answer three questions in a single glance — **what can I start now**, **how deep is the longest chain**, and **did the edges come out the way I meant**. A wall of ticket files answers none of those; a graph answers all three.
 
@@ -144,3 +144,7 @@ The graph usually gets drawn because a decision is pending. Close by naming the 
 When the move is picking up a ticket whose blocker carries a `**Branch:**` line, name that branch alongside it. Which branch the work continues from is the first thing the next session needs and the last thing it can work out for itself. Name the repository too when the pick is not in the home one — it decides which checkout the session opens in, so a pick that reads as local when it isn't sends the reader to the wrong tree before they have read a line of code.
 
 Nothing here writes to disk. The graph is a view, and the ticket files stay the record — reshaping the epic, superseding a ticket or repointing an edge is `/cppcho:to-tickets` work, so hand it over when the graph reveals the epic is wrong rather than editing tickets from here. When what the graph reveals is a suspicion rather than a mistake — rows that may have gone stale while other epics landed — `/cppcho:reconcile <PREFIX>` is what checks them against the code.
+
+## Linear mode
+
+Everything above is **local mode** and reads only files. Given a Linear project URL, a parent issue id or any ticket id, this skill draws the Linear epic instead: the same rails, rows, glyphs and footer, with edges read from blocking relations and glyphs from Linear status. The shared rules (resolving the epic from an argument, the status-to-glyph table, when a blocker counts as satisfied, other people's issues, PR attachments) are in [`references/linear-mode.md`](../../references/linear-mode.md). Nothing in local mode changes.

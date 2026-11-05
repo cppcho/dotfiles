@@ -25,6 +25,10 @@ Match each section's length to what it carries. The user stories are deliberatel
 
 Stop once the spec is written — don't start implementing it. `/cppcho:to-tickets` breaks it into tickets when the user is ready, and owns reconciling them when a later session revises a decision they were cut from.
 
+## Linear mode
+
+Everything above is **local mode**: the epic lives under `.scratch/epics/`. When the user points this skill at Linear — a team, a project URL, or "in Linear" — the epic lives in Linear instead and the spec is written into a project or parent issue description. The shared rules (how the modes are told apart, the two epic shapes, where the spec goes, the stamp line, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode. Say the mode and the home in one line first, as that file asks. Nothing in local mode changes.
+
 <spec-template>
 
 # <PREFIX> — <Feature>

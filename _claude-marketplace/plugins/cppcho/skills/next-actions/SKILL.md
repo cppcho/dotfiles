@@ -6,7 +6,7 @@ argument-hint: "[epic-prefix] [--verify]"
 
 # Next Actions
 
-Answer one question: **what can I work on right now, across everything in flight?** Where `cppcho:ticket-dag` draws one epic's edges in depth, this skill sweeps every **local epic** — the ticket directories under `.scratch/epics/`, never Jira or Linear — and returns a flat, prioritised list: the view you want at the start of a session, before you know which epic you're picking up.
+Answer one question: **what can I work on right now, across everything in flight?** Where `cppcho:ticket-dag` draws one epic's edges in depth, this skill sweeps every **local epic** — the ticket directories under `.scratch/epics/`, never Jira, and Linear only when asked (see Linear mode at the end) — and returns a flat, prioritised list: the view you want at the start of a session, before you know which epic you're picking up.
 
 ## 1. Find the epics
 
@@ -75,3 +75,7 @@ Pick: PCE-02 — smallest slice, continues the chain in flight.
 End with a single `Pick:` line naming the ticket you'd start and why — shortest path to a demo, unblocks the most, or continues a chain in flight. Don't restate the list. Say the repository when the pick isn't in the one you're standing in: it decides which checkout the session opens in, and a pick that reads as local when it isn't costs the reader that discovery after they have already started.
 
 Nothing here writes to disk. When the list reveals the epic itself is wrong — a dead edge, a contradiction — hand it to `/cppcho:to-tickets`; when the user wants the shape behind one epic, hand it to `/cppcho:ticket-dag`; when rows look like they may have gone stale while other epics landed, name `/cppcho:reconcile <PREFIX>` and leave the checking to it.
+
+## Linear mode
+
+Everything above is **local mode** and makes no network call. Given `linear` or a Linear URL as its argument, this skill sweeps the user's Linear tickets instead — issues assigned to me in open states, grouped by project or parent issue — in the same block format. The shared rules (status and glyphs, when a blocker counts as satisfied, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md). The two sweeps are never merged into one view, so the default glance stays offline.

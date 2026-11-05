@@ -6,7 +6,7 @@ argument-hint: "[spec-path|issue-number|issue-url]"
 
 # To Tickets
 
-Break a plan, spec, or conversation into a **local epic** — a directory of **local tickets** under `.scratch/epics/`, each a tracer-bullet vertical slice declaring the tickets that **block** it. Epic and ticket here mean these files on disk, never a Jira or Linear issue. The epic is what `/cppcho:implement` then works through, one ticket per session.
+Break a plan, spec, or conversation into a **local epic** — a directory of **local tickets** under `.scratch/epics/`, each a tracer-bullet vertical slice declaring the tickets that **block** it. Epic and ticket here mean these files on disk, never a Jira issue — and a Linear issue only in **Linear mode**, described at the end. The epic is what `/cppcho:implement` then works through, one ticket per session.
 
 ## 1. Gather context
 
@@ -186,3 +186,7 @@ Archive only when all of this holds:
 `spec.md` travels with the epic — it lives in the directory being moved, and its `**Shipped:**` line is not needed once the whole thing is out of the sweep. `.scratch/context.md` is **not** archived: the domain glossary is one per repo and outlives every feature in it.
 
 Before you move anything, ask what in the spec is still true about the code and would cost the next reader real time to rediscover — a seam, a constraint, a decision the code embodies but doesn't explain. That belongs in the repo, in `CLAUDE.md`, a design doc, or an ADR. Everything under `.scratch` is gitignored and local to one machine, so archiving is the moment the knowledge either gets promoted into the repo or stops existing for anybody else. Say what you'd promote and let the user decide; don't write into their repo unasked.
+
+## Linear mode
+
+Everything above is **local mode**. When the epic lives in Linear — the argument is a Linear project or issue, or the spec was written into one — the tickets become issues (or sub-issues), the blocking edges become relations, and no file is written under `.scratch/epics/`. The shared rules (telling the modes apart, the two epic shapes, the ticket body, creation defaults, status and glyphs, supersede and cancel, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode, and say the mode and the home in one line first. Nothing in local mode changes.

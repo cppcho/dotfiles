@@ -157,3 +157,7 @@ The run ends with this, filled in. A slot you can't fill is a step still to do, 
 Write it for someone who has not re-read the ticket: behaviours and files as they'd say them out loud, none of this skill's vocabulary. The measure is whether they can act on it without opening another file. Shape is the change without the diff: a reader of two close-outs that said only what the code did had to ask what the difference was between three functions that made one HTTP call.
 
 On a long run, past roughly 150 turns, post two or three lines at each phase boundary saying what's done and what's next. Every "are u done yet" in this skill's history came from a run that had reported nothing since it started.
+
+## Linear mode
+
+Everything above is **local mode**: the ticket is a file and the spec is `spec.md`. Given a Linear issue (`TEAM-123` or its URL), the ticket is that issue and the spec is its parent issue's or project's description, and progress is ticked in Linear rather than on disk. The shared rules (telling the modes apart, resolving the epic, ticking by patch, the PR title and attachment, what replaces the Branch line) are in [`references/linear-mode.md`](../../references/linear-mode.md); read it in Phase 1 when the argument is a Linear reference. Nothing in local mode changes.
