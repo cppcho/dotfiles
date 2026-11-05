@@ -209,4 +209,24 @@ Steps 2–4 are unchanged: explore, draft vertical slices with their blocking ed
 - A blocker in another epic is named by its identifier in `blockedBy` like any other; relations are global.
 - Write no `README.md`: the relations are the graph. Then draw the epic with `cppcho:ticket-dag` in Linear mode, from what Linear now holds, and close with the judgement calls as in local mode.
 
+**When the plan changes, in Linear mode.** Unstarted tickets (unstarted or backlog state, no box ticked) are revised in place with a description `patch` or a new title. A **frozen** ticket is superseded, never rewritten:
+
+1. Set it to the `canceled`-type state (`save_issue` with `state: "canceled"`) and add a comment (`save_comment`) `Superseded by TEAM-NNN — <title>`, or `Superseded: <reason>` when nothing replaces it. Its description, ticks and attachments stay as they are.
+2. Create the replacement as a new issue in the same project or under the same parent, carrying the still-valid unticked criteria plus the changed behaviour, with its own `**Repo:**` and the `blockedBy` that is true now. Create it first when the comment is to name it.
+3. Re-point every dependent: `save_issue` on each issue the dead ticket blocked, with `removeBlockedBy` naming the dead ticket and `blockedBy` naming the replacement — or only the removal when the work is dropped. A relation left aimed at a cancelled issue blocks its dependent forever.
+4. Redraw with `cppcho:ticket-dag` in Linear mode; an edge still running into a 🚫 is the thing to check.
+
+A changed decision is written into the spec description's Implementation Decisions with a `patch`, touching nothing else there; a change that moves user stories or the problem statement is a `/cppcho:to-spec` session.
+
+**Cancelling a whole epic.** Set the project's status to its cancelled status (`save_project` with `state: "canceled"`), or the parent issue to the `canceled`-type state, and add a comment with the reason. Leave every ticket as it is. The reason is the load-bearing part, exactly as for the local `**Cancelled:**` line.
+
+**A shipped epic** needs nothing from this skill: the project in a completed status, or the parent issue in a `completed`-type state, is the record. Asked to archive a Linear epic, say that and change nothing.
+
+**Moving a live local epic into Linear.** `/cppcho:to-tickets <local epic path or prefix> <team or project URL>` publishes a local epic once and retires the local copy:
+
+1. Say the mode and the home. Create the epic as `/cppcho:to-spec` would — a project in the team, or a parent issue in the project — with the local `spec.md` as its description, minus the local-only parts and with the `**Reconciled:**` line carried if present.
+2. Publish every ticket that is **not superseded**, in dependency order, with the body from §5 and the ticks exactly as they are on disk. A ticket with any box ticked or a `**Branch:**` line is created in the team's `In Progress`-equivalent started state (the first `started`-type state) with each PR link from its Branch line passed as a `links` entry; everything else is created `unstarted`. Blocked-by lines become `blockedBy`, skipping any that name a superseded ticket.
+3. Add one line under the local `tickets/README.md` heading, `**Moved:** <epic URL>`, then move the directory to `.scratch/epics/_archive/<PREFIX>-<slug>/` as the archive step does. Nothing is deleted: the archived files are the record of how the feature was cut before the move.
+4. Draw the new Linear epic with `cppcho:ticket-dag` and close with the id map — `PCE-03 → TEAM-128` one per line — so links in notes and PR descriptions can be fixed.
+
 When the Linear MCP tools are not available, stop and say so in one line rather than writing a local epic the user did not ask for.
