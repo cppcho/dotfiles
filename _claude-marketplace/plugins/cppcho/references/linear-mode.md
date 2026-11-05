@@ -115,7 +115,7 @@ The glyph vocabulary is the one `ticket-dag` defines, so the two modes read alik
 
 `/cppcho:implement` ticks acceptance boxes as each slice goes green, in the issue description, with a **patch** (`save_issue` with `patch`) that flips `- [ ]` to `- [x]` on the matching line and touches nothing else. Never resend the whole description to tick a box: a rewrite races with anyone editing the issue and loses their words.
 
-Read the description back before patching and match the stored text, not the text that was sent: Linear normalises Markdown on save — a ticked box comes back as `- [X]` (capital), a bare `[M]` as `\[M\]`, a `-` bullet outside a task list as `*`. Progress counts treat `[x]` and `[X]` alike.
+Read the description back before patching and match the stored text, not the text that was sent: Linear normalises Markdown on save — a ticked box comes back as `- [X]` (capital), a bare `[M]` as `\[M\]`, a `-` bullet outside a task list as `*`, and a bare issue identifier (`LT-2`) becomes an `<issue … />` mention embed. Progress counts treat `[x]` and `[X]` alike. Identifiers that must stay plain text — the stamp line's ticket list, a `Repo:` value — go in backticks; identifiers that should link, as in a supersede comment, stay bare. To replace a line whose stored form you cannot predict (the stamp, once it holds embeds), patch with `replace_range` from the line's opening marker to the heading that follows it, rather than matching the whole line.
 
 ## 10. PRs and status moves
 

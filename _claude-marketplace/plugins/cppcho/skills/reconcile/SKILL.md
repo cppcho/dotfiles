@@ -128,4 +128,22 @@ The freshness mode stamps nothing — one ticket is not an audit.
 
 ## Linear mode
 
-Everything above is **local mode** and reads ticket files. Given a Linear project URL, a parent issue id or a ticket id, this skill audits the Linear epic instead: bookkeeping from statuses, relations and PR attachments, the same code verdicts, and the stamp written at the top of the spec description. The shared rules (resolving the epic, status and glyphs, frozen and superseded tickets, PR attachments, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md). Nothing in local mode changes.
+Everything above is **local mode** and reads ticket files. Given a Linear project URL, a parent issue id or a ticket id, this skill audits the Linear epic instead: bookkeeping from statuses, relations and PR attachments, the same code verdicts, and the stamp written at the top of the spec description. The shared rules — resolving the epic, status and glyphs, frozen and superseded tickets, PR attachments, the tools — are in [`references/linear-mode.md`](../../references/linear-mode.md). Nothing in local mode changes.
+
+**Modes.** A project URL or parent issue id is an **audit** of that epic (steps 1–6). A ticket id whose issue is a sub-issue, or a top-level issue, is **freshness** for that one ticket (step 3 only, no stamp) — it does not resolve upward; pass the epic when you want the audit. There is no argument-less sweep over Linear: the local sweep stays what no argument means.
+
+**Step 1 — bookkeeping, from Linear.** `list_issues` for the epic (top-level issues of the project, or sub-issues of the parent), every state, then `get_issue` with relations and attachments for each. The contradictions Linear can show:
+
+- An outstanding ticket **blocked by a `canceled` or `duplicate` issue** — a dead edge, blocking its dependent forever.
+- A **`completed` ticket with unticked acceptance boxes** — read them: a box only the real system can prove is misfiled (⚠️, route to `/cppcho:to-tickets` to move it to a verification ticket); any other is ❓, shipped unverified or never ticked.
+- A **`started` ticket with no PR attachment** — in flight with no code anywhere Linear can see.
+- A **`completed` ticket whose blocker is not satisfied** — done before its blocker, one record is wrong.
+- A ticket with **no ticket body** (no `**What to build:**`) — filed by hand; name it so nobody reads it as a cut slice.
+
+**Step 2 — branches, from attachments.** For each attachment whose URL is a pull request, `gh pr view <url> --json state,mergedAt` once. A **merged PR on a ticket still in a `started` state** is ⚠️: the integration should have moved it, so either the integration missed it or the PR title lacked the identifier. A **closed-unmerged PR on a `completed` ticket** is ❓. An open PR on a started ticket is not a finding.
+
+**Steps 3–5 are unchanged**: one verdict per outstanding ticket against the code, the spec's Implementation Decisions (read from the project or parent issue description) against the code, one report block with the same glyphs, every finding routed to `/cppcho:to-tickets` or `/cppcho:to-spec`. Reconcile edits no issue, relation or status.
+
+**Step 6 — stamp.** After an audit, write the `**Reconciled:** <date> · <commit> · <ids>` line at the very top of the spec description, the ids in one backtick span so Linear does not turn them into mention embeds — `save_project` or `save_issue` with a `patch`: when a stamp is already there, `replace_range` from `**Reconciled:**` to the first `## ` heading with the new line plus a blank line (the stored form of the old line is not predictable once Linear has normalised it); when not, `prepend` the line plus a blank line. The rest of the description is untouched. Freshness stamps nothing.
+
+A local argument (prefix or `PREFIX-NN`) is local mode and makes no Linear call. When the Linear MCP tools are not available, say so in one line and stop.
