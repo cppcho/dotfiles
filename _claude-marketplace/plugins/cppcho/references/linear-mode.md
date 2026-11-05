@@ -40,6 +40,8 @@ A feature of its own is usually a project. A sub-feature of a project the team a
 
 **Other people's issues.** Every open issue in the project, or under the parent, belongs to the epic — including ones QA or a PdM filed by hand. They draw and list like any ticket, usually as roots with no edges. The epic is what Linear holds, not only what the skills wrote.
 
+**Sub-issues inside a project.** `list_issues` filtered by project also returns the sub-issues of every parent issue in it. A project-shaped epic reads only the **top-level** issues (`parentId` empty); a top-level issue that has sub-issues is a nested parent-issue epic, drawn as one row with its sub-issue count and named in the footer as an epic that draws on its own. A parent-issue-shaped epic reads only the issues whose `parentId` is that issue.
+
 ## 4. The spec in Linear
 
 **Project.** The description follows the team's project template, read with `list_templates` / `get_template` for the target team. Its headings are filled from the spec: the "what" heading from Solution, the "why" heading from Problem Statement, the "notes" heading from Out of Scope and Further Notes, and any deadline or label heading left as the template wrote it when the spec says nothing. Below the template's headings, the spec's User Stories and Implementation Decisions follow under their own headings. A team with no project template gets the spec sections as `to-spec` writes them.
@@ -59,13 +61,15 @@ An issue's description is the ticket body in this order, the same parts a local 
 
 **Repo:** `<repo>` — or `none — verification on development`
 
-**Size:** [S] | [M] | [L]
+**Size:** `[S]` | `[M]` | `[L]`
 
 ## Acceptance criteria
 
 - [ ] …
 - [ ] …
 ```
+
+The size sits in backticks because Linear's Markdown normaliser escapes a bare `[M]` to `\[M\]`. Checkboxes are written `- [ ]` and come back unchanged, which is what lets a tick be a one-line patch.
 
 No `**Blocked by:**` line: the relations carry the edges (§6). No `**Spec:**` line: the parent or project is the spec. No `**Branch:**` line: PR attachments carry where the code went (§10). No `**Linear:**` line: the issue is the ticket. Size is text, not Linear's estimate field, so a team that does not estimate is not pushed into it.
 

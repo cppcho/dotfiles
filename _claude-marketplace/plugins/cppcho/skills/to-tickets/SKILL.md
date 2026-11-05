@@ -189,4 +189,24 @@ Before you move anything, ask what in the spec is still true about the code and 
 
 ## Linear mode
 
-Everything above is **local mode**. When the epic lives in Linear — the argument is a Linear project or issue, or the spec was written into one — the tickets become issues (or sub-issues), the blocking edges become relations, and no file is written under `.scratch/epics/`. The shared rules (telling the modes apart, the two epic shapes, the ticket body, creation defaults, status and glyphs, supersede and cancel, the tools) are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode, and say the mode and the home in one line first. Nothing in local mode changes.
+Everything above is **local mode**. When the epic lives in Linear — the argument is a Linear project or issue, or the spec was written into one this session — the tickets become issues (or sub-issues), the blocking edges become relations, and no file is written under `.scratch/epics/`. The shared rules — telling the modes apart, the two epic shapes, the ticket body, creation defaults, status and glyphs, supersede and cancel, the tools — are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode. Nothing in local mode changes.
+
+**What the argument decides.**
+
+- A **project** (URL or `P-TEAM-123`) → the epic is that project; tickets are top-level issues in it; the spec is its description.
+- A **parent issue** (URL or `TEAM-123`) → the epic is that issue; tickets are its sub-issues; the spec is its description. A Linear issue handed over as the *source* to break down is this case: the slices go under it.
+- A **local spec path** → local mode, exactly as above.
+
+**Step 1 in Linear mode.** Say the mode and the home first: `Linear epic as a project <name>` or `Linear epic as a parent issue <id>`. Read the spec from the description (`get_project` / `get_issue`). Then read what already exists — `list_issues` with `project` or `parentId` — before drafting, for the same reason as on disk: tickets in flight are load-bearing. A ticket in any started state or with any ticked box is **frozen**; revise unstarted ones freely; new work is appended. There is no prefix to coin and no `_archive/` to check.
+
+Steps 2–4 are unchanged: explore, draft vertical slices with their blocking edges, keep implementation and verification tickets apart, settle the shape yourself.
+
+**Step 5 in Linear mode.** Write the tickets as issues, **in dependency order, blockers first**, because a relation can only name an issue that exists:
+
+- `save_issue` with `team` (the project's lead team, or the parent's team), `project` or `parentId`, `title`, `description`, `state: "unstarted"`, `assignee: "me"`, and `blockedBy` listing the identifiers of the blockers already created. Pass the state explicitly — Linear's default on create is the backlog state, and a cut ticket is an approved plan, not backlog.
+- The **description** is the body from the reference's §5: `**What to build:**`, `**Repo:**`, `**Size:**`, then `## Acceptance criteria` as checkboxes. No Blocked by, Spec, Branch or Linear line — the relations, the parent and the attachments carry those.
+- The **title prefix** is read from the siblings. Before creating, look at the titles of the open issues already in the project (or under the parent, or in the parent's project): when they carry a leading `[XX]` tag, give each new title the tag that fits its layers and give a `Repo: none` verification ticket the tag the siblings use for QA work; when none does, titles stay plain.
+- A blocker in another epic is named by its identifier in `blockedBy` like any other; relations are global.
+- Write no `README.md`: the relations are the graph. Then draw the epic with `cppcho:ticket-dag` in Linear mode, from what Linear now holds, and close with the judgement calls as in local mode.
+
+When the Linear MCP tools are not available, stop and say so in one line rather than writing a local epic the user did not ask for.
