@@ -115,6 +115,8 @@ The glyph vocabulary is the one `ticket-dag` defines, so the two modes read alik
 
 `/cppcho:implement` ticks acceptance boxes as each slice goes green, in the issue description, with a **patch** (`save_issue` with `patch`) that flips `- [ ]` to `- [x]` on the matching line and touches nothing else. Never resend the whole description to tick a box: a rewrite races with anyone editing the issue and loses their words.
 
+Read the description back before patching and match the stored text, not the text that was sent: Linear normalises Markdown on save — a ticked box comes back as `- [X]` (capital), a bare `[M]` as `\[M\]`, a `-` bullet outside a task list as `*`. Progress counts treat `[x]` and `[X]` alike.
+
 ## 10. PRs and status moves
 
 Nothing in these skills moves an issue's status by hand. The team's GitHub integration moves it when a branch or PR names the issue, so:
