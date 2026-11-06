@@ -6,7 +6,7 @@ argument-hint: "[epic-prefix|tickets-path]"
 
 # Ticket DAG
 
-Render a local epic — `.scratch/epics/<PREFIX>-<slug>/tickets/` — as one diagram: rails on the left carrying the blocking edges, one line per ticket carrying its id, title, a one-line summary, the repository it changes when that isn't the epic's own, and a size estimate. Epic and ticket here mean these files on disk, never a Jira or Linear issue.
+Render a local epic — `.scratch/epics/<PREFIX>-<slug>/tickets/` — as one diagram: rails on the left carrying the blocking edges, one line per ticket carrying its id, title, a one-line summary, the repository it changes when that isn't the epic's own, and a size estimate. Epic and ticket here mean these files on disk, never a Jira issue — and a Linear project or issue only in **Linear mode**, described at the end.
 
 The point is to answer three questions in a single glance — **what can I start now**, **how deep is the longest chain**, and **did the edges come out the way I meant**. A wall of ticket files answers none of those; a graph answers all three.
 
@@ -144,3 +144,26 @@ The graph usually gets drawn because a decision is pending. Close by naming the 
 When the move is picking up a ticket whose blocker carries a `**Branch:**` line, name that branch alongside it. Which branch the work continues from is the first thing the next session needs and the last thing it can work out for itself. Name the repository too when the pick is not in the home one — it decides which checkout the session opens in, so a pick that reads as local when it isn't sends the reader to the wrong tree before they have read a line of code.
 
 Nothing here writes to disk. The graph is a view, and the ticket files stay the record — reshaping the epic, superseding a ticket or repointing an edge is `/cppcho:to-tickets` work, so hand it over when the graph reveals the epic is wrong rather than editing tickets from here. When what the graph reveals is a suspicion rather than a mistake — rows that may have gone stale while other epics landed — `/cppcho:reconcile <PREFIX>` is what checks them against the code.
+
+## Linear mode
+
+Everything above is **local mode** and reads only files. Given a Linear project URL, a parent issue id or any ticket id, this skill draws the Linear epic instead: the same rails, rows, glyphs and footer, with edges read from blocking relations and glyphs from Linear status. The shared rules — resolving the epic from an argument, the status-to-glyph table, when a blocker counts as satisfied, other people's issues, PR attachments — are in [`references/linear-mode.md`](../../references/linear-mode.md). Nothing in local mode changes.
+
+**Step 1 — resolve the epic.** A project URL or `P-TEAM-123` is the epic. An issue id walks up: `get_issue` it; with a `parentId`, the parent is the epic; with sub-issues of its own, it is the epic; otherwise its project is. Say in the footer which epic the argument resolved to and how (`drawn from LT-5 → parent LT-1`). A cancelled project or parent issue still draws when asked for directly, with the cancellation named in the footer.
+
+**Step 2 — read the tickets.** `list_issues` with `project` (then keep only rows with no `parentId`) or with `parentId`, including every state — done and retired rows are rows too. Then `get_issue` with relations and attachments for each row; that is one call per ticket, and the trade is accepted: a graph that lies about its edges is worse than one that takes a few seconds. From each issue take:
+
+- **Id and title** from the issue.
+- **Edges** from `relations.blockedBy`.
+- **Status** from the state and its type, mapped by the reference's §7. A blocker is satisfied when its state is `completed`-type, or `started`-type at or past the team's review state (`list_issue_statuses` once per team to know its name and order).
+- **Progress** from the `- [ ]` / `- [x]` / `- [X]` lines in the description, shown beside 🟡 as `ticked/total`.
+- **Where the work went** from `attachments` whose URL is a pull request: those feed the `PRs:` line, grouped by repository as in local mode. Never ask `gh` whether one merged.
+- **Repository** from the `**Repo:**` line in the description; a row without one is `repo unknown`, and a row with no ticket body at all (filed by hand) is tagged in the footer as not cut by the skills.
+- **Size** from the `**Size:**` line; infer where it is missing and say so, as in local mode.
+- **Nested epics**: a top-level issue with sub-issues draws as one row with `· N sub-issues` and is named in the footer as a parent-issue epic that draws on its own.
+
+Drop transitive edges and flag impossible states exactly as in local mode: a `completed` ticket whose blocker is `unstarted` is still a contradiction worth the top of the footer. A 🚫 blocker is a dead edge; name it.
+
+**Steps 3–5 are unchanged.** Same glyphs, same rails, same footer, same closing move. The `Repo:` footer line names the home repository as the one `**Repo:**` most rows declare, since there is no working tree holding the epic. There is no README or spec "current state" to compare against; the drift lines that remain are the ones Linear itself can show — a dead edge, a done-before-blocker, a row without a body.
+
+A local argument (prefix, slug or path) is local mode and makes no Linear call. When the Linear MCP tools are not available, say so in one line and stop.

@@ -6,7 +6,7 @@ argument-hint: "[epic-prefix] [--verify]"
 
 # Next Actions
 
-Answer one question: **what can I work on right now, across everything in flight?** Where `cppcho:ticket-dag` draws one epic's edges in depth, this skill sweeps every **local epic** — the ticket directories under `.scratch/epics/`, never Jira or Linear — and returns a flat, prioritised list: the view you want at the start of a session, before you know which epic you're picking up.
+Answer one question: **what can I work on right now, across everything in flight?** Where `cppcho:ticket-dag` draws one epic's edges in depth, this skill sweeps every **local epic** — the ticket directories under `.scratch/epics/`, never Jira, and Linear only when asked (see Linear mode at the end) — and returns a flat, prioritised list: the view you want at the start of a session, before you know which epic you're picking up.
 
 ## 1. Find the epics
 
@@ -75,3 +75,15 @@ Pick: PCE-02 — smallest slice, continues the chain in flight.
 End with a single `Pick:` line naming the ticket you'd start and why — shortest path to a demo, unblocks the most, or continues a chain in flight. Don't restate the list. Say the repository when the pick isn't in the one you're standing in: it decides which checkout the session opens in, and a pick that reads as local when it isn't costs the reader that discovery after they have already started.
 
 Nothing here writes to disk. When the list reveals the epic itself is wrong — a dead edge, a contradiction — hand it to `/cppcho:to-tickets`; when the user wants the shape behind one epic, hand it to `/cppcho:ticket-dag`; when rows look like they may have gone stale while other epics landed, name `/cppcho:reconcile <PREFIX>` and leave the checking to it.
+
+## Linear mode
+
+Everything above is **local mode** and makes no network call. Given `linear` or a Linear URL as its argument, this skill sweeps the user's Linear tickets instead — issues assigned to me in open states, grouped by project or parent issue — in the same block format. The shared rules — status and glyphs, when a blocker counts as satisfied, the tools — are in [`references/linear-mode.md`](../../references/linear-mode.md). The two sweeps are never merged into one view, so the default glance stays offline.
+
+**Step 1 — find the tickets.** `list_issues` with `assignee: "me"`, every page, keeping rows whose state type is `backlog`, `unstarted` or `started` — done, cancelled and duplicate rows are not outstanding. A Linear URL or identifier narrows that to one project (`project`) or one parent issue (`parentId`); `linear` alone takes everything. Issues assigned to someone else never appear, however close to yours they sit: the question is what *I* can pick up.
+
+**Step 2 — read the tickets.** Group by project, and inside a project by parent issue where there is one, since a parent issue is an epic of its own. `get_issue` with relations for each row — the one call per ticket the graph also pays. Status comes from the reference's §7; **ready** is `unstarted` or `backlog` with every blocker satisfied (completed, or started at or past the team's review state), which is the same definition `/cppcho:implement` uses in Linear mode. Progress is the ticked count in the description; the PR for a 🟡 row is its attachment; the repository is the `**Repo:**` line, `repo unknown` without one; the change-kind line is read off `**What to build:**` as in local mode.
+
+**Step 3 — report.** One block per project or parent issue, headed by its name and identifier, rows ordered ready, in flight, blocked, blocked rows collapsed to a count unless parked on something outside the graph (a 🚫 blocker, a `triage` state). The opening `Repo:` header line is not drawn — Linear has no home repository — so every row carries its own repository tag. A `Pick:` line closes it, as in local mode, but it names an `unstarted` row with a ticket body: a `backlog`-state row draws 🟢 when nothing blocks it, yet the team's backlog is the unplanned, and a row with no `**What to build:**` was filed by hand — neither is an approved slice to start on, so say so beside it rather than picking it.
+
+Nothing here writes to Linear. A dead edge or a Done-with-open-boxes row is named in one line and handed to `/cppcho:to-tickets` or `/cppcho:reconcile <project>`. When the Linear MCP tools are not available, say so in one line and stop; never fall back to the local sweep in answer to `linear`.

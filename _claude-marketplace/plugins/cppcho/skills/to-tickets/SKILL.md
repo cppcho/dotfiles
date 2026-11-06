@@ -6,7 +6,7 @@ argument-hint: "[spec-path|issue-number|issue-url]"
 
 # To Tickets
 
-Break a plan, spec, or conversation into a **local epic** — a directory of **local tickets** under `.scratch/epics/`, each a tracer-bullet vertical slice declaring the tickets that **block** it. Epic and ticket here mean these files on disk, never a Jira or Linear issue. The epic is what `/cppcho:implement` then works through, one ticket per session.
+Break a plan, spec, or conversation into a **local epic** — a directory of **local tickets** under `.scratch/epics/`, each a tracer-bullet vertical slice declaring the tickets that **block** it. Epic and ticket here mean these files on disk, never a Jira issue — and a Linear issue only in **Linear mode**, described at the end. The epic is what `/cppcho:implement` then works through, one ticket per session.
 
 ## 1. Gather context
 
@@ -186,3 +186,47 @@ Archive only when all of this holds:
 `spec.md` travels with the epic — it lives in the directory being moved, and its `**Shipped:**` line is not needed once the whole thing is out of the sweep. `.scratch/context.md` is **not** archived: the domain glossary is one per repo and outlives every feature in it.
 
 Before you move anything, ask what in the spec is still true about the code and would cost the next reader real time to rediscover — a seam, a constraint, a decision the code embodies but doesn't explain. That belongs in the repo, in `CLAUDE.md`, a design doc, or an ADR. Everything under `.scratch` is gitignored and local to one machine, so archiving is the moment the knowledge either gets promoted into the repo or stops existing for anybody else. Say what you'd promote and let the user decide; don't write into their repo unasked.
+
+## Linear mode
+
+Everything above is **local mode**. When the epic lives in Linear — the argument is a Linear project or issue, or the spec was written into one this session — the tickets become issues (or sub-issues), the blocking edges become relations, and no file is written under `.scratch/epics/`. The shared rules — telling the modes apart, the two epic shapes, the ticket body, creation defaults, status and glyphs, supersede and cancel, the tools — are in [`references/linear-mode.md`](../../references/linear-mode.md); read it before writing anything in Linear mode. Nothing in local mode changes.
+
+**What the argument decides.**
+
+- A **project** (URL or `P-TEAM-123`) → the epic is that project; tickets are top-level issues in it; the spec is its description.
+- A **parent issue** (URL or `TEAM-123`) → the epic is that issue; tickets are its sub-issues; the spec is its description. A Linear issue handed over as the *source* to break down is this case: the slices go under it.
+- A **local spec path** → local mode, exactly as above.
+
+**Step 1 in Linear mode.** Say the mode and the home first: `Linear epic as a project <name>` or `Linear epic as a parent issue <id>`. Read the spec from the description (`get_project` / `get_issue`). Then read what already exists — `list_issues` with `project` or `parentId` — before drafting, for the same reason as on disk: tickets in flight are load-bearing. A ticket in any started state or with any ticked box is **frozen**; revise unstarted ones freely; new work is appended. There is no prefix to coin and no `_archive/` to check.
+
+Steps 2–4 are unchanged: explore, draft vertical slices with their blocking edges, keep implementation and verification tickets apart, settle the shape yourself.
+
+**Step 5 in Linear mode.** Write the tickets as issues, **in dependency order, blockers first**, because a relation can only name an issue that exists:
+
+- `save_issue` with `team` (the project's lead team, or the parent's team), `project` or `parentId`, `title`, `description`, `state: "unstarted"`, `assignee: "me"`, and `blockedBy` listing the identifiers of the blockers already created. Pass the state explicitly — Linear's default on create is the backlog state, and a cut ticket is an approved plan, not backlog.
+- The **description** is the body from the reference's §5: `**What to build:**`, `**Repo:**`, `**Size:**`, then `## Acceptance criteria` as checkboxes. No Blocked by, Spec, Branch or Linear line — the relations, the parent and the attachments carry those.
+- The **title prefix** is read from the siblings. Before creating, look at the titles of the open issues already in the project (or under the parent, or in the parent's project): when they carry a leading `[XX]` tag, give each new title the tag that fits its layers and give a `Repo: none` verification ticket the tag the siblings use for QA work; when none does, titles stay plain.
+- A blocker in another epic is named by its identifier in `blockedBy` like any other; relations are global.
+- Write no `README.md`: the relations are the graph. Then draw the epic with `cppcho:ticket-dag` in Linear mode, from what Linear now holds, and close with the judgement calls as in local mode.
+
+**When the plan changes, in Linear mode.** Unstarted tickets (unstarted or backlog state, no box ticked) are revised in place with a description `patch` or a new title. A **frozen** ticket is superseded, never rewritten:
+
+1. Set it to the `canceled`-type state (`save_issue` with `state: "canceled"`) and add a comment (`save_comment`) `Superseded by TEAM-NNN — <title>`, or `Superseded: <reason>` when nothing replaces it. Its description, ticks and attachments stay as they are.
+2. Create the replacement as a new issue in the same project or under the same parent, carrying the still-valid unticked criteria plus the changed behaviour, with its own `**Repo:**` and the `blockedBy` that is true now. Create it first when the comment is to name it.
+3. Re-point every dependent: `save_issue` on each issue the dead ticket blocked, with `removeBlockedBy` naming the dead ticket and `blockedBy` naming the replacement — or only the removal when the work is dropped. A relation left aimed at a cancelled issue blocks its dependent forever.
+4. Redraw with `cppcho:ticket-dag` in Linear mode; an edge still running into a 🚫 is the thing to check.
+
+A changed decision is written into the spec description's Implementation Decisions with a `patch`, touching nothing else there; a change that moves user stories or the problem statement is a `/cppcho:to-spec` session.
+
+**Cancelling a whole epic.** Set the project's status to its cancelled status (`save_project` with `state: "canceled"`), or the parent issue to the `canceled`-type state, and add a comment with the reason. Leave every ticket as it is. The reason is the load-bearing part, exactly as for the local `**Cancelled:**` line.
+
+**A shipped epic** needs nothing from this skill: the project in a completed status, or the parent issue in a `completed`-type state, is the record. Asked to archive a Linear epic, say that and change nothing.
+
+**Moving a live local epic into Linear.** `/cppcho:to-tickets <local epic path or prefix> <team or project URL>` publishes a local epic once and retires the local copy:
+
+1. Say the mode and the home. Create the epic as `/cppcho:to-spec` would — a project in the team, or a parent issue in the project — with the local `spec.md` as its description, minus the local-only parts and with the `**Reconciled:**` line carried if present.
+2. Publish every ticket that is **not superseded**, in dependency order, with the body from §5 and the ticks exactly as they are on disk. A ticket with any box ticked or a `**Branch:**` line is created in the team's `In Progress`-equivalent started state (the first `started`-type state) with each PR link from its Branch line passed as a `links` entry; everything else is created `unstarted`. Blocked-by lines become `blockedBy`, skipping any that name a superseded ticket.
+3. Add one line under the local `tickets/README.md` heading, `**Moved:** <epic URL>`, then move the directory to `.scratch/epics/_archive/<PREFIX>-<slug>/` as the archive step does. Nothing is deleted: the archived files are the record of how the feature was cut before the move.
+4. Draw the new Linear epic with `cppcho:ticket-dag` and close with the id map — `PCE-03 → TEAM-128` one per line — so links in notes and PR descriptions can be fixed.
+
+When the Linear MCP tools are not available, stop and say so in one line rather than writing a local epic the user did not ask for.
