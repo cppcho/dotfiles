@@ -9,7 +9,7 @@
 # one made with prefix+c, falls back to the git root of the pane's current
 # directory.
 #
-# Backs the `_` shell function (~/.zshrc_alias), rex-nvim and rex-code.
+# Backs the `_` shell function (~/.zshrc_alias) and rex-nvim.
 set -euo pipefail
 
 block="${1:-${REX_BLOCK:-}}"

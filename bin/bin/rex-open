@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
 # rex-open — show a directory in Rex: its repo's session, and its own tab.
 #
-#   rex-open [--print] [--activate] <dir>
-#                         go to the tab for <dir>, creating it if needed
-#   rex-open [--activate] --repo <dir>
-#                         go to the session for <dir>'s repo, keeping whichever
-#                         tab it was on
-#   rex-open --close <worktree> <main>
-#                         close the tab for <worktree> of the repo whose main
-#                         checkout is <main>
-#
-#   --print      also print "<session>\t<tab>\t<new>\t<first pane>", where <new>
-#                is 1 when this call created the tab, else 0
-#   --activate   bring Rex.app to the front, for calls from another app
+#   rex-open <dir>                   go to the tab for <dir>, creating it if needed
+#   rex-open --repo <dir>            go to the session for <dir>'s repo, keeping
+#                                    whichever tab it was on
+#   rex-open --close <wt> <main>     close the tab for worktree <wt> of the repo
+#                                    whose main checkout is <main>
 #
 # The layout is one session per repo and one tab per worktree:
 # - The session label is the repo name, the main checkout's directory name.
@@ -33,7 +26,7 @@ state="${XDG_STATE_HOME:-$HOME/.local/state}/rex"
 tabs_file="$state/tabs.tsv"
 
 usage() {
-    echo "usage: rex-open [--print] [--activate] [--repo] <dir> | --close <worktree> <main>" >&2
+    echo "usage: rex-open [--repo] <dir> | --close <worktree> <main>" >&2
     exit 2
 }
 
@@ -49,17 +42,16 @@ session_by_label() {
 }
 
 # The tab recorded for <dir> in session <sid>, if it still exists, else the
-# first tab labelled <label>. Prints "<tab>\t<first pane>".
+# first tab labelled <label>.
 find_tab() {
     local sid="$1" dir="$2" label="$3" recorded=""
     if [[ -f $tabs_file ]]; then
         recorded=$(awk -F'\t' -v d="$dir" '$2 == d { print $1 }' "$tabs_file")
     fi
-    rex api call -s "$sid" session.view '{}' | jq -r --arg rec "$recorded" --arg l "$label" '
-        def first_block: [.layers[] | select(.kind == "tiled") | .layout | .. | .block_id? // empty][0];
+    rex window ls -s "$sid" --json | jq -r --arg rec "$recorded" --arg l "$label" '
         ([.windows[] | select(.window_id as $w | $rec | split("\n") | index($w))][0]
          // [.windows[] | select(.label == $l)][0]) // empty
-        | "\(.window_id)\t\(first_block)"'
+        | .window_id'
 }
 
 record_tab() {
@@ -85,22 +77,14 @@ show() {
         echo "rex-open: Rex.app didn't switch (is Remote Control on?). Go to session '$label' with prefix+w." >&2
         return 1
     fi
-    if [[ $activate == 1 ]]; then
-        open -a "Rex Beta" 2>/dev/null || true
-    fi
 }
 
-mode=open print=0 activate=0
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --repo) mode=repo; shift ;;
-        --close) mode=close; shift ;;
-        --print) print=1; shift ;;
-        --activate) activate=1; shift ;;
-        -*) usage ;;
-        *) break ;;
-    esac
-done
+mode=open
+case "${1:-}" in
+    --repo) mode=repo; shift ;;
+    --close) mode=close; shift ;;
+    -*) usage ;;
+esac
 
 if [[ $mode == close ]]; then
     [[ $# -eq 2 ]] || usage
@@ -108,11 +92,11 @@ if [[ $mode == close ]]; then
     wt="${1%/}"; tab="${wt##*/}"
     sid=$(session_by_label "$repo")
     [[ -n $sid ]] || exit 0
-    found=$(find_tab "$sid" "$wt" "$tab")
-    [[ -n $found ]] || exit 0
+    wid=$(find_tab "$sid" "$wt" "$tab")
+    [[ -n $wid ]] || exit 0
     # Closing the tab ends every program in it. When gwt runs from that tab,
     # this ends gwt too, so gwt calls this as its last step.
-    rex window close -s "$sid" "${found%%$'\t'*}" >/dev/null
+    rex window close -s "$sid" "$wid" >/dev/null
     exit 0
 fi
 
@@ -130,33 +114,19 @@ tab="${dir##*/}"
 "$HOME/bin/rex-recent" touch "$main"
 [[ $dir == "$main" ]] || "$HOME/bin/rex-recent" touch "$dir"
 
-new=0
 sid=$(session_by_label "$repo")
 if [[ -z $sid ]]; then
     created=$(rex new "$repo" -c "$dir" --window "$tab" --json)
     sid=$(jq -r '.session_id' <<<"$created")
     wid=$(jq -r '.initial_windows[0].window_id' <<<"$created")
-    first=$(jq -r '.initial_windows[0].block_ids[0]' <<<"$created")
-    new=1
-    record_tab "$wid" "$dir"
-    if [[ $mode == repo ]]; then wid=""; fi
 else
-    found=$(find_tab "$sid" "$dir" "$tab")
-    if [[ -n $found ]]; then
-        wid="${found%%$'\t'*}" first="${found#*$'\t'}"
-    elif [[ $mode == open ]]; then
-        created=$(rex window new -s "$sid" "$tab" -c "$dir" --focus=false --json)
-        wid=$(jq -r '.window_id' <<<"$created")
-        first=$(jq -r '.block_ids[0]' <<<"$created")
-        new=1
-    else
-        wid="" first=""
+    wid=$(find_tab "$sid" "$dir" "$tab")
+    if [[ -z $wid && $mode == open ]]; then
+        wid=$(rex window new -s "$sid" "$tab" -c "$dir" --focus=false --json | jq -r '.window_id')
     fi
-    if [[ -n $wid ]]; then record_tab "$wid" "$dir"; fi
-    if [[ $mode == repo ]]; then wid=""; fi
 fi
+if [[ -n $wid ]]; then record_tab "$wid" "$dir"; fi
 
+# --repo keeps the session on whichever tab it was on.
+if [[ $mode == repo ]]; then wid=""; fi
 show "$sid" "$wid" "$repo"
-if [[ $print == 1 ]]; then
-    printf '%s\t%s\t%s\t%s\n' "$sid" "$wid" "$new" "$first"
-fi

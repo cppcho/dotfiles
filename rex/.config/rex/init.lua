@@ -48,8 +48,8 @@ local home = os.getenv("HOME")
 -- `script` can't do the same: an interactive zsh with no terminal prints zle
 -- errors. Its scripts need only PATH, so it sets PATH itself (`script_path`).
 --
--- With pass_pane = true, the script gets the pane the key was pressed in and
--- its session as two extra arguments.
+-- A `script` script gets the pane the key was pressed in and its session as
+-- two extra arguments.
 
 -- PATH for `script`. The Rex server's own PATH has neither ~/bin nor the rex
 -- command, which Rex adds only to the terminals it opens.
@@ -80,22 +80,10 @@ local function focused_dir(block_id)
   return path
 end
 
-local function with_pane(ctx, args)
-  local command = {}
-  for i, word in ipairs(args.command) do
-    command[i] = word
-  end
-  if args.pass_pane then
-    table.insert(command, ctx.block_id or "")
-    table.insert(command, ctx.session_id or "")
-  end
-  return command
-end
-
 rex.action({
   name = "float",
   title = "Run in Floating Pane",
-  args = { command = "array", pass_pane = "boolean?" },
+  args = { command = "array" },
   run = function(ctx, args)
     local layer, err = rex.session.new_layer({
       session_id = ctx.session_id,
@@ -103,7 +91,7 @@ rex.action({
       focus = true,
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
-        options = { command = with_pane(ctx, args), cwd = focused_dir(ctx.block_id), interactive = true },
+        options = { command = args.command, cwd = focused_dir(ctx.block_id), interactive = true },
       }),
     })
     if err ~= nil then
@@ -117,9 +105,15 @@ rex.action({
 rex.action({
   name = "script",
   title = "Run Script",
-  args = { command = "array", pass_pane = "boolean?" },
+  args = { command = "array" },
   run = function(ctx, args)
-    local r, err = rex.exec(with_pane(ctx, args), { cwd = home, timeout = 20, env = { PATH = script_path } })
+    local argv = {}
+    for i, word in ipairs(args.command) do
+      argv[i] = word
+    end
+    table.insert(argv, ctx.block_id or "")
+    table.insert(argv, ctx.session_id or "")
+    local r, err = rex.exec(argv, { cwd = home, timeout = 20, env = { PATH = script_path } })
     if r == nil then
       error(err, 0)
     end
@@ -136,16 +130,10 @@ end
 rex.bind("ctrl+a>f", "float", { command = { bin("rex-sessionizer") } })
 rex.bind("ctrl+a>g", "float", { command = { bin("rex-worktree-picker") } })
 rex.bind("ctrl+a>shift+g", "float", { command = { bin("rex-gwt") } })
-rex.bind("ctrl+a>m", "float", { command = { bin("rex-worktree-picker"), "--move" }, pass_pane = true })
-rex.bind("ctrl+a>shift+j", "float", { command = { bin("rex-join-pane") }, pass_pane = true })
 
-rex.bind("ctrl+a>v", "script", { command = { bin("rex-nvim") }, pass_pane = true })
-rex.bind("ctrl+a>shift+t", "script", { command = { bin("rex-todo") }, pass_pane = true })
-rex.bind("ctrl+a>shift+9", "script", { command = { bin("rex-snap-split"), "0.36" }, pass_pane = true }) -- (
-rex.bind("ctrl+a>shift+0", "script", { command = { bin("rex-snap-split"), "0.64" }, pass_pane = true }) -- )
--- Not a prefix chord: VS Code binds cmd+ctrl+r to the way back, so the one
--- chord goes back and forth between the editor and the terminal.
-rex.bind("cmd+ctrl+r", "script", { command = { bin("rex-code") }, pass_pane = true })
+rex.bind("ctrl+a>v", "script", { command = { bin("rex-nvim") } })
+rex.bind("ctrl+a>shift+9", "script", { command = { bin("rex-snap-split"), "0.36" } }) -- (
+rex.bind("ctrl+a>shift+0", "script", { command = { bin("rex-snap-split"), "0.64" } }) -- )
 
 -- Vim-aware pane navigation with ctrl+h/j/k/l.
 --
