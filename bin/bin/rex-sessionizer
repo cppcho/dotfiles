@@ -9,7 +9,7 @@
 #
 # Runs in a floating pane opened by the `float` action in ~/.config/rex/init.lua.
 #
-#   rex-sessionizer          pick with fzf
+#   rex-sessionizer          pick with fzf (rex-fzf)
 #   rex-sessionizer <dir>    skip the picker
 #   rex-sessionizer --list   print the ordered rows and exit
 set -euo pipefail
@@ -56,17 +56,19 @@ if [[ -f ~/.z ]]; then
     while IFS='|' read -r zdir zs _; do zscore[$zdir]=${zs%%.*}; done < ~/.z
 fi
 
-# Rows: "<recency>\t<z score>\t<display>\t<path>". Recency is an epoch in
-# seconds, so it outranks any z score, which stays far below 1e9.
+# Rows: "<recency>\t<z score>\t<mark>\t<name>\t<branch>\t<path>". Recency is
+# an epoch in seconds, so it outranks any z score, which stays far below 1e9.
+# Hidden directories such as ~/dev/.claude are left out.
 add_row() {
-    local dir="$1" name="${1##*/}" mark=" " row
+    local dir="$1" name="${1##*/}" mark=" "
+    [[ $name == .* ]] && return 0
     read_branch "$dir" || return 0
     [[ -n ${has_session[$name]:-} ]] && mark="●"
-    printf -v row '%s %-24s %s' "$mark" "$name" "${BRANCH:+*$BRANCH}"
-    printf '%s\t%s\t%s\t%s\n' "${recent[$dir]:-0}" "${zscore[$dir]:-0}" "$row" "$dir"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${recent[$dir]:-0}" "${zscore[$dir]:-0}" \
+        "$mark" "$name" "$BRANCH" "$dir"
 }
 
-listing=$(
+sorted=$(
     IFS=':' read -ra roots <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
     for p in "${roots[@]}"; do
         p="${p/#\~/$HOME}"
@@ -76,17 +78,14 @@ listing=$(
         elif [[ -d $p ]]; then
             add_row "$p"
         fi
-    done | sort -t$'\t' -k1,1rn -k2,2rn -k3,3 | cut -f3-
+    done | sort -t$'\t' -k1,1rn -k2,2rn -k4,4 | cut -f3-
 )
 
 if [[ ${1:-} == --list ]]; then
-    printf '%s\n' "$listing"
+    printf '%s\n' "$sorted" | "$HOME/bin/rex-fzf" rows
     exit 0
 fi
 
-selected=$(printf '%s\n' "$listing" \
-    | fzf --exact --no-sort --delimiter=$'\t' --with-nth=1 \
-          --preview 'echo {2}' --preview-window=down,1 --prompt='Repo > ') || exit 0
-[[ -n $selected ]] || exit 0
-
-open_repo "${selected#*$'\t'}"
+exec "$HOME/bin/rex-fzf" pick "$HOME/bin/rex-sessionizer" \
+    --input-label=' Repo ' --list-label=' ~/dev ' --header='● open session' \
+    < <(printf '%s\n' "$sorted")

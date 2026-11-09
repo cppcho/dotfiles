@@ -12,14 +12,12 @@ rex.bind("ctrl+a>ctrl+a", "pane.send_key", { key = "ctrl+a" })
 rex.bind("ctrl+a>c", "client.tab.new")
 rex.bind("ctrl+[", "client.tab.previous")
 rex.bind("ctrl+]", "client.tab.next")
-rex.bind("ctrl+a>shift+x", "client.tab.close")
-rex.bind("ctrl+a>shift+o", "client.tab.close_others")
 
 -- Panes
 rex.bind("ctrl+a>shift+5", "pane.split", { direction = "right" }) -- %
 rex.bind("ctrl+a>shift+'", "pane.split", { direction = "down" }) -- "
-rex.bind("ctrl+a>x", "pane.close")
 rex.bind("ctrl+a>z", "pane.zoom")
+rex.bind("ctrl+a>=", "pane.balance")
 rex.bind("ctrl+a>shift+1", "pane.move_to_new_tab") -- !
 
 local terminal = "com.superlogical.terminal"
@@ -124,8 +122,6 @@ rex.bind("ctrl+a>g", "float", { command = { bin("rex-worktree-picker") } })
 rex.bind("ctrl+a>shift+g", "float", { command = { bin("rex-gwt") } })
 
 rex.bind("ctrl+a>v", "script", { command = { bin("rex-nvim") } })
-rex.bind("ctrl+a>shift+9", "script", { command = { bin("rex-snap-split"), "0.36" } }) -- (
-rex.bind("ctrl+a>shift+0", "script", { command = { bin("rex-snap-split"), "0.64" } }) -- )
 
 -- Vim-aware pane navigation with ctrl+h/j/k/l.
 --

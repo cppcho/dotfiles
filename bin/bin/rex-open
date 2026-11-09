@@ -10,8 +10,8 @@
 # The layout is one session per repo and one tab per worktree:
 # - The session label is the repo name, the main checkout's directory name.
 # - Each tab's directory is recorded in ~/.local/state/rex/tabs.tsv, and the
-#   tab is found by that record. The label is only a fallback, so a label that
-#   changes (rex-pr-status adds the PR status to it) still finds its tab.
+#   tab is found by that record. The label is only a fallback, so a tab that
+#   was renamed is still found.
 # - A new tab is labelled with the worktree's directory name. The main
 #   checkout's tab is labelled with the repo name.
 #

@@ -16,10 +16,6 @@ git-hooks: ## Register global git hooks
 		'[ "$$3" = 1 ] && { ~/bin/herdr-pr-status --refresh-here >/dev/null 2>&1 & } ; true'
 	@git config set --global --all hook.herdr-pr-status.event post-checkout
 	@echo "registered herdr-pr-status (post-checkout)"
-	@git config set --global hook.rex-pr-status.command \
-		'[ "$$3" = 1 ] && { ~/bin/rex-pr-status --refresh-here >/dev/null 2>&1 & } ; true'
-	@git config set --global --all hook.rex-pr-status.event post-checkout
-	@echo "registered rex-pr-status (post-checkout)"
 
 claude: ## Install/update Claude Code marketplace and plugin
 	@if ! claude plugins marketplace list 2>/dev/null | grep -q 'cppcho'; then \
@@ -34,7 +30,7 @@ claude: ## Install/update Claude Code marketplace and plugin
 BREW_BASH   := $(shell brew --prefix)/bin/bash
 AGENTS_DIR  := $(HOME)/Library/LaunchAgents
 UID         := $(shell id -u)
-AGENTS      := com.cppcho.herdr-tab-autoname com.cppcho.herdr-pr-status com.cppcho.herdr-claude-summary com.cppcho.rex-pr-status
+AGENTS      := com.cppcho.herdr-tab-autoname com.cppcho.herdr-pr-status com.cppcho.herdr-claude-summary
 
 launchd: ## Render & load launchd agents from _launchd/
 	@mkdir -p $(AGENTS_DIR) $(HOME)/Library/Logs

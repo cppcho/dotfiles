@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# rex-fzf — the fzf picker that rex-sessionizer (prefix+f) and
+# rex-worktree-picker (prefix+g) share, so both look and behave the same.
+#
+# Rows come on stdin as "<mark>\t<name>\t<branch>\t<dir>". The mark is `●` or
+# a space, and the branch can be empty.
+#
+#   rex-fzf pick <command> [fzf options]   pick a row, then run `<command> <dir>`
+#   rex-fzf rows                           print the rows as the picker shows them, without color
+#   rex-fzf preview <dir>                  print the preview for <dir>
+set -euo pipefail
+
+# Rows as "<display>\t<dir>". The display has a green `●`, the name padded so
+# the branches line up in one column, and the branch in mauve (Catppuccin
+# Mocha). Names longer than 28 characters are cut with `…`, so one long name
+# doesn't push every branch out of view.
+format_rows() {
+    local rows mark name branch dir width=0
+    rows=$(cat)
+    while IFS=$'\t' read -r _ name _ _; do
+        (( ${#name} > width )) && width=${#name}
+    done <<<"$rows"
+    (( width > 28 )) && width=28
+    while IFS=$'\t' read -r mark name branch dir; do
+        (( ${#name} > width )) && name="${name:0:width-1}…"
+        printf '\033[32m%s\033[0m %-*s  \033[35m%s\033[0m\t%s\n' \
+            "$mark" "$width" "$name" "$branch" "$dir"
+    done <<<"$rows"
+}
+
+case ${1:-} in
+preview)
+    dir="$2"
+    printf '\033[1m%s\033[0m\n\033[2m%s\033[0m\n\n' "${dir##*/}" "${dir/#$HOME/\~}"
+    if git -C "$dir" rev-parse --git-dir >/dev/null 2>&1; then
+        git -C "$dir" -c color.status=always status --short --branch | head -15
+        printf '\n'
+        git -C "$dir" log --color=always -12 \
+            --format='%C(yellow)%h%C(reset) %s %C(dim)%cr%C(reset)' 2>/dev/null
+    else
+        printf '\033[2mnot a git repository\033[0m\n\n'
+        ls -A "$dir" | head -20
+    fi
+    ;;
+rows)
+    format_rows | sed $'s/\033\\[[0-9;]*m//g'
+    ;;
+pick)
+    command="$2"
+    shift 2
+    # exec, so fzf itself is the pane's foreground process. Rex's
+    # ctrl+h/j/k/l binding (~/.config/rex/init.lua) passes the keys through
+    # only to fzf or nvim:
+    # 1. In `selected=$(... | fzf)`, the foreground process is the bash script.
+    # 2. Rex sees bash, so it takes ctrl+j/k to move between panes.
+    # 3. fzf never gets them, and they don't move the selection.
+    # So Enter replaces fzf with `<command> <dir>` (become) instead of
+    # returning the row to the script.
+    exec fzf --exact --no-sort --ansi --layout=reverse \
+        --delimiter=$'\t' --with-nth=1 \
+        --style=full --border=none --preview-label=' Preview ' \
+        --prompt='❯ ' --pointer='❯' --gutter=' ' --info=inline-right \
+        --header-border=none \
+        --preview="$HOME/bin/rex-fzf preview {2}" \
+        --preview-window='right,45%,<110(down,40%)' \
+        --bind="enter:become($command {2})" \
+        --bind='ctrl-u:preview-half-page-up,ctrl-d:preview-half-page-down' \
+        --color='bg:-1,bg+:#313244,fg:#cdd6f4,fg+:#cdd6f4,hl:#f38ba8,hl+:#f38ba8' \
+        --color='prompt:#cba6f7,pointer:#f5e0dc,info:#6c7086,header:#6c7086' \
+        --color='border:#45475a,label:#cdd6f4,spinner:#f5e0dc,marker:#b4befe' \
+        "$@" < <(format_rows)
+    ;;
+*)
+    echo "usage: rex-fzf pick <command> [fzf options] | rows | preview <dir>" >&2
+    exit 2
+    ;;
+esac
