@@ -12,11 +12,14 @@ rex.bind("ctrl+a>ctrl+a", "pane.send_key", { key = "ctrl+a" })
 rex.bind("ctrl+a>c", "client.tab.new")
 rex.bind("ctrl+[", "client.tab.previous")
 rex.bind("ctrl+]", "client.tab.next")
+rex.bind("ctrl+up", "client.tab.previous")
+rex.bind("ctrl+down", "client.tab.next")
 
 -- Panes
 rex.bind("ctrl+a>shift+5", "pane.split", { direction = "right" }) -- %
 rex.bind("ctrl+a>shift+'", "pane.split", { direction = "down" }) -- "
 rex.bind("ctrl+a>z", "pane.zoom")
+rex.bind("ctrl+a>x", "pane.close")
 rex.bind("ctrl+a>=", "pane.balance")
 rex.bind("ctrl+a>shift+1", "pane.move_to_new_tab") -- !
 
