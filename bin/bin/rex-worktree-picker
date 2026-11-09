@@ -9,9 +9,16 @@
 # Runs in a floating pane opened by the `float` action in ~/.config/rex/init.lua,
 # which starts it in the directory of the pane it was opened from.
 #
-#   rex-worktree-picker          pick with fzf
-#   rex-worktree-picker --list   print the ordered rows and exit
+#   rex-worktree-picker                 pick with fzf
+#   rex-worktree-picker --list          print the ordered rows and exit
+#   rex-worktree-picker --move <pane>   move <pane> to the picked worktree's tab
+#                                       (prefix+m), and follow it there
 set -euo pipefail
+
+move=""
+if [[ ${1:-} == --move ]]; then
+    move="${2:?usage: rex-worktree-picker --move <pane>}"
+fi
 
 # Show a fatal error, then wait so it stays readable before the pane closes.
 die() {
@@ -75,4 +82,19 @@ selected=$(printf '%s\n' "$listing" \
           --preview 'echo {2}' --preview-window=down,1 --prompt="$repo worktree > ") || exit 0
 [[ -n $selected ]] || exit 0
 
-"$HOME/bin/rex-open" "${selected#*$'\t'}" || die "could not open ${selected#*$'\t'}"
+picked="${selected#*$'\t'}"
+if [[ -z $move ]]; then
+    "$HOME/bin/rex-open" "$picked" || die "could not open $picked"
+    exit 0
+fi
+
+# Move the pane beside the first pane of the picked tab. A tab this call
+# created holds only a fresh shell, which is closed so the moved pane is left
+# alone in it.
+opened=$("$HOME/bin/rex-open" --print "$picked") || die "could not open $picked"
+IFS=$'\t' read -r sid _ new first <<<"$opened"
+[[ $first != "$move" ]] || exit 0
+rex move -s "$sid" "$move" right "$first" >/dev/null || die "could not move the pane"
+if [[ $new == 1 ]]; then
+    rex block close -s "$sid" "$first" >/dev/null
+fi

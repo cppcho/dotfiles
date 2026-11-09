@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# rex-code — open this tab's directory in VS Code (cmd+ctrl+r).
+#
+#   rex-code <pane> [<session>]
+#
+# `code -r` reuses the VS Code window already open on that directory instead
+# of opening a new one. The way back is the same chord in VS Code, bound to a
+# task that runs `rex-open --activate ${workspaceFolder}`.
+set -euo pipefail
+
+block="${1:?usage: rex-code <pane> [<session>]}"
+code -r "$("$HOME/bin/rex-root" "$block" "${2:-${REX_SESSION:-}}")"

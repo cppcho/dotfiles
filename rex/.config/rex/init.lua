@@ -34,18 +34,37 @@ rex.bind("ctrl+a>shift+1", "pane.move_to_new_tab") -- !
 local terminal = "com.superlogical.terminal"
 local home = os.getenv("HOME")
 
--- Pickers: ~/bin/rex-* scripts run in a floating pane over the current tab.
+-- ~/bin/rex-* scripts, run by two actions:
+-- - `float` runs an interactive one (a picker) in a floating pane over the
+--   current tab. The pane closes when the script exits.
+-- - `script` runs one that needs no terminal, in the background.
 --
--- The pane starts in the focused pane's directory, so a picker such as
--- rex-worktree-picker knows which repo it is for. It closes when the script
--- exits.
---
--- The script runs through an interactive zsh, so it gets the same environment
--- as a normal terminal. Without ~/.zshrc, the scripts break:
+-- `float` runs the script through an interactive zsh, so it gets the same
+-- environment as a normal terminal. Without ~/.zshrc, the pickers break:
 -- - /bin comes before /opt/homebrew/bin on PATH, so `bash` is macOS's bash 3.2,
 --   which has no `declare -A`.
--- - TMUX_SESSIONIZER_PATHS is unset, so rex-sessionizer lists only ~/dev. Rex reports the directory as a file:// URL with the host name, such
--- as file://my-mac/Users/me/dev/my%20repo, so it is turned back into a path.
+-- - TMUX_SESSIONIZER_PATHS is unset, so rex-sessionizer lists only ~/dev.
+--
+-- `script` can't do the same: an interactive zsh with no terminal prints zle
+-- errors. Its scripts need only PATH, so it sets PATH itself (`script_path`).
+--
+-- With pass_pane = true, the script gets the pane the key was pressed in and
+-- its session as two extra arguments.
+
+-- PATH for `script`. The Rex server's own PATH has neither ~/bin nor the rex
+-- command, which Rex adds only to the terminals it opens.
+local rex_bin_dir = home .. "/Library/Application Support/com.superlogical.rex/RexServer/Versions/Current/Rex Server.app/Contents/MacOS"
+local script_path = table.concat({
+  home .. "/bin",
+  "/opt/homebrew/bin",
+  rex_bin_dir,
+  os.getenv("PATH") or "/usr/bin:/bin",
+}, ":")
+
+-- The focused pane's directory, so a floating picker such as
+-- rex-worktree-picker knows which repo it is for. Rex reports the directory as
+-- a file:// URL with the host name, such as file://my-mac/Users/me/dev/my%20repo,
+-- so it is turned back into a path.
 local function focused_dir(block_id)
   if not block_id then
     return ""
@@ -61,10 +80,22 @@ local function focused_dir(block_id)
   return path
 end
 
+local function with_pane(ctx, args)
+  local command = {}
+  for i, word in ipairs(args.command) do
+    command[i] = word
+  end
+  if args.pass_pane then
+    table.insert(command, ctx.block_id or "")
+    table.insert(command, ctx.session_id or "")
+  end
+  return command
+end
+
 rex.action({
   name = "float",
   title = "Run in Floating Pane",
-  args = { command = "array" },
+  args = { command = "array", pass_pane = "boolean?" },
   run = function(ctx, args)
     local layer, err = rex.session.new_layer({
       session_id = ctx.session_id,
@@ -72,7 +103,7 @@ rex.action({
       focus = true,
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
-        options = { command = args.command, cwd = focused_dir(ctx.block_id), interactive = true },
+        options = { command = with_pane(ctx, args), cwd = focused_dir(ctx.block_id), interactive = true },
       }),
     })
     if err ~= nil then
@@ -83,9 +114,38 @@ rex.action({
   end,
 })
 
-rex.bind("ctrl+a>f", "float", { command = { home .. "/bin/rex-sessionizer" } })
-rex.bind("ctrl+a>g", "float", { command = { home .. "/bin/rex-worktree-picker" } })
-rex.bind("ctrl+a>shift+g", "float", { command = { home .. "/bin/rex-gwt" } })
+rex.action({
+  name = "script",
+  title = "Run Script",
+  args = { command = "array", pass_pane = "boolean?" },
+  run = function(ctx, args)
+    local r, err = rex.exec(with_pane(ctx, args), { cwd = home, timeout = 20, env = { PATH = script_path } })
+    if r == nil then
+      error(err, 0)
+    end
+    if not r.ok then
+      error(r.stderr, 0)
+    end
+  end,
+})
+
+local function bin(name)
+  return home .. "/bin/" .. name
+end
+
+rex.bind("ctrl+a>f", "float", { command = { bin("rex-sessionizer") } })
+rex.bind("ctrl+a>g", "float", { command = { bin("rex-worktree-picker") } })
+rex.bind("ctrl+a>shift+g", "float", { command = { bin("rex-gwt") } })
+rex.bind("ctrl+a>m", "float", { command = { bin("rex-worktree-picker"), "--move" }, pass_pane = true })
+rex.bind("ctrl+a>shift+j", "float", { command = { bin("rex-join-pane") }, pass_pane = true })
+
+rex.bind("ctrl+a>v", "script", { command = { bin("rex-nvim") }, pass_pane = true })
+rex.bind("ctrl+a>shift+t", "script", { command = { bin("rex-todo") }, pass_pane = true })
+rex.bind("ctrl+a>shift+9", "script", { command = { bin("rex-snap-split"), "0.36" }, pass_pane = true }) -- (
+rex.bind("ctrl+a>shift+0", "script", { command = { bin("rex-snap-split"), "0.64" }, pass_pane = true }) -- )
+-- Not a prefix chord: VS Code binds cmd+ctrl+r to the way back, so the one
+-- chord goes back and forth between the editor and the terminal.
+rex.bind("cmd+ctrl+r", "script", { command = { bin("rex-code") }, pass_pane = true })
 
 -- Vim-aware pane navigation with ctrl+h/j/k/l.
 --

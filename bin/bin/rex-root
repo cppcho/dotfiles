@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# rex-root — print the directory of the Rex tab a pane is in.
+#
+#   rex-root [<pane> [<session>]]   defaults to $REX_BLOCK and $REX_SESSION,
+#                                   the pane this runs in
+#
+# Each tab is one worktree (see rex-open), and rex-open records the tab's
+# directory when it opens or finds the tab. A tab rex-open never saw, such as
+# one made with prefix+c, falls back to the git root of the pane's current
+# directory.
+#
+# Backs the `_` shell function (~/.zshrc_alias), rex-nvim and rex-code.
+set -euo pipefail
+
+block="${1:-${REX_BLOCK:-}}"
+sid="${2:-${REX_SESSION:-}}"
+tabs_file="${XDG_STATE_HOME:-$HOME/.local/state}/rex/tabs.tsv"
+
+if [[ -n $block && -f $tabs_file ]]; then
+    wid=$(rex block inspect ${sid:+-s "$sid"} "$block" --json 2>/dev/null | jq -r '.block.window_id // empty')
+    if [[ -n $wid ]]; then
+        dir=$(awk -F'\t' -v w="$wid" '$1 == w { print $2; exit }' "$tabs_file")
+        if [[ -d $dir ]]; then
+            printf '%s\n' "$dir"
+            exit 0
+        fi
+    fi
+fi
+
+# The pane's own directory: the shell's when this runs inside the pane, else
+# the one Rex last saw the pane report.
+cwd="$PWD"
+if [[ -n $block && $block != "${REX_BLOCK:-}" ]]; then
+    cwd=$(rex block call ${sid:+-s "$sid"} -b "$block" pwd 2>/dev/null | jq -r '.pwd // empty' \
+        | sed -E 's|^file://[^/]*||' | python3 -c 'import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))')
+fi
+dir=$(git -C "${cwd:-$PWD}" rev-parse --show-toplevel 2>/dev/null || true)
+[[ -d $dir ]] || { echo "rex-root: no project root for this pane" >&2; exit 1; }
+printf '%s\n' "$dir"

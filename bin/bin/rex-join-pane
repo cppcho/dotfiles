@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# rex-join-pane — pull a pane from another tab of this session in beside this one
+# (prefix+shift+j).
+#
+#   rex-join-pane <pane> [<session>]
+#
+# Lists the panes of the session's other tabs, with each tab's label and the
+# pane's title, and moves the picked one to the right of <pane>.
+#
+# Runs in a floating pane opened by the `float` action in ~/.config/rex/init.lua,
+# which passes the pane it was opened from as <pane>.
+set -euo pipefail
+
+die() {
+    printf '\n\033[1;31mrex-join-pane: %s\033[0m\n' "$1" >&2
+    printf 'Press Enter to close… ' >&2
+    read -r _ || true
+    exit 1
+}
+
+block="${1:?usage: rex-join-pane <pane> [<session>]}"
+sid="${2:-${REX_SESSION:?usage: rex-join-pane <pane> <session>}}"
+wid=$(rex block inspect -s "$sid" "$block" --json | jq -r '.block.window_id')
+
+# Rows: "<tab label>\t<pane>" for every tiled pane in the other tabs.
+others=$(rex api call -s "$sid" session.view '{}' | jq -r --arg w "$wid" '
+    .windows[] | select(.window_id != $w) | .label as $tab
+    | .layers[] | select(.kind == "tiled") | .layout | .. | .block_id? // empty
+    | "\($tab)\t\(.)"')
+[[ -n $others ]] || die "no other tab in this session"
+
+listing=$(
+    while IFS=$'\t' read -r tab pane; do
+        title=$(rex block call -s "$sid" -b "$pane" title 2>/dev/null | jq -r '.title // ""')
+        printf '%-24s %s\t%s\n' "$tab" "${title:-$pane}" "$pane"
+    done <<<"$others"
+)
+
+selected=$(printf '%s\n' "$listing" \
+    | fzf --exact --delimiter=$'\t' --with-nth=1 --prompt='Join pane > ') || exit 0
+[[ -n $selected ]] || exit 0
+
+rex move -s "$sid" "${selected#*$'\t'}" right "$block" >/dev/null || die "could not move the pane"

@@ -15,8 +15,9 @@ alias h='herdr'
 alias gclone='~/bin/git-clone-dev'
 
 # Go home: cd to the top of the current project — the tmux session's start dir,
-# or under herdr the space's own directory (~/bin/herdr-root, which falls back to
-# the git root for a plain shell) — and put a gwt worktree back on its branch.
+# under herdr the space's own directory (~/bin/herdr-root, which falls back to
+# the git root for a plain shell), or under Rex the tab's worktree
+# (~/bin/rex-root) — and put a gwt worktree back on its branch.
 #
 # oh-my-zsh's lib/misc.zsh binds `_` to `sudo `, and an alias shadows a function
 # of the same name — worse, it makes the definition below a parse error. Drop it
@@ -25,8 +26,12 @@ alias gclone='~/bin/git-clone-dev'
 unalias _ 2>/dev/null
 _() {
   local dir
+  # Rex comes after herdr: herdr run inside a Rex pane also inherits the REX_*
+  # variables, and herdr is the inner one.
   if [[ -n "$TMUX" ]]; then
     dir=$(tmux display-message -p "#{session_path}")
+  elif [[ -z "$HERDR_PANE_ID" && -n "$REX_SESSION" ]]; then
+    dir=$(rex-root) || return
   else
     dir=$(herdr-root) || return
   fi
