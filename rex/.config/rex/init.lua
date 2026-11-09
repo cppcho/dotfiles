@@ -38,7 +38,13 @@ local home = os.getenv("HOME")
 --
 -- The pane starts in the focused pane's directory, so a picker such as
 -- rex-worktree-picker knows which repo it is for. It closes when the script
--- exits. Rex reports the directory as a file:// URL with the host name, such
+-- exits.
+--
+-- The script runs through an interactive zsh, so it gets the same environment
+-- as a normal terminal. Without ~/.zshrc, the scripts break:
+-- - /bin comes before /opt/homebrew/bin on PATH, so `bash` is macOS's bash 3.2,
+--   which has no `declare -A`.
+-- - TMUX_SESSIONIZER_PATHS is unset, so rex-sessionizer lists only ~/dev. Rex reports the directory as a file:// URL with the host name, such
 -- as file://my-mac/Users/me/dev/my%20repo, so it is turned back into a path.
 local function focused_dir(block_id)
   if not block_id then
@@ -60,18 +66,20 @@ rex.action({
   title = "Run in Floating Pane",
   args = { command = "array" },
   run = function(ctx, args)
-    local _, err = rex.session.new_layer({
+    local layer, err = rex.session.new_layer({
       session_id = ctx.session_id,
       bounds = { 0.15, 0.15, 0.7, 0.7 },
       focus = true,
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
-        options = { command = args.command, cwd = focused_dir(ctx.block_id) },
+        options = { command = args.command, cwd = focused_dir(ctx.block_id), interactive = true },
       }),
     })
     if err ~= nil then
       error(err, 0)
     end
+    -- The new pane's ID, so `rex do float` can read or drive the pane.
+    return { block_ids = layer.block_ids }
   end,
 })
 

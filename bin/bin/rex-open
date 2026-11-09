@@ -49,8 +49,10 @@ show() {
         rex focus -s "$sid" "$wid" >/dev/null
         args+=(window_id="$wid")
     fi
+    # Fails the script, so a picker pauses on the message instead of closing.
     if ! rex do session.select "${args[@]}" >/dev/null 2>&1; then
         echo "rex-open: Rex.app didn't switch (is Remote Control on?). Go to session '$label' with prefix+w." >&2
+        return 1
     fi
 }
 
