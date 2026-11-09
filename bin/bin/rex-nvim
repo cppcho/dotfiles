@@ -1,39 +1,51 @@
 #!/usr/bin/env bash
-# rex-nvim — go to the editor of this tab (prefix+v).
+# rex-nvim — show or hide this tab's editor (prefix+v).
 #
 #   rex-nvim <pane> [<session>]
 #
-# Each tab is one worktree (see rex-open), so each tab has its own editor:
-# - When an nvim pane is already in the tab, focus it.
-# - Otherwise open nvim in a new pane on the right, started in the tab's
-#   directory (rex-root).
+# Each tab is one worktree (see rex-open), so each tab has its own editor: nvim
+# in a floating pane labelled nvim, covering nearly the whole tab.
+# - When the tab has no editor, open one, started in the tab's directory
+#   (rex-root).
+# - When the editor is minimized, or not focused, show and focus it.
+# - When the editor has focus, minimize it, to see the panes under it.
+#
+# Quitting nvim closes its pane, so the next prefix+v opens a fresh one.
 set -euo pipefail
 
 block="${1:?usage: rex-nvim <pane> [<session>]}"
 sid="${2:-${REX_SESSION:?usage: rex-nvim <pane> <session>}}"
 wid=$(rex block inspect -s "$sid" "$block" --json | jq -r '.block.window_id')
 
-# The tmux is_vim set (see ~/.tmux.conf), matched against the foreground
-# process's name and argv0.
-vim_re='^-?g?\.?(view|l?n?vim?x?)(diff)?(-wrapped)?$'
+editors=$(rex api call -s "$sid" session.list_blocks '{}' \
+    | jq -c '[.blocks[] | select(.label == "nvim") | .block_id]')
 
-panes=$(rex api call -s "$sid" session.view '{}' | jq -r --arg w "$wid" '
-    .windows[] | select(.window_id == $w) | .layers[] | select(.kind == "tiled")
-    | .layout | .. | .block_id? // empty')
+# The editor's floating layer in this tab, as "<layer>\t<state>\t<pane>".
+found=$(rex api call -s "$sid" session.view '{}' | jq -r --arg w "$wid" --argjson ed "$editors" '
+    first(.windows[] | select(.window_id == $w) | .layers[] | select(.kind == "floating")
+        | ([.layout | .. | .block_id? // empty] | map(select(IN($ed[])))[0]) as $b
+        | select($b != null)
+        | "\(.layer_id)\t\(.state // "normal")\t\($b)") // empty')
 
-for pane in $panes; do
-    if rex block call -s "$sid" -b "$pane" process 2>/dev/null | jq -e --arg re "$vim_re" '
-        .foreground // {} | [(.name // ""), (.argv0 // "")] | map(sub(".*/"; "")) | any(test($re))' >/dev/null
-    then
-        rex api call -s "$sid" session.focus_block "$(jq -nc --arg b "$pane" '{block_id: $b}')" >/dev/null
-        exit 0
+if [[ -n $found ]]; then
+    IFS=$'\t' read -r layer state editor <<<"$found"
+    if [[ $state != minimized && $editor == "$block" ]]; then
+        args=$(jq -nc --arg l "$layer" '{layer_id: $l, state: "minimized", focus: false}')
+    else
+        args=$(jq -nc --arg l "$layer" '{layer_id: $l, state: "normal", focus: true}')
     fi
-done
+    rex api call -s "$sid" session.set_layer_state "$args" >/dev/null
+    exit 0
+fi
 
 root=$("$HOME/bin/rex-root" "$block" "$sid")
-new=$(rex split -s "$sid" -b "$block" --split=right -c "$root" --interactive --label nvim --json -- nvim)
-# Give the editor the larger right side. With "Autobalance splits" on in Rex's
-# settings, a new split always starts at half and ignores `rex split --ratio`,
-# so the border is set afterwards.
-rex api call -s "$sid" session.resize_pane "$(jq -nc --arg b "$block" --arg a "$(jq -r '.block_ids[0]' <<<"$new")" \
-    '{before_block_id: $b, after_block_id: $a, direction: "horizontal", ratio: 0.36}')" >/dev/null
+rex api call -s "$sid" session.new_layer "$(jq -nc --arg w "$wid" --arg root "$root" '{
+    window_id: $w,
+    bounds: [0.03, 0.03, 0.94, 0.94],
+    focus: true,
+    layout: {block: {
+        flavor: "com.superlogical.terminal.shell",
+        label: "nvim",
+        options: {command: ["nvim"], cwd: $root, interactive: true}
+    }}
+}')" >/dev/null
