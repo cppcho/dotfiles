@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# rex-gwt — open a worktree from a branch, #PR or PR URL (prefix+shift+g).
+#
+# Asks for a branch, a PR number (#123 or 123) or a PR URL, then runs
+# `gwt switch`. gwt resolves a PR to its head branch, finds or creates the
+# worktree, and calls rex-open, which goes to the worktree's tab.
+#
+# A PR URL is the only input that names its repo. For a URL, this first finds
+# a local clone of that repo (or clones it into ~/dev) and runs gwt there. So a
+# PR from another repo works without first going to that repo's session.
+#
+# Empty input cancels. Runs in a floating pane opened by the `float` action in
+# ~/.config/rex/init.lua, because readline and fzf need a terminal.
+set -euo pipefail
+
+# Show a fatal error, then wait so it stays readable before the pane closes.
+die() {
+    printf '\n\033[1;31mrex-gwt: %s\033[0m\n' "$1" >&2
+    printf 'Press Enter to close… ' >&2
+    read -r _ || true
+    exit 1
+}
+
+# ---------------------------------------------------------------------------
+# PR URL → local clone
+# ---------------------------------------------------------------------------
+
+# Echo "owner/repo" for a GitHub PR URL, else return non-zero.
+pr_url_slug() {
+    [[ "$1" =~ github\.com/([^/]+)/([^/?#]+)/pull/[0-9]+ ]] || return 1
+    printf '%s/%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]%.git}"
+}
+
+# Does any remote of the repo at <dir> point at <owner/repo>? Matching on the
+# remotes rather than the directory name keeps a same-named clone of someone
+# else's repo out, and checking every remote (not just origin) still finds the
+# repo when it's cloned from a fork and the PR lives on the upstream.
+remote_matches() {
+    local url
+    while IFS= read -r url; do
+        url="${url%.git}"
+        [[ "${url,,}" == *"/${2,,}" || "${url,,}" == *":${2,,}" ]] && return 0
+    done < <(git -C "$1" remote -v 2>/dev/null | awk '{print $2}' | sort -u)
+    return 1
+}
+
+# Main worktree of the repo at <dir> (gwt is happiest anchored there). sed reads
+# the whole list rather than `head -1`, which SIGPIPEs git under pipefail once
+# the repo has enough worktrees.
+main_worktree_of() {
+    git -C "$1" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p'
+}
+
+# Echo the path of a local clone of <owner/repo>, or nothing. Checks the current
+# repo first, then ~/dev/<repo> (the usual clone location), then every project
+# root in $TMUX_SESSIONIZER_PATHS — the same list rex-sessionizer uses.
+find_clone() {
+    local slug="$1" dir
+    local repo="${slug##*/}"
+
+    if dir=$(git rev-parse --show-toplevel 2>/dev/null) && remote_matches "$dir" "$slug"; then
+        main_worktree_of "$dir"
+        return
+    fi
+
+    local -a candidates=("$HOME/dev/$repo")
+    local -a roots=()
+    local p d
+    IFS=':' read -ra roots <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
+    for p in "${roots[@]}"; do
+        p="${p/#\~/$HOME}"
+        if [[ "$p" == */ ]]; then
+            while IFS= read -r d; do candidates+=("$d"); done \
+                < <(find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+        else
+            candidates+=("$p")
+        fi
+    done
+
+    for dir in "${candidates[@]}"; do
+        [[ -d "$dir" ]] || continue
+        if remote_matches "$dir" "$slug"; then
+            main_worktree_of "$dir"
+            return
+        fi
+    done
+}
+
+# Clone <owner/repo> into <dest>. Called from the main shell (not a command
+# substitution) so a die() here actually stops the script.
+clone_repo() {
+    local slug="$1" dest="$2"
+    [[ -e "$dest" ]] && die "no clone of $slug found, and $dest already exists"
+    printf 'No local clone of %s — cloning into %s…\n' "$slug" "$dest"
+    if command -v gh &>/dev/null; then
+        gh repo clone "$slug" "$dest" || die "failed to clone $slug"
+    else
+        git clone "git@github.com:${slug}.git" "$dest" || die "failed to clone $slug"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+read -e -rp "Worktree (branch/#pr/url): " ref
+# Trim surrounding whitespace: a pasted URL often carries some, and gwt turns
+# spaces in its argument into hyphens.
+ref="${ref#"${ref%%[![:space:]]*}"}"
+ref="${ref%"${ref##*[![:space:]]}"}"
+[[ -z "$ref" ]] && exit 0
+
+# PR URL: run gwt inside a clone of the PR's own repo, so `gh pr view` resolves
+# against it rather than whatever repo this pane happens to sit in.
+if slug=$(pr_url_slug "$ref"); then
+    clone=$(find_clone "$slug")
+    if [[ -z "$clone" ]]; then
+        clone="$HOME/dev/${slug##*/}"
+        clone_repo "$slug" "$clone"
+    fi
+    cd "$clone" || die "cannot enter $clone"
+fi
+
+"$HOME/bin/gwt" switch "$ref" || die "gwt switch failed for: $ref"

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# rex-recent — remember when a directory was last opened in Rex.
+#
+# Rex records no "last opened" time for sessions or tabs. rex-open records it
+# here, and the pickers list the most recent directories first.
+#
+#   rex-recent touch <path>   mark <path> as opened now
+#   rex-recent list           print "<epoch>\t<path>", most recent first
+#
+# The first `list` starts from Herdr's history
+# (~/.local/state/herdr/recent.tsv), so the pickers keep the order they had
+# under Herdr.
+set -euo pipefail
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}"
+file="${REX_RECENT_FILE:-$state/rex/recent.tsv}"
+max=500
+
+touch_path() {
+    local path="${1:?path required}" tmp
+    path="${path/#\~/$HOME}"; path="${path%/}"
+    mkdir -p "$(dirname "$file")"
+    tmp=$(mktemp "$file.XXXXXX")
+    {
+        printf '%s\t%s\n' "$(date +%s)" "$path"
+        if [[ -f $file ]]; then awk -F'\t' -v p="$path" '$2 != p' "$file"; fi
+    } | head -n "$max" > "$tmp"
+    mv "$tmp" "$file"
+}
+
+case "${1:-}" in
+    touch)
+        touch_path "${2:-}"
+        ;;
+    list)
+        if [[ ! -f $file && -f $state/herdr/recent.tsv ]]; then
+            mkdir -p "$(dirname "$file")"
+            cp "$state/herdr/recent.tsv" "$file"
+        fi
+        if [[ -f $file ]]; then cat "$file"; fi
+        ;;
+    *)
+        echo "usage: rex-recent touch <path> | list" >&2
+        exit 2
+        ;;
+esac

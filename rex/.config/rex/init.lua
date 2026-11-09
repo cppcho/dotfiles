@@ -31,6 +31,54 @@ rex.bind("ctrl+a>x", "pane.close")
 rex.bind("ctrl+a>z", "pane.zoom")
 rex.bind("ctrl+a>shift+1", "pane.move_to_new_tab") -- !
 
+local terminal = "com.superlogical.terminal"
+local home = os.getenv("HOME")
+
+-- Pickers: ~/bin/rex-* scripts run in a floating pane over the current tab.
+--
+-- The pane starts in the focused pane's directory, so a picker such as
+-- rex-worktree-picker knows which repo it is for. It closes when the script
+-- exits. Rex reports the directory as a file:// URL with the host name, such
+-- as file://my-mac/Users/me/dev/my%20repo, so it is turned back into a path.
+local function focused_dir(block_id)
+  if not block_id then
+    return ""
+  end
+  local r = rex.block.call(terminal, "pwd", { block_id = block_id })
+  if not r or type(r.pwd) ~= "string" then
+    return ""
+  end
+  local path = r.pwd:gsub("^file://[^/]*", "")
+  path = path:gsub("%%(%x%x)", function(hex)
+    return string.char(tonumber(hex, 16))
+  end)
+  return path
+end
+
+rex.action({
+  name = "float",
+  title = "Run in Floating Pane",
+  args = { command = "array" },
+  run = function(ctx, args)
+    local _, err = rex.session.new_layer({
+      session_id = ctx.session_id,
+      bounds = { 0.15, 0.15, 0.7, 0.7 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        options = { command = args.command, cwd = focused_dir(ctx.block_id) },
+      }),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+  end,
+})
+
+rex.bind("ctrl+a>f", "float", { command = { home .. "/bin/rex-sessionizer" } })
+rex.bind("ctrl+a>g", "float", { command = { home .. "/bin/rex-worktree-picker" } })
+rex.bind("ctrl+a>shift+g", "float", { command = { home .. "/bin/rex-gwt" } })
+
 -- Vim-aware pane navigation with ctrl+h/j/k/l.
 --
 -- The same keys move between nvim splits, so Rex and nvim share them:
@@ -40,7 +88,6 @@ rex.bind("ctrl+a>shift+1", "pane.move_to_new_tab") -- !
 -- - At the edge of its splits, nvim asks Rex to move focus
 --   (nvim/.config/nvim/lua/plugins/tmux-navigator.lua).
 -- - In any other program, Rex moves focus itself.
-local terminal = "com.superlogical.terminal"
 
 -- Process names that get the keys, the same set vim-tmux-navigator uses
 -- plus fzf. Examples: nvim, vim, view, gvimdiff, nvim-wrapped, fzf.

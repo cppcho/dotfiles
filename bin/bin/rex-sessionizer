@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# rex-sessionizer — pick a repo and go to its Rex session (prefix+f).
+#
+# Lists the project directories in $TMUX_SESSIONIZER_PATHS, most recently
+# opened first (rex-recent), then by ~/.z frecency. `●` marks a repo that
+# already has a session. Picking one goes to that session as it was left, or
+# opens a new one (rex-open --repo). Worktrees aren't listed here: they are
+# tabs inside the repo's session, picked with prefix+g (rex-worktree-picker).
+#
+# Runs in a floating pane opened by the `float` action in ~/.config/rex/init.lua.
+#
+#   rex-sessionizer          pick with fzf
+#   rex-sessionizer <dir>    skip the picker
+#   rex-sessionizer --list   print the ordered rows and exit
+set -euo pipefail
+
+# Show a fatal error, then wait so it stays readable before the pane closes.
+die() {
+    printf '\n\033[1;31mrex-sessionizer: %s\033[0m\n' "$1" >&2
+    printf 'Press Enter to close… ' >&2
+    read -r _ || true
+    exit 1
+}
+
+open_repo() {
+    "$HOME/bin/rex-open" --repo "$1" || die "could not open $1"
+}
+
+if [[ $# -eq 1 && $1 != --list ]]; then
+    open_repo "$1"
+    exit 0
+fi
+
+# The branch checked out in a clone, read from .git/HEAD instead of running git:
+# this runs once for every directory in ~/dev. Empty on a detached HEAD.
+# Returns non-zero for a linked worktree (its .git is a file), which this
+# picker leaves out.
+BRANCH=""
+read_branch() {
+    BRANCH=""
+    [[ -f $1/.git ]] && return 1
+    local head=""
+    read -r _ head 2>/dev/null < "$1/.git/HEAD" || return 0
+    [[ $head == refs/heads/* ]] && BRANCH="${head#refs/heads/}"
+    return 0
+}
+
+declare -A has_session
+while IFS= read -r label; do
+    has_session[$label]=1
+done < <(rex ls --json | jq -r '.sessions[].label')
+
+declare -A recent zscore
+while IFS=$'\t' read -r ts path; do recent[$path]=$ts; done < <("$HOME/bin/rex-recent" list)
+if [[ -f ~/.z ]]; then
+    while IFS='|' read -r zdir zs _; do zscore[$zdir]=${zs%%.*}; done < ~/.z
+fi
+
+# Rows: "<recency>\t<z score>\t<display>\t<path>". Recency is an epoch in
+# seconds, so it outranks any z score, which stays far below 1e9.
+add_row() {
+    local dir="$1" name="${1##*/}" mark=" " row
+    read_branch "$dir" || return 0
+    [[ -n ${has_session[$name]:-} ]] && mark="●"
+    printf -v row '%s %-24s %s' "$mark" "$name" "${BRANCH:+*$BRANCH}"
+    printf '%s\t%s\t%s\t%s\n' "${recent[$dir]:-0}" "${zscore[$dir]:-0}" "$row" "$dir"
+}
+
+listing=$(
+    IFS=':' read -ra roots <<<"${TMUX_SESSIONIZER_PATHS:-$HOME/dev/}"
+    for p in "${roots[@]}"; do
+        p="${p/#\~/$HOME}"
+        if [[ $p == */ ]]; then
+            while IFS= read -r d; do add_row "$d"; done \
+                < <(find -L "${p%/}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+        elif [[ -d $p ]]; then
+            add_row "$p"
+        fi
+    done | sort -t$'\t' -k1,1rn -k2,2rn -k3,3 | cut -f3-
+)
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "$listing"
+    exit 0
+fi
+
+selected=$(printf '%s\n' "$listing" \
+    | fzf --exact --no-sort --delimiter=$'\t' --with-nth=1 \
+          --preview 'echo {2}' --preview-window=down,1 --prompt='Repo > ') || exit 0
+[[ -n $selected ]] || exit 0
+
+open_repo "${selected#*$'\t'}"

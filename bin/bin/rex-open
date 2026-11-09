@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# rex-open — show a directory in Rex: its repo's session, and its own tab.
+#
+#   rex-open <dir>                   go to the tab for <dir>, creating it if needed
+#   rex-open --repo <dir>            go to the session for <dir>'s repo, keeping
+#                                    whichever tab it was on
+#   rex-open --close <wt> <main>     close the tab for worktree <wt> of the repo
+#                                    whose main checkout is <main>
+#
+# The layout is one session per repo and one tab per worktree:
+# - The session label is the repo name, the main checkout's directory name.
+# - The tab label is the worktree's directory name. The main checkout's tab
+#   is labelled with the repo name too.
+# - The labels are how the next call finds a session or tab again, so renaming
+#   one by hand makes the next call open a new one.
+#
+# Switching the app to the session needs Remote Control turned on in Rex.app
+# (Settings > Server > Client Info). Without it, the tab is still created and
+# this prints which session to go to.
+#
+# Used by rex-sessionizer, rex-worktree-picker and gwt (`gwt switch` in Rex).
+set -euo pipefail
+
+usage() {
+    echo "usage: rex-open [--repo] <dir> | --close <worktree> <main>" >&2
+    exit 2
+}
+
+# The main checkout of the repo at <dir>, or nothing outside a git repo. sed
+# reads the whole list instead of `head -1`, which would SIGPIPE git under
+# pipefail once the repo has enough worktrees.
+main_checkout_of() {
+    git -C "$1" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p'
+}
+
+session_by_label() {
+    rex ls --json | jq -r --arg l "$1" 'first(.sessions[] | select(.label == $l) | .session_id) // empty'
+}
+
+tab_by_label() {
+    rex window ls -s "$1" --json \
+        | jq -r --arg l "$2" 'first(.windows[] | select(.label == $l) | .window_id) // empty'
+}
+
+show() {
+    local sid="$1" wid="${2:-}" label="$3"
+    local args=(session_id="$sid")
+    if [[ -n $wid ]]; then
+        rex focus -s "$sid" "$wid" >/dev/null
+        args+=(window_id="$wid")
+    fi
+    if ! rex do session.select "${args[@]}" >/dev/null 2>&1; then
+        echo "rex-open: Rex.app didn't switch (is Remote Control on?). Go to session '$label' with prefix+w." >&2
+    fi
+}
+
+mode=open
+case "${1:-}" in
+    --repo) mode=repo; shift ;;
+    --close) mode=close; shift ;;
+esac
+
+if [[ $mode == close ]]; then
+    [[ $# -eq 2 ]] || usage
+    repo="${2%/}"; repo="${repo##*/}"
+    tab="${1%/}"; tab="${tab##*/}"
+    sid=$(session_by_label "$repo")
+    [[ -n $sid ]] || exit 0
+    wid=$(tab_by_label "$sid" "$tab")
+    [[ -n $wid ]] || exit 0
+    # Closing the tab ends every program in it. When gwt runs from that tab,
+    # this ends gwt too, so gwt calls this as its last step.
+    rex window close -s "$sid" "$wid" >/dev/null
+    exit 0
+fi
+
+[[ $# -eq 1 ]] || usage
+dir="${1/#\~/$HOME}"
+[[ -d $dir ]] || { echo "rex-open: no such directory: $dir" >&2; exit 1; }
+dir=$(cd "$dir" && pwd)
+
+main=$(main_checkout_of "$dir")
+[[ -n $main ]] || main="$dir"
+repo="${main##*/}"
+tab="${dir##*/}"
+[[ $dir == "$main" ]] && tab="$repo"
+
+"$HOME/bin/rex-recent" touch "$main"
+[[ $dir == "$main" ]] || "$HOME/bin/rex-recent" touch "$dir"
+
+sid=$(session_by_label "$repo")
+if [[ -z $sid ]]; then
+    created=$(rex new "$repo" -c "$dir" --window "$tab" --json)
+    sid=$(jq -r '.session_id' <<<"$created")
+    show "$sid" "$(jq -r '.initial_windows[0].window_id' <<<"$created")" "$repo"
+    exit 0
+fi
+
+if [[ $mode == repo ]]; then
+    show "$sid" "" "$repo"
+    exit 0
+fi
+
+wid=$(tab_by_label "$sid" "$tab")
+if [[ -z $wid ]]; then
+    wid=$(rex window new -s "$sid" "$tab" -c "$dir" --focus=false --json | jq -r '.window_id')
+fi
+show "$sid" "$wid" "$repo"

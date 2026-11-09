@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Git worktree + tmux/herdr workflow helper
+# Git worktree + tmux/herdr/rex workflow helper
 #
-# Runs under either multiplexer: each worktree gets its own tmux session or
-# herdr workspace, chosen automatically based on where gwt is invoked.
+# Runs under any of the three multiplexers, chosen automatically based on where
+# gwt is invoked: each worktree gets its own tmux session, herdr workspace, or
+# tab in its repo's Rex session.
 #
 # Usage:
 #   gwt switch [branch|#N|pr-url]  Switch to a worktree (fzf picker if no arg, create if needed)
@@ -931,12 +932,18 @@ cmd_purge() {
 # ---------------------------------------------------------------------------
 # Multiplexer session integration
 #
-# gwt drives either tmux or herdr, depending on where it runs. Each worktree
-# gets its own session (tmux) / workspace (herdr); the dispatchers below pick
-# the right backend so `switch`/`delete`/`purge` work in both.
+# gwt drives tmux, herdr or rex, depending on where it runs. Each worktree
+# gets its own session (tmux), workspace (herdr) or tab in the repo's session
+# (rex); the dispatchers below pick the right backend so `switch`/`delete`/
+# `purge` work in all three.
+#
+# Rex is checked after herdr: herdr run inside a Rex pane also inherits the
+# REX_* variables, and herdr is the inner one. The Rex side lives in
+# ~/bin/rex-open, which owns the session and tab layout.
 # ---------------------------------------------------------------------------
 
 in_herdr() { [[ -n "${HERDR_PANE_ID:-}" ]]; }
+in_rex() { [[ -n "${REX_SESSION:-}" ]]; }
 
 # Report the worktree gwt settled on to its caller: set $GWT_WT_FILE and gwt
 # writes "<branch>\t<path>" there. Used by ~/bin/herdr-gwt-prompt to find the
@@ -949,12 +956,31 @@ emit_worktree() {
 # Create or focus a session/workspace for a worktree.
 open_session() {
     emit_worktree "$@"
-    if in_herdr; then open_in_herdr "$@"; else open_in_tmux "$@"; fi
+    if in_herdr; then open_in_herdr "$@"
+    elif in_rex; then open_in_rex "$@"
+    else open_in_tmux "$@"
+    fi
 }
 
 # Tear down the session/workspace associated with a worktree path.
 close_worktree_session() {
-    if in_herdr; then close_worktree_herdr "$@"; else kill_worktree_tmux_session "$@"; fi
+    if in_herdr; then close_worktree_herdr "$@"
+    elif in_rex; then close_worktree_rex "$@"
+    else kill_worktree_tmux_session "$@"
+    fi
+}
+
+# Best-effort, like open_in_herdr: a failure must not abort gwt under `set -e`,
+# but it must say so.
+open_in_rex() {
+    "$HOME/bin/rex-open" "$2" || echo "gwt: could not open a Rex tab for $2" >&2
+}
+
+# Closing the tab gwt runs in ends gwt too. That is safe because removing a
+# worktree is always gwt's last step: `delete` removes one, and `purge` leaves
+# the current worktree for last.
+close_worktree_rex() {
+    "$HOME/bin/rex-open" --close "$1" "${2:-}" >/dev/null 2>&1 || true
 }
 
 # Remove a worktree's checkout and tear down its multiplexer session.
