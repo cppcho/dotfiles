@@ -32,14 +32,23 @@ git rev-parse --show-toplevel >/dev/null 2>&1 || die "not inside a git repositor
 main=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
 repo="${main##*/}"
 
-# Tab labels in the repo's session, for the `●` marker. See rex-open for how
-# tabs are labelled.
-declare -A has_tab
+# Worktrees with a tab in the repo's session, for the `●` marker: a tab whose
+# directory rex-open recorded, or else whose label, without the PR status emoji
+# rex-pr-status adds, is the worktree's tab label (see rex-open).
+declare -A has_tab live_tab
+tabs_file="${XDG_STATE_HOME:-$HOME/.local/state}/rex/tabs.tsv"
 sid=$(rex ls --json | jq -r --arg l "$repo" 'first(.sessions[] | select(.label == $l) | .session_id) // empty')
 if [[ -n $sid ]]; then
-    while IFS= read -r label; do
-        has_tab[$label]=1
-    done < <(rex window ls -s "$sid" --json | jq -r '.windows[].label')
+    while IFS=$'\t' read -r wid label; do
+        live_tab[$wid]=1
+        has_tab[label:$label]=1
+    done < <(rex window ls -s "$sid" --json | jq -r '.windows[]
+        | "\(.window_id)\t\(.label | sub("^(🟣|🪦|🚧|💥|🚨|🔴|🟢|⏳|🟡) "; ""))"')
+    if [[ -f $tabs_file ]]; then
+        while IFS=$'\t' read -r wid dir; do
+            [[ -n ${live_tab[$wid]:-} ]] && has_tab[dir:$dir]=1
+        done < "$tabs_file"
+    fi
 fi
 
 declare -A recent
@@ -67,7 +76,7 @@ rows=$(
 listing=$(
     while IFS=$'\t' read -r shown wt; do
         tab="${wt##*/}"; [[ $wt == "$main" ]] && tab="$repo"
-        mark=" "; [[ -n ${has_tab[$tab]:-} ]] && mark="●"
+        mark=" "; [[ -n ${has_tab[dir:$wt]:-}${has_tab[label:$tab]:-} ]] && mark="●"
         printf '%s\t%s %s\t%s\n' "${recent[$wt]:-0}" "$mark" "$shown" "$wt"
     done <<<"$rows" | sort -t$'\t' -k1,1rn -k2,2 | cut -f2-
 )

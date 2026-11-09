@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# rex-pr-status — put each Rex tab's PR status emoji in front of its label.
+#
+#   rex-pr-status                    run forever (the launchd agent)
+#   rex-pr-status --once             one pass over every tab
+#   rex-pr-status --dry              print what one pass would set
+#   rex-pr-status --refresh-here     refresh only the tabs for $PWD's checkout
+#                                    (the global post-checkout git hook)
+#
+# Each tab is one worktree (see rex-open), and the tab's directory comes from
+# rex-open's record (~/.local/state/rex/tabs.tsv). A tab with no record, such as
+# one made with prefix+c, is left alone.
+#
+# The PR is the one for the checkout's current branch (its upstream name when it
+# has one), so switching branches in a worktree switches the emoji. The default
+# branch has no PR of its own, so the main checkout's tab usually has no emoji.
+#
+# First match wins:
+#   🟣 merged  🪦 closed  🚧 draft  💥 conflict  🚨 CI failing
+#   🔴 changes requested  🟢 approved  ⏳ CI running  🟡 waiting for review
+#
+# Env:
+#   REX_PR_STATUS_INTERVAL   seconds between passes (default 180)
+#   REX_PR_STATUS_IGNORE     ERE of check names left out of CI state
+#                            (default: policy-bot, an approval gate that stays
+#                            pending until review, not CI)
+set -uo pipefail
+
+interval="${REX_PR_STATUS_INTERVAL:-180}"
+ignore="${REX_PR_STATUS_IGNORE:-^policy-bot}"
+tabs_file="${XDG_STATE_HOME:-$HOME/.local/state}/rex/tabs.tsv"
+jobs_max=6
+# The status emoji this script puts in front of a label, as a jq regex, so a
+# pass replaces the old one instead of adding another.
+status_re='^(🟣|🪦|🚧|💥|🚨|🔴|🟢|⏳|🟡) '
+
+mode=loop
+case "${1:-}" in
+    --once) mode=once ;;
+    --dry) mode=dry ;;
+    --refresh-here) mode=here ;;
+esac
+
+# Branch name to look the PR up by: the upstream's, else the local one. Empty
+# for a detached HEAD and for the repo's default branch.
+pr_branch() {
+    local dir="$1" branch up default
+    branch=$(git -C "$dir" symbolic-ref --short -q HEAD) || return
+    default=$(git -C "$dir" symbolic-ref --short -q refs/remotes/origin/HEAD 2>/dev/null)
+    [[ $branch == "${default#origin/}" ]] && return
+    if up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null); then
+        branch=${up#*/}
+    fi
+    printf '%s' "$branch"
+}
+
+# Emoji for the newest PR whose head is <branch>, or empty when there's none.
+pr_emoji() {
+    local dir="$1" branch="$2" json
+    json=$(cd "$dir" && gh pr list --head "$branch" --state all --limit 1 \
+        --json state,isDraft,reviewDecision,mergeable,statusCheckRollup 2>/dev/null) || return
+    jq -r --arg ignore "$ignore" '
+        .[0] // empty
+        | ([.statusCheckRollup[]?
+            | select(((.name // .context // "") | test($ignore)) | not)
+            | if .__typename == "StatusContext" then .state
+              elif .status != "COMPLETED" then "PENDING"
+              else .conclusion end]) as $checks
+        | def any_of($s): any($checks[]; IN($s[]));
+          if .state == "MERGED" then "🟣"
+          elif .state == "CLOSED" then "🪦"
+          elif .isDraft then "🚧"
+          elif .mergeable == "CONFLICTING" then "💥"
+          elif any_of(["FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"]) then "🚨"
+          elif .reviewDecision == "CHANGES_REQUESTED" then "🔴"
+          elif .reviewDecision == "APPROVED" then "🟢"
+          elif any_of(["PENDING", "EXPECTED"]) then "⏳"
+          else "🟡" end' <<<"$json"
+}
+
+# "<session>\t<tab>\t<label>\t<dir>" for every live tab that has a record.
+tabs() {
+    [[ -f $tabs_file ]] || return 0
+    local sid
+    for sid in $(rex ls --json 2>/dev/null | jq -r '.sessions[].session_id'); do
+        rex api call -s "$sid" session.view '{}' 2>/dev/null \
+            | jq -r --arg s "$sid" '.windows[] | "\($s)\t\(.window_id)\t\(.label)"'
+    done | awk -F'\t' -v f="$tabs_file" '
+        BEGIN { while ((getline line < f) > 0) { split(line, p, "\t"); dir[p[1]] = p[2] } }
+        $2 in dir { print $0 "\t" dir[$2] }'
+}
+
+refresh() {
+    local sid="$1" wid="$2" label="$3" dir="$4" branch="" emoji="" base new
+    [[ -d $dir ]] || return
+    branch=$(pr_branch "$dir")
+    [[ -n $branch ]] && emoji=$(pr_emoji "$dir" "$branch")
+    base=$(jq -rn --arg l "$label" --arg re "$status_re" '$l | sub($re; "")')
+    new="${emoji:+$emoji }$base"
+    if [[ $mode == dry ]]; then
+        printf '%s\t%s\t%s\n' "${emoji:--}" "${branch:--}" "$dir"
+    elif [[ $new != "$label" ]]; then
+        rex window rename -s "$sid" "$wid" "$new" >/dev/null 2>&1
+    fi
+}
+
+pass() {
+    local sid wid label dir
+    while IFS=$'\t' read -r sid wid label dir; do
+        [[ -n ${only:-} && $dir != "$only" ]] && continue
+        while (( $(jobs -rp | wc -l) >= jobs_max )); do wait -n; done
+        refresh "$sid" "$wid" "$label" "$dir" &
+    done < <(tabs)
+    wait
+}
+
+case "$mode" in
+    here)
+        # Called from a git hook: stay quiet and never fail the git command.
+        only=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+        pass
+        exit 0
+        ;;
+    dry | once)
+        pass
+        ;;
+    loop)
+        while :; do
+            pass
+            sleep "$interval"
+        done
+        ;;
+esac
