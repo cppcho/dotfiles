@@ -3,6 +3,10 @@
 -- herdr: move between splits ourselves; at an edge hand off to
 --        `herdr pane focus`. The herdr side is ~/bin/herdr-navigate, which
 --        forwards ctrl+h/j/k/l into vim/fzf panes (the tmux is_vim trick).
+-- rex:   the same, handing off to `rex focus`. The Rex side is the ctrl+h/j/k/l
+--        bindings in ~/.config/rex/init.lua, which pass the keys through to
+--        vim/fzf panes. Checked after herdr, because herdr run inside a Rex
+--        pane also inherits the REX_* variables, and herdr is the inner one.
 -- tmux:  delegate to vim-tmux-navigator's TmuxNavigate* commands, which also
 --        handle plain wincmd when outside any multiplexer.
 
@@ -28,7 +32,17 @@ local function navigate(lhs)
     vim.api.nvim_feedkeys(raw, "n", false)
     return
   end
-  if vim.env.HERDR_PANE_ID and vim.env.HERDR_PANE_ID ~= "" then
+  local in_herdr = vim.env.HERDR_PANE_ID and vim.env.HERDR_PANE_ID ~= ""
+  local in_rex = not in_herdr and vim.env.REX_SESSION and vim.env.REX_SESSION ~= ""
+  if in_rex then
+    local prev = vim.api.nvim_get_current_win()
+    vim.cmd("wincmd " .. k.wincmd)
+    if vim.api.nvim_get_current_win() ~= prev or not k.dir then
+      return
+    end
+    vim.cmd("silent! wall") -- ~ tmux_navigator_save_on_switch = 2
+    vim.system({ "rex", "focus", k.dir, "-s", vim.env.REX_SESSION })
+  elseif in_herdr then
     local prev = vim.api.nvim_get_current_win()
     vim.cmd("wincmd " .. k.wincmd)
     if vim.api.nvim_get_current_win() ~= prev then
