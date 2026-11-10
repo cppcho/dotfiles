@@ -12,7 +12,7 @@ Answer one question: **what can I work on right now, across everything in flight
 
 List every `.scratch/epics/[A-Z]*-*/tickets/` directory in the current repo — the prefix in the directory name is the epic's id, and the `epics/` subdirectory is what keeps other scratch material out of the sweep. An argument narrows it to that prefix or slug; otherwise take them all. No epics on disk → say so and stop — don't go hunting in other repos or inventing work from the conversation.
 
-Shipped epics live at `.scratch/epics/_archive/<PREFIX>-<slug>/`, which that glob cannot reach, so they are already out of the sweep — don't widen it to find them. An argument naming an archived slug gets its `**Shipped:**` line and nothing else: it has no outstanding work, and a screen of ✅ rows answers a question nobody asked.
+Shipped epics live at `.scratch/epics/_archive/<PREFIX>-<slug>/`, which that glob cannot reach, so they are already out of the sweep — don't widen it to find them. An argument naming an archived slug gets its `**Shipped:**` line and nothing else: it has no outstanding work, and a screen of ✅️ rows answers a question nobody asked.
 
 An epic whose `tickets/README.md` opens with a `**Cancelled:** <reason>` line is retired whole and leaves the sweep — it has no outstanding work by definition. An argument naming a cancelled slug gets the reason and nothing else, rather than a list of tickets nobody is going to pick up. That line is the one thing in `README.md` that step 2's "read the tickets, not the index" does not govern: it is a fact about the epic, not a claim about any ticket's status, so no ticket can contradict it.
 

@@ -91,7 +91,7 @@ Linear status is the truth about a ticket's lifecycle. Acceptance checkboxes sho
 | Linear state (by type, from `list_issue_statuses`) | Glyph | Meaning |
 |---|---|---|
 | `canceled`, `duplicate` | 🚫 | retired — a dead end, not work |
-| `completed` | ✅ | done |
+| `completed` | ✅️ | done |
 | any `started`-type state (In Progress, In Review, QA states, …) | 🟡 | in flight — show `ticked/total` boxes beside it |
 | `unstarted`, `backlog`, with every blocker **satisfied** | 🟢 | ready |
 | `unstarted`, `backlog`, with a blocker not yet satisfied | 🔴 | blocked |

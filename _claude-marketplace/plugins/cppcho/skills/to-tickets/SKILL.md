@@ -16,7 +16,7 @@ Settle the epic's **prefix and slug** early, since every path below and every ti
 
 Coin the **prefix** from the initials of the slug's significant words, dropping `in/the/a/of/and/to/on/for`, uppercased, two letters minimum: `promo-credit-exchange` → `PCE`. One `ls .scratch/epics/` lists every prefix in use, because the prefix lives in the directory name and nowhere else — the filesystem is what keeps it unique. On a collision, extend with the next significant word's initial, or take the letter that actually distinguishes this epic: `promo-credit-wallet-scoped-balances` → `PCB` beats `PCWS`, which misreads as its `promo-credit-wallet-statement-view` neighbour.
 
-An epic under `.scratch/epics/_archive/` is not a candidate for reuse. It shipped, and its rows of ✅ are exactly what archiving took out of view. Read it for how the feature was sliced last time, then coin a new prefix and slug for the follow-up and leave the archive where it is.
+An epic under `.scratch/epics/_archive/` is not a candidate for reuse. It shipped, and its rows of ✅️ are exactly what archiving took out of view. Read it for how the feature was sliced last time, then coin a new prefix and slug for the follow-up and leave the archive where it is.
 
 Then read what is already on disk. If `.scratch/epics/<PREFIX>-<slug>/tickets/` exists, read every ticket in it before drafting anything, because tickets in flight are load-bearing: `/cppcho:implement` ticks acceptance criteria in place as it works, so a ticket file is the only record of what is done. Regenerating the epic from the conversation would erase that.
 
@@ -179,7 +179,7 @@ The **date and the PRs** are the load-bearing part of the line, for the same rea
 
 Archive only when all of this holds:
 
-- **Every ticket is ✅ or 🚫.** Draw the epic with `cppcho:ticket-dag` and check rather than trusting the conversation; an epic gets archived once and read many times.
+- **Every ticket is ✅️ or 🚫.** Draw the epic with `cppcho:ticket-dag` and check rather than trusting the conversation; an epic gets archived once and read many times.
 - **The code has merged.** All-ticked with PRs still open is not shipped — a review that comes back with changes reopens the last slice, and reopening a slice inside the archive is the one motion nothing here supports. Ask `gh` before archiving; this is the one place in the ticket skills where merge state is worth a network call, because it is a decision rather than a glance.
 - **No worktree is holding the epic.** `.scratch` is symlinked into every worktree, so moving the directory out from under a live session breaks every path it holds.
 

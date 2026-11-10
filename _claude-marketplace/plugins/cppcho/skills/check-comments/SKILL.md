@@ -1,6 +1,6 @@
 ---
 name: check-comments
-description: Reviews the comments in a diff and fixes what doesn't earn its place — redundant comments get deleted, verbose ones get tightened to the non-obvious "why", and comments narrating the revision get rewritten to describe the final state. Use when the user asks to check, review, tighten or clean up comments or doc comments, asks to remove unnecessary or obvious comments (e.g. "remove unnecessary comments that describe obvious code"), wonders whether a comment is needed or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
+description: Reviews the comments in a diff and fixes what doesn't earn its place — redundant comments get deleted, dense or rambling ones get rewritten in plain words around the non-obvious "why", and comments narrating the revision get rewritten to describe the final state. Use when the user asks to check, review, tighten or clean up comments or doc comments, asks to remove unnecessary or obvious comments (e.g. "remove unnecessary comments that describe obvious code"), wonders whether a comment is needed or too verbose, or wants the prose in a diff gone over before it ships; other skills invoke it once their work is green and before it gets committed.
 argument-hint: "[diff-range|path]"
 model: sonnet
 ---
@@ -10,7 +10,14 @@ model: sonnet
 Three questions per comment the diff adds or touches:
 
 1. **Does it tell the reader something the code doesn't, or save them working it out?** The reader is someone new to this file, reading it cold — not its author, who knows the module and needs almost nothing explained. If that reader would reach the right conclusion from the code at a glance, delete it. Usual cuts: restatements of what the code shows, a justification a guard's own error message already gives, a field's name/type/units repeated back, a test doc repeating the test name, narration of what an assertion asserts, a step-by-step retelling of a loop or a few lines that read in one pass. Usual keepers: the schema or external constraint behind a literal, why a result is discarded or a value deliberately left unset, a silent-fallback trap a guard prevents, a deliberate-looking-like-an-oversight choice a reader would otherwise undo, the contract of an exported function a caller can't read off the signature, and a short statement of a rule the reader would otherwise have to trace across several branches or calls to recover — an ordering, a precedence, a tie-break. That last keeper holds even though the code implies the rule and the function is unexported: being derivable is not the same as being cheap to derive.
-2. **Is it concise?** A sentence or two on the non-obvious "why", not paragraphs. Tighten what survived rule 1 rather than matching a verbose neighbour's length. A comment that runs to paragraphs is usually answering several questions — judge each part on its own. Concise means fewer ideas, not compressed wording: use words a reader new to the code already knows. A term coined in the ticket, the spec or the session, or defined only in a glossary, gets plain words or a quote of what the user sees instead.
+2. **Can a reader new to the code follow it on first read?** Plain words, short sentences, one idea each. Short means fewer ideas, not compressed wording: cut ideas the reader doesn't need, never squeeze several into one dense sentence. A comment that runs long is usually answering several questions — judge each part on its own, and drop the parts rule 1 would cut. For what survives:
+   - Open with one plain sentence on what the code is for.
+   - When the reason is a failure case, spell out the exact scenario as steps: what happens first, what goes wrong, what the result would be.
+   - When the code uses something in an unusual way (a field, an API, a pattern), say why that one was chosen.
+   - Put steps or a list of reasons in bullets, not one long sentence.
+   - Give a concrete example (a real value, a real message) when it makes the point land.
+
+   Don't shorten a comment that already reads this way just to make it smaller. A term coined in the ticket, the spec or the session, or defined only in a glossary, gets plain words or a quote of what the user sees instead.
 3. **Does it describe the final state, not the revision?** Only the last version reaches the base branch, so drop "changed from X to Y", "now also handles…", "previously this returned…". Rewrite it to read as though the code had always been that way.
 
 A comment that is flat-out wrong — an invariant nothing enforces, a return the function no longer produces — gets corrected rather than trimmed, unless nothing is left once the false part goes; then it's a deletion.

@@ -39,7 +39,7 @@ Read every ticket and the `tickets/README.md` index, and look for the epic disag
 - A README row that disagrees with its ticket's edges, is missing, or is missing the strike-through a superseded ticket should have.
 - A heading id that doesn't match its filename or its directory's prefix.
 - A **Status** line parking a ticket on something that has since happened.
-- An epic whose every ticket is ✅ or 🚫, still sitting outside `_archive/`.
+- An epic whose every ticket is ✅️ or 🚫, still sitting outside `_archive/`.
 
 Report these as found. Fixing them is graph surgery, so it belongs to `/cppcho:to-tickets` (step 5).
 
@@ -81,14 +81,14 @@ Say which side moved when you can tell: the code diverging from a still-good dec
 
 ## 5. Report and route
 
-One block per epic, findings only — a clean epic gets a line saying so, not a table of ✅. Keep the whole report to what fits on a screen; the verdicts carry citations, so anyone who wants the detail has a path to it.
+One block per epic, findings only — a clean epic gets a line saying so, not a table of ✅️. Keep the whole report to what fits on a screen; the verdicts carry citations, so anyone who wants the detail has a path to it.
 
 Open every finding with a glyph. A verdict is a word buried in a column of words, and the reader is scanning for the one row that needs them — the same job colour does in `cppcho:ticket-dag`, which is why the glyphs are that skill's, not a second scheme to learn:
 
 | glyph | verdict |
 | --- | --- |
 | 🟢 | `fresh` — still describes a path through the current code |
-| ✅ | `already satisfied` — every criterion cited elsewhere |
+| ✅️ | `already satisfied` — every criterion cited elsewhere |
 | 🟡 | `partly satisfied` — some criteria cited, name which |
 | 🚫 | `invalidated` — cannot be done as written |
 | ❓ | `unclear` — needs a human |
@@ -99,7 +99,7 @@ Open every finding with a glyph. A verdict is a word buried in a column of words
 ```
 🔎 PCB · promo-credit-wallet-scoped-balances  reconciled 2026-08-01 · 3 findings
 
-  ✅ PCB-04  already satisfied  — zero-balance routing landed in PCG-05 (grant.go:212, grant_test.go:88)
+  ✅️ PCB-04  already satisfied  — zero-balance routing landed in PCG-05 (grant.go:212, grant_test.go:88)
   🚫 PCB-07  invalidated        — statement rows now key on balance id (PCS-02), so the
                                   per-wallet filter this describes has no column to read
   ⚠️ spec    stale              — "balances never lapse once contracted" was dropped in PCA-03

@@ -21,11 +21,11 @@ Every path depends on which epic you're drawing, so settle it before reading any
 
 **A cancelled epic.** An epic whose `tickets/README.md` opens with a `**Cancelled:** <reason>` line is retired whole. It is out of the running for rules 3 and 4 — never the epic you draw by default, never an option in the list you ask about. Reached deliberately through rule 1 or 2 it still draws, since looking at what was killed is a fair thing to want; name the cancellation and its reason in the footer so the graph is never mistaken for live work. This line is the one thing in `README.md` that step 2's "read the tickets, not the index" does not govern: it is a fact about the epic, not a claim about any ticket's status, so no ticket can contradict it.
 
-**An archived epic.** An epic that shipped has been moved to `.scratch/epics/_archive/<PREFIX>-<slug>/`, which rules 3 and 4 cannot glob, so it is out of the running for both without needing a rule of its own. Reached deliberately through rule 1 it draws normally — looking at how a shipped feature was sliced is a fair thing to want, and usually the reason someone types the slug. Carry its `README.md` `**Shipped:**` line into the footer, so a column of ✅ is never read as work sitting finished-but-unretired.
+**An archived epic.** An epic that shipped has been moved to `.scratch/epics/_archive/<PREFIX>-<slug>/`, which rules 3 and 4 cannot glob, so it is out of the running for both without needing a rule of its own. Reached deliberately through rule 1 it draws normally — looking at how a shipped feature was sliced is a fair thing to want, and usually the reason someone types the slug. Carry its `README.md` `**Shipped:**` line into the footer, so a column of ✅️ is never read as work sitting finished-but-unretired.
 
 **An epic that isn't written yet.** `/cppcho:to-tickets` draws the graph during its approval quiz, while the tickets are still a proposal in the conversation and no file exists. Take those rows from the proposal and skip the disk read for them — you don't need a slug to draw what you were handed. When the proposal revises an epic that partly exists, read the written tickets as usual and fold the proposed ones in beside them: how the new work lands against tickets already in flight is the thing the reader is checking.
 
-This needs no notation of its own. A proposed ticket is unstarted by definition, so it draws 🟢 or 🔴, while ✅ and 🟡 can only come from a file whose criteria have been ticked. The glyphs already separate what is frozen from what is still open to argument, which is the distinction the quiz turns on. Do note in the footer that unwritten rows carry **provisional ids** — the numbers are assigned when the files are written, so an id quoted from a proposal graph can move.
+This needs no notation of its own. A proposed ticket is unstarted by definition, so it draws 🟢 or 🔴, while ✅️ and 🟡 can only come from a file whose criteria have been ticked. The glyphs already separate what is frozen from what is still open to argument, which is the distinction the quiz turns on. Do note in the footer that unwritten rows carry **provisional ids** — the numbers are assigned when the files are written, so an id quoted from a proposal graph can move.
 
 ## 2. Read the tickets, not the index
 
@@ -59,9 +59,9 @@ Drop transitive edges before drawing. If a ticket lists both `PCE-04` and `PCE-0
 
 | Glyph | Meaning |
 |---|---|
-| ✅ | done — every criterion ticked |
+| ✅️ | done — every criterion ticked |
 | 🟡 | in flight — some criteria ticked |
-| 🟢 | ready — nothing ticked, every blocker is ✅, and nothing outside the graph is holding it |
+| 🟢 | ready — nothing ticked, every blocker is ✅️, and nothing outside the graph is holding it |
 | 🔴 | blocked — waiting on a blocker that isn't done, or on something outside the graph |
 | 🚫 | superseded — retired, a dead end rather than work |
 
@@ -69,9 +69,9 @@ Read the three circles as a traffic light: 🟢 go, 🟡 moving, 🔴 stopped. C
 
 🟢 is the frontier, and it is the same definition `/cppcho:implement` uses to pick up work. Keeping them identical is the whole value: the graph tells you what that skill would offer you. Which is also why 🟢 has to be earned — a ticket the reader picks up and immediately cannot start costs them more than one they were never offered.
 
-An **unmerged PR on a blocker is not off-graph blocking.** A ticket whose blockers are ✅ draws 🟢 whether or not their PRs have landed — worktrees branch off unmerged branches routinely, and the `PRs:` line already tells the reader which one to stack on. Withholding 🟢 until a review finishes would idle the frontier on something no ticket is waiting for.
+An **unmerged PR on a blocker is not off-graph blocking.** A ticket whose blockers are ✅️ draws 🟢 whether or not their PRs have landed — worktrees branch off unmerged branches routinely, and the `PRs:` line already tells the reader which one to stack on. Withholding 🟢 until a review finishes would idle the frontier on something no ticket is waiting for.
 
-That is what folds off-graph blocking into 🔴. A ticket whose blockers are all ✅ but whose `**Status:**` parks it on an environment is not startable, however green the graph looks. Draw it 🔴 and **name the cause in the footer**, because otherwise it is indistinguishable from a ticket waiting on a sibling — and the two need completely different actions from the reader. Resist a sixth glyph for it: the vocabulary earns its keep by being small enough to hold in your head, and the footer has room for the explanation.
+That is what folds off-graph blocking into 🔴. A ticket whose blockers are all ✅️ but whose `**Status:**` parks it on an environment is not startable, however green the graph looks. Draw it 🔴 and **name the cause in the footer**, because otherwise it is indistinguishable from a ticket waiting on a sibling — and the two need completely different actions from the reader. Resist a sixth glyph for it: the vocabulary earns its keep by being small enough to hold in your head, and the footer has room for the explanation.
 
 **Size** is `[S]`, `[M]` or `[L]`. If a ticket declares one, use it. Otherwise infer from what the ticket actually asks for — the number of criteria, how many layers it crosses, whether it needs a new test harness, and what comparable code in the repo costs. Calibrate against a session: `[S]` is one sitting, `[M]` fills a session, `[L]` is at the edge of one and worth flagging as a split candidate.
 
@@ -98,7 +98,7 @@ Assign rails the way a git log graph does. A ticket with several children keeps 
 **Worked example.** Eight tickets: `PCE-01→04`, `04→05`, `04→06`, `04→07`, `04→08`, `02→08`, `03→08`.
 
 ```
- ✅                (PCE-01) Spend and restore promo credits across expiry dates draws the earliest-expiring grant first, puts them back on the same dates [M]
+ ✅️                (PCE-01) Spend and restore promo credits across expiry dates draws the earliest-expiring grant first, puts them back on the same dates [M]
  │
  🟡─┬──┬──┐        (PCE-04) Exchange promo credits for store credit on an owned wallet has the pool carve N credits onto the holder's wallet, end to end [L]
  │  │  │  │
@@ -118,7 +118,7 @@ Assign rails the way a git log graph does. A ticket with several children keeps 
 Then a footer, only with lines that have something to say:
 
 ```
- ✅ done · 🟡 in flight · 🟢 ready · 🔴 blocked · 🚫 superseded
+ ✅️ done · 🟡 in flight · 🟢 ready · 🔴 blocked · 🚫 superseded
  Frontier: PCE-02, PCE-03 · Critical path: PCE-01 → 04 → 08 · Weight: 1 L, 3 M, 4 S · sizes inferred for PCE-05, PCE-06
  Repo: billing-api · also billing-bff (PCE-07) · PCE-08 changes no repo
  PRs: billing-api PCE-04 feat/pc-exchange #1234, PCE-01 #1198 merged · billing-bff PCE-07 #4276 open

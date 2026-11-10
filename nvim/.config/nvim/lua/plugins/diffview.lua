@@ -87,18 +87,26 @@ local function detect_base()
   end
 end
 
--- Diff against the open PR's base branch (via gh, async so the UI doesn't
--- block); with no PR, detect the base locally, and prompt only if that fails.
-local function diff_against_ref()
-  local function fallback()
-    local base = detect_base()
-    if base then
-      vim.notify("Diffview: no PR, diffing against " .. base)
-      open_diff(base)
-    else
-      prompt_for_ref()
-    end
+-- With no PR: detect the base locally, and prompt only if that fails.
+local function diff_against_detected_base()
+  local base = detect_base()
+  if base then
+    vim.notify("Diffview: no PR, diffing against " .. base)
+    open_diff(base)
+  else
+    prompt_for_ref()
   end
+end
+
+-- With no PR: show the uncommitted changes.
+local function diff_dirty_files()
+  vim.notify("Diffview: no PR, showing uncommitted changes")
+  vim.cmd("DiffviewOpen")
+end
+
+-- Diff against the open PR's base branch, or run `fallback` when there is no PR.
+-- gh runs async so the UI doesn't block while it looks the PR up.
+local function diff_against_pr(fallback)
   local ok = pcall(vim.system, { "gh", "pr", "view", "--json", "baseRefName", "-q", ".baseRefName" }, {
     text = true,
     cwd = vim.fn.getcwd(),
@@ -115,9 +123,25 @@ local function diff_against_ref()
   if not ok then fallback() end
 end
 
+-- Closes every diffview tab, not just the current one. Diffview never loaded
+-- means there are no views to close.
+local function close_all()
+  local lib = package.loaded["diffview.lib"]
+  if not lib then return end
+  local diffview = require("diffview")
+  -- Copy first: closing a view removes it from lib.views while we loop.
+  for _, view in ipairs(vim.list_extend({}, lib.views)) do
+    diffview.close(view.tabpage)
+  end
+end
+
 -- Also a command so external callers can launch straight into the PR diff:
 -- `nvim -c DiffviewPR` (used by ~/bin/herdr-gwt-prompt when opening a PR URL).
-vim.api.nvim_create_user_command("DiffviewPR", diff_against_ref, { desc = "Diffview: diff against PR base" })
+vim.api.nvim_create_user_command(
+  "DiffviewPR",
+  function() diff_against_pr(diff_against_detected_base) end,
+  { desc = "Diffview: diff against PR base" }
+)
 
 -- The file history panel inherits the global scrolloff, which wastes rows on
 -- the short list. Drop it to 0 so entries reach the top/bottom edges.
@@ -198,7 +222,7 @@ return {
     }
   end,
   keys = {
-    { "<leader>gc", "<cmd>DiffviewToggle<cr>", desc = "Diffview: toggle" },
+    { "<leader>gc", function() diff_against_pr(diff_dirty_files) end, desc = "Diffview: PR diff, else uncommitted" },
     { "<leader>gC", "<cmd>DiffviewPR<cr>", desc = "Diffview: diff against PR base" },
     { "<leader>gh", history(), desc = "Diffview: repo history" },
     { "<leader>gH", history("%"), desc = "Diffview: current file history" },
@@ -208,6 +232,6 @@ return {
       mode = "x",
       desc = "Diffview: selected lines history",
     },
-    { "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diffview: close" },
+    { "<leader>gq", close_all, desc = "Diffview: close all" },
   },
 }

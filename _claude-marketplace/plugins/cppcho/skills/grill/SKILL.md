@@ -22,7 +22,7 @@ The test that separates them: try to state the consequence out loud. "If we key 
 
 Two things pull a decision back into the questions pile however settled the convention looks:
 
-- **A severe failure mode.** Cheap to _decide_ is not cheap to be _wrong about_. Fail-open versus fail-closed, exempting a class of traffic from the very thing meant to protect you, anything that quietly loses data or money — the conventional answer can be both obvious and wrong here, and someone who ratifies it by skimming a ✅ line has not actually agreed to it.
+- **A severe failure mode.** Cheap to _decide_ is not cheap to be _wrong about_. Fail-open versus fail-closed, exempting a class of traffic from the very thing meant to protect you, anything that quietly loses data or money — the conventional answer can be both obvious and wrong here, and someone who ratifies it by skimming a ✅️ line has not actually agreed to it.
 - **An unverified fact underneath it.** A default is only as good as what it rests on. "Use the Redis we already run" is a default once you've seen the Redis and a guess wearing a checkmark until you have. Go look; if you can't, that's a question, and say which fact you're missing. "Unchanged", "as on main", "exactly today's page" is this case in disguise: it is a diff you haven't run. Diff the branch against the base it claims to equal (`git diff <base>...HEAD -- <area>`), and each thing the branch removed is a question — keep it removed, or bring it back? One branch had dropped a UI element, and "control is the page exactly as on main" quietly committed the build to restoring it.
 
 Three questions in a round is about the ceiling of what someone answers carefully. If more than three survive the filter, ask the highest-consequence three and leave the rest for a later round — don't demote a real question to a default just to fit the cap. Most rounds should come in well under three; if yours keep hitting the ceiling, the filter is too loose.
@@ -46,7 +46,7 @@ A round is open until the user replies to it. While one is open, a returning sub
 Defaults first, so the user sees the cheap stuff as a block to skim rather than interleaved with things they have to think about:
 
 ```
-✅ **<decision>** → <what you chose>
+✅️ **<decision>** → <what you chose>
 ```
 
 One line each, no question marks. A default that's written down is not a silent assumption — that is what makes skipping the question safe rather than sloppy.

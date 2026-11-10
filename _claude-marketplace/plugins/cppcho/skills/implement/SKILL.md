@@ -125,7 +125,7 @@ Record the branch as the ticket's last header line, below **Spec**, above the cr
 
 CI is not this skill's to watch. The gate you ran locally is the bar this run answers for; once the branch is pushed, what the checks do with it is the user's to read, and waiting on them costs a run more than it tells it — in practice they don't settle inside the run at all, since the approval gate needs a person. Push, report the PR, and stop.
 
-Redraw the epic with `cppcho:ticket-dag`: your ticks flip rows to ✅ and can release others to 🟢, and a row still 🟡 or 🔴 behind a finished ticket is a bookkeeping error. When every row is ✅, say so and offer `/cppcho:to-tickets` to archive — offer, don't do; this PR is still open.
+Redraw the epic with `cppcho:ticket-dag`: your ticks flip rows to ✅️ and can release others to 🟢, and a row still 🟡 or 🔴 behind a finished ticket is a bookkeeping error. When every row is ✅️, say so and offer `/cppcho:to-tickets` to archive — offer, don't do; this PR is still open.
 
 ## Running tickets in subagents
 
