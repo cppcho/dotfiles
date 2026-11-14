@@ -5,23 +5,29 @@
 #                                   start a worker: a tab "w:NAME" running claude
 #                                   in DIR, in DIR's repo session (made if missing);
 #                                   -w puts it in a new git worktree named NAME
-#   chief ls [--json]               list workers, their state and their last
-#                                   DONE:/BLOCKED: line
+#   chief ls [--json]               list every Claude session, workers and ones
+#                                   the user started: state, last prompt, last
+#                                   reply or DONE:/BLOCKED: line, unsent input
 #   chief peek NAME [LINES]         print the last LINES (default 60) of its screen
-#   chief send NAME TEXT            type TEXT into the worker and press Enter
+#   chief send [--force] NAME TEXT  type TEXT into the session and press Enter;
+#                                   refuses while its input box holds unsent text
 #   chief send-key NAME KEY...      press keys (enter, escape, down, ctrl+c, …),
 #                                   e.g. to answer a menu
-#   chief wait [NAME...] [--timeout SECS]
-#                                   block until a worker stops working (default:
-#                                   any working worker, including ones started
-#                                   while waiting); prints who stopped and its
-#                                   last DONE:/BLOCKED: line
-#   chief show NAME                 switch Rex.app to the worker's tab
-#   chief close NAME                close the worker's tab (ends its claude)
+#   chief wait [NAME...] [--since EPOCH] [--timeout SECS]
+#                                   block until a session finishes a turn after
+#                                   EPOCH (default: now), whoever started it;
+#                                   prints every one that did, then the command
+#                                   to wait again without missing any
+#   chief show NAME                 switch Rex.app to the session's tab
+#   chief close NAME                close a worker's tab (ends its claude)
 #
-# A worker is any Rex tab whose label starts with "w:", so Rex itself is the
-# registry — no state file to drift. State comes from the status Claude Code
-# reports to Rex (program_status): working, idle, blocked, done, or error.
+# Sessions come from Rex itself, so there is no state file to drift. A worker
+# is a tab labelled "w:NAME" (source "chief"). Any other pane whose foreground
+# process is claude is a session the user started (source "user"), named after
+# its tab label, or after its directory plus the end of its block id when the
+# tab has Rex's default label. The calling pane ($REX_BLOCK) is left out. State
+# comes from the status Claude Code reports to Rex (program_status): working,
+# idle, blocked, done, or error.
 #
 # The session layout matches rex-open: one session per repo, labelled with the
 # main checkout's directory name.
@@ -30,74 +36,188 @@ set -euo pipefail
 PREFIX="w:"
 
 die() { echo "chief: $*" >&2; exit 1; }
-usage() { sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
-# Every worker as TSV: name, session, window, block, cwd.
-workers() {
-    local sid label
-    while IFS=$'\t' read -r sid label; do
-        rex window ls -s "$sid" --json | jq -r --arg s "$sid" --arg p "$PREFIX" '
-            .windows[] | select(.label | startswith($p))
-            | [(.label | ltrimstr($p)), $s, .window_id,
-               (.focused_block_id // .layers[0].blocks[0].block_id)] | @tsv'
-    done < <(rex ls --json | jq -r '.sessions[] | [.session_id, .label] | @tsv')
+# Every Claude session as TSV: name, source, session, window, block. Workers are
+# listed even after their claude exits; user sessions only while claude runs.
+sessions() {
+    local self="${REX_BLOCK:-}" src label sid wid bid proc fg cwd
+    while IFS=$'\t' read -r sid; do
+        rex window ls -s "$sid" --json </dev/null | jq -r --arg s "$sid" --arg p "$PREFIX" '
+            .windows[] | .label as $l | .window_id as $w
+            | if ($l | startswith($p)) then
+                ["chief", ($l | ltrimstr($p)), $s, $w,
+                 (.focused_block_id // .layers[0].blocks[0].block_id)]
+              else
+                (.layers[].blocks[].block_id | ["user", $l, $s, $w, .])
+              end | @tsv'
+    done < <(rex ls --json | jq -r '.sessions[].session_id') |
+    while IFS=$'\t' read -r src label sid wid bid; do
+        [[ $bid != "$self" ]] || continue
+        if [[ $src == chief ]]; then
+            printf 'chief\t%s\t%s\t%s\t%s\t-\n' "$label" "$sid" "$wid" "$bid"
+            continue
+        fi
+        proc=$(rex block call -s "$sid" -b "$bid" process </dev/null 2>/dev/null) || continue
+        IFS=$'\t' read -r fg cwd < <(jq -r '[.foreground.argv0 // .foreground.name // "-", .foreground.cwd // "-"] | @tsv' <<<"$proc")
+        [[ $fg == claude* ]] || continue
+        printf 'user\t%s\t%s\t%s\t%s\t%s\n' "$label" "$sid" "$wid" "$bid" "$cwd"
+    done | awk -F'\t' -v OFS='\t' '
+        # A user session takes its tab label, or its directory plus the end of
+        # its block id; a name that clashes gets the block id suffix too.
+        {
+            src[NR] = $1; sid[NR] = $3; wid[NR] = $4; bid[NR] = $5
+            suf[NR] = substr($5, length($5) - 3)
+            if ($1 == "chief") n = $2
+            else if ($2 != "" && $2 !~ /^Window [0-9a-f]+$/) { n = $2; gsub(/[^A-Za-z0-9._-]+/, "-", n) }
+            else { n = $6; sub(/.*\//, "", n); n = n "-" suf[NR] }
+            name[NR] = n; count[n]++
+        }
+        END {
+            for (i = 1; i <= NR; i++) {
+                n = name[i]
+                if (src[i] == "user" && count[n] > 1) n = n "-" suf[i]
+                print n, src[i], sid[i], wid[i], bid[i]
+            }
+        }'
 }
 
-# Sets SID WID BID for worker NAME, or dies.
-find_worker() {
+# Sets SRC SID WID BID for session NAME, or dies.
+find_session() {
     local row
-    # Read the whole list: exiting at the first match would SIGPIPE `workers`,
+    # Read the whole list: exiting at the first match would SIGPIPE `sessions`,
     # and pipefail would kill the script.
-    row=$(workers | awk -F'\t' -v n="$1" '$1 == n && !f { print; f = 1 }')
-    [[ -n $row ]] || die "no worker named '$1' (see: chief ls)"
-    IFS=$'\t' read -r _ SID WID BID <<<"$row"
+    row=$(sessions | awk -F'\t' -v n="$1" '$1 == n && !f { print; f = 1 }')
+    [[ -n $row ]] || die "no session named '$1' (see: chief ls)"
+    IFS=$'\t' read -r _ SRC SID WID BID <<<"$row"
 }
 
-# The worker's state, message and cwd, tab-separated. "exited" when claude has
-# quit; "blocked(trust)" while it sits on the folder-trust prompt, which comes
-# before Claude Code reports any status.
+# The session's state, message, cwd and the epoch of its last state change
+# ("-" when unknown), tab-separated. "exited" when claude has quit;
+# "blocked(trust)" while it sits on the folder-trust prompt, which comes before
+# Claude Code reports any status.
 state_of() {
-    local sid="$1" bid="$2" proc fg cwd st
+    local sid="$1" bid="$2" proc fg cwd st msg at
     proc=$(rex block call -s "$sid" -b "$bid" process 2>/dev/null) || proc='{}'
     fg=$(jq -r '.foreground.argv0 // .foreground.name // ""' <<<"$proc")
-    cwd=$(jq -r '.foreground.cwd // ""' <<<"$proc"); cwd="${cwd/#$HOME/~}"
+    cwd=$(jq -r '.foreground.cwd // ""' <<<"$proc")
     if [[ $fg != claude* ]]; then
-        printf 'exited\t%s\t%s\n' "${fg:-gone}" "${cwd:--}"
+        printf 'exited\t%s\t%s\t-\n' "${fg:-gone}" "${cwd:--}"
         return
     fi
     st=$(rex block call -s "$sid" -b "$bid" program_status 2>/dev/null | jq -r '
+        def epoch: try (capture("^(?<d>[0-9-]+T[0-9:]+)(\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:[0-9]{2})$")
+            | (.d + "Z" | fromdateiso8601)
+              - (if .z == "Z" then 0
+                 else (.z[0:1] + "1" | tonumber) * ((.z[1:3] | tonumber) * 3600 + (.z[4:6] | tonumber) * 60) end))
+            catch "-";
         ([.records[] | select(.effective_app == "claude-code")] | last) as $r
-        | if $r == null then "starting\t-"
+        | if $r == null then "starting\t-\t-"
           else [$r.state + (if $r.kind then "(" + $r.kind + ")" else "" end),
-                (if ($r.msg // "") == "" then "-" else $r.msg end | gsub("[\t\n]"; " "))] | @tsv end')
+                (if ($r.msg // "") == "" then "-" else $r.msg end | gsub("[\t\n]"; " ")),
+                ($r.updated_at // "" | epoch | tostring)] | @tsv end')
     if [[ $st == starting* ]] && [[ $(rex capture -s "$sid" -b "$bid" --trim) == *'trust this folder'* ]]; then
-        st=$'blocked(trust)\tfolder-trust prompt: answer with: chief send-key NAME down enter'
+        st=$'blocked(trust)\tfolder-trust prompt: answer with: chief send-key NAME down enter\t-'
     fi
-    printf '%s\t%s\n' "$st" "${cwd:--}"
+    IFS=$'\t' read -r st msg at <<<"$st"
+    printf '%s\t%s\t%s\t%s\n' "$st" "$msg" "${cwd:--}" "$at"
 }
 
-# The worker's last DONE:/BLOCKED: line since the last prompt it was sent,
-# joined with its wrapped continuation, or "(no DONE/BLOCKED line)". Lines
-# from the input box's top border down are the input box, not the transcript.
-result_of() {
-    rex capture -s "$1" -b "$2" --trim --unwrap | awk '
-        { line[NR] = $0 }
+# What the session's screen says since the last prompt it was sent, as TSV:
+# that prompt, the last line of its reply, its last DONE:/BLOCKED: line (joined
+# with its wrapped continuation), and any unsent text in its input box; "-"
+# where there is none. Lines from the input box's top border down are the input
+# box, not the transcript. A side panel, if open, is cut off each line, and
+# right-aligned notices (deep indents) never count as the reply.
+#
+# The capture keeps terminal styling so that typed text can be told from the
+# suggested next prompt and the placeholder Claude Code shows in an empty input
+# box: those are drawn dim (SGR 2), typed text is not. perl turns dim-on into
+# \001, any reset into \002, cursor-forward moves back into the spaces they
+# stand for, and drops every other escape sequence; awk then
+# deletes dim spans from the input box and the markers everywhere else.
+screen_of() {
+    rex capture -s "$1" -b "$2" --format=vt --trim --unwrap | perl -pe '
+        s/\e\[(\d*)C/" " x ($1 || 1)/ge;
+        s{\e\[([0-9;:]*)m}{
+            my @p = split /[;:]/, $1;
+            (grep { $_ eq "2" } @p) ? "\001" : (!@p || grep { $_ eq "0" || $_ eq "22" } @p) ? "\002" : ""
+        }ge;
+        s/\e\][^\a\e]*(?:\a|\e\\)//g;
+        s/\e\[[0-9;:?<>=]*[ -\/]*[\@-~]//g;
+        s/\e[()][0-9A-Za-z]|\e[=>78]//g;
+        s/\r$//;
+    ' | awk '
+        function clean(s) { gsub(/\t/, " ", s); sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s == "" ? "-" : s }
+        { s = $0; raw[NR] = s; gsub(/[\001\002]/, "", s); gsub("\302\240", " ", s); sub(/  +│.*$/, "", s); line[NR] = s }
         END {
-            end = NR; b = 0
-            for (i = NR; i > 0; i--) if (line[i] ~ /^─/ && ++b == 2) { end = i - 1; break }
-            start = 1
-            for (i = end; i > 0; i--) if (line[i] ~ /^❯ /) { start = i + 1; break }
-            r = ""
-            for (i = start; i <= end; i++) {
-                s = line[i]; sub(/^[ \t]*(⏺[ \t]*)?/, "", s)
-                if (s !~ /^(DONE|BLOCKED):/) continue
-                r = s
-                while (i + 1 <= end && line[i + 1] ~ /^[ \t]+[^ \t]/) {
-                    t = line[++i]; sub(/^[ \t]+/, "", t); r = r " " t
-                }
+            end = NR; top = 0; b = 0
+            for (i = NR; i > 0; i--) if (line[i] ~ /^─/ && ++b == 2) { top = i; end = i - 1; break }
+            input = ""
+            if (top) for (i = top + 1; i <= NR && line[i] !~ /^─/; i++) {
+                s = raw[i]; gsub(/\001[^\002]*(\002|$)/, "", s); gsub(/[\001\002]/, "", s)
+                gsub("\302\240", " ", s); sub(/^❯ ?/, "", s); s = clean(s)
+                if (s != "-") input = input (input == "" ? "" : " ") s
             }
-            print (r == "" ? "(no DONE/BLOCKED line)" : r)
+            start = 0; prompt = ""
+            for (i = end; i > 0; i--) if (line[i] ~ /^❯ /) { start = i; prompt = line[i]; sub(/^❯ /, "", prompt); break }
+            reply = ""; result = ""
+            for (i = start + 1; i <= end; i++) {
+                s = line[i]; sub(/^[ \t]*(⏺[ \t]*)?/, "", s)
+                if (s ~ /^(DONE|BLOCKED):/) {
+                    while (i + 1 <= end && line[i + 1] ~ /^[ \t]+[^ \t]/) {
+                        t = line[++i]; sub(/^[ \t]+/, "", t); s = s " " t
+                    }
+                    result = s
+                }
+                if (s !~ /^[ \t]*$/ && line[i] !~ /^✻/ && line[i] !~ /^ {20}/) reply = s
+            }
+            print clean(prompt) "\t" clean(reply) "\t" clean(result) "\t" clean(input)
         }'
+}
+
+# One TSV row per session for ls and wait: name, source, state, epoch of the
+# last state change, dir, git branch, status message, last prompt, last reply
+# line, DONE:/BLOCKED: line, unsent input.
+row_of() {
+    local name="$1" src="$2" sid="$3" bid="$4" st msg cwd at br prompt=- reply=- result=- input=-
+    IFS=$'\t' read -r st msg cwd at < <(state_of "$sid" "$bid")
+    br=$(git -C "$cwd" branch --show-current 2>/dev/null) || br=-
+    if [[ $st != exited ]]; then
+        IFS=$'\t' read -r prompt reply result input < <(screen_of "$sid" "$bid")
+        [[ $st != working && $st != starting ]] || { reply=-; result=-; }
+    fi
+    [[ $cwd != "$HOME"* ]] || cwd="~${cwd#"$HOME"}"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$src" "$st" "$at" \
+        "$cwd" "${br:--}" "$msg" "${prompt:0:120}" "${reply:0:200}" "$result" "${input:0:120}"
+}
+
+# Prints rows from row_of as one short block per session.
+show_rows() {
+    local rows r name src st at cwd br msg prompt reply result input when same d
+    local dirs=()
+    mapfile -t rows
+    for r in "${rows[@]}"; do
+        IFS=$'\t' read -r _ _ st _ cwd _ <<<"$r"
+        [[ $st == exited || $st == gone ]] || dirs+=("$cwd")
+    done
+    for r in "${rows[@]}"; do
+        IFS=$'\t' read -r name src st at cwd br msg prompt reply result input <<<"$r"
+        when=-; [[ $at == - ]] || printf -v when '%(%H:%M)T' "$at"
+        printf '%s  [%s]  %s  since %s  %s%s\n' "$name" "$src" "$st" "$when" "$cwd" \
+            "$([[ $br == - ]] || echo " ($br)")"
+        [[ $msg == - ]] || echo "  status: $msg"
+        [[ $prompt == - ]] || echo "  prompt: $prompt"
+        if [[ $result != - ]]; then echo "  result: $result"
+        elif [[ $reply != - ]]; then echo "  reply:  $reply"
+        elif [[ $src == chief && $st != working && $st != starting && $st != exited && $st != gone ]]; then
+            echo "  result: (no DONE/BLOCKED line)"
+        fi
+        [[ $input == - ]] || echo "  unsent: $input"
+        same=0
+        for d in "${dirs[@]}"; do [[ $d != "$cwd" ]] || same=$((same + 1)); done
+        (( same < 2 )) || echo "  note: another live session is in the same checkout"
+    done
 }
 
 # Dies with a hint when the Rex server can't be reached.
@@ -137,8 +257,8 @@ cmd_spawn() {
     [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || die "name must be [A-Za-z0-9._-]+"
     [[ -d $dir ]] || die "no such directory: $dir"
     dir=$(cd "$dir" && pwd)
-    if workers | awk -F'\t' -v n="$name" '$1 == n { f=1 } END { exit !f }'; then
-        die "worker '$name' already exists"
+    if sessions | awk -F'\t' -v n="$name" '$1 == n { f=1 } END { exit !f }'; then
+        die "a session named '$name' already exists"
     fi
     sid=$(session_for_dir "$dir")
     out=$(rex window new -s "$sid" "$PREFIX$name" -c "$dir" --keep-open --focus=false --json \
@@ -147,39 +267,42 @@ cmd_spawn() {
 }
 
 cmd_ls() {
-    local json=0 name sid wid bid st msg cwd res
+    local json=0 name src sid wid bid
     [[ ${1:-} == --json ]] && json=1
     check_rex
     {
-        while IFS=$'\t' read -r name sid wid bid; do
-            IFS=$'\t' read -r st msg cwd < <(state_of "$sid" "$bid")
-            case $st in
-                working|starting|exited) res=- ;;
-                *) res=$(result_of "$sid" "$bid") ;;
-            esac
-            printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$st" "$cwd" "$msg" "$res"
-        done < <(workers)
+        while IFS=$'\t' read -r name src sid wid bid; do
+            row_of "$name" "$src" "$sid" "$bid"
+        done < <(sessions)
     } | if (( json )); then
-        jq -Rn '[inputs | split("\t") | {name: .[0], state: .[1], dir: .[2], msg: .[3], result: .[4]}]'
+        jq -Rn '[inputs | split("\t") | map(if . == "-" then null else . end)
+            | {name: .[0], source: .[1], state: .[2], since: (.[3] | if . then tonumber else . end),
+               dir: .[4], branch: .[5], msg: .[6], prompt: .[7], reply: .[8], result: .[9], unsent: .[10]}]'
     else
-        { printf 'NAME\tSTATE\tDIR\tLAST\tRESULT\n'; cat; } | column -t -s $'\t'
+        show_rows
     fi
 }
 
 cmd_peek() {
     [[ $# -ge 1 ]] || usage
-    find_worker "$1"
+    find_session "$1"
     rex capture -s "$SID" -b "$BID" --trim --unwrap | tail -n "${2:-60}"
 }
 
 cmd_send() {
+    local force=0 input
+    [[ ${1:-} == --force ]] && { force=1; shift; }
     [[ $# -eq 2 ]] || usage
-    find_worker "$1"
+    find_session "$1"
+    if (( ! force )); then
+        input=$(screen_of "$SID" "$BID" | cut -f4)
+        [[ $input == - ]] || die "$1 has unsent text in its input box, so someone may be typing there: \"${input:0:80}\" (peek first; --force sends anyway)"
+    fi
     # Bracketed paste, so newlines in TEXT don't submit early.
     rex send -s "$SID" -b "$BID" $'\e[200~'"$2"$'\e[201~'
     sleep 0.3
     rex send-key -s "$SID" -b "$BID" enter
-    # Let the worker report "working" so an immediate `chief wait` doesn't
+    # Let the session report "working" so an immediate `chief wait` doesn't
     # return on the state left over from its previous turn.
     local i st
     for i in {1..15}; do
@@ -190,73 +313,70 @@ cmd_send() {
     echo "sent to $1 ($st)"
 }
 
-# Prints "name state message result" for a worker that stopped working.
-report_stop() {
-    local name="$1" sid="$2" bid="$3" st="$4" msg="$5" res=-
-    [[ $st == exited ]] || res=$(result_of "$sid" "$bid")
-    printf '%s\t%s\t%s\t%s\n' "$name" "$st" "$msg" "$res"
-}
-
-# With names, watches those workers. Without, watches every worker seen working
-# or starting, rescanning each round so workers spawned meanwhile are included.
+# A session finished a turn when it is no longer working or starting and either
+# its state changed after --since or this wait saw it working. Every round
+# rescans, so sessions started meanwhile, by the chief or the user, count.
 cmd_wait() {
-    local timeout=3600 names=() watched=" " first=1 name sid wid bid st msg rows n row
+    local timeout=3600 since="" names=() prev=" " srcs=" " cur now rows out name src sid wid bid st at n
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --timeout) timeout="$2"; shift 2 ;;
+            --since) since="$2"; shift 2 ;;
             *) names+=("$1"); shift ;;
         esac
     done
+    [[ $since =~ ^[0-9]+$ ]] || since=$(date +%s)
     local deadline=$(( $(date +%s) + timeout ))
     while :; do
-        rows=$(workers)
-        if [[ ${#names[@]} -gt 0 ]]; then
-            for n in "${names[@]}"; do
-                row=$(awk -F'\t' -v n="$n" '$1 == n' <<<"$rows")
-                [[ -n $row ]] || { printf '%s\tgone\t-\t-\n' "$n"; return 0; }
-                IFS=$'\t' read -r name sid wid bid <<<"$row"
-                IFS=$'\t' read -r st msg _ < <(state_of "$sid" "$bid")
-                if [[ $st != working && $st != starting ]]; then
-                    report_stop "$n" "$sid" "$bid" "$st" "$msg"
-                    return 0
-                fi
-            done
-        else
-            for n in $watched; do
-                awk -F'\t' -v n="$n" '$1 == n { f = 1 } END { exit !f }' <<<"$rows" \
-                    || { printf '%s\tgone\t-\t-\n' "$n"; return 0; }
-            done
-            while IFS=$'\t' read -r name sid wid bid; do
-                [[ -n $name ]] || continue
-                IFS=$'\t' read -r st msg _ < <(state_of "$sid" "$bid")
-                if [[ $st == working || $st == starting ]]; then
-                    [[ $watched == *" $name "* ]] || watched+="$name "
-                elif [[ $watched == *" $name "* ]]; then
-                    report_stop "$name" "$sid" "$bid" "$st" "$msg"
-                    return 0
-                fi
-            done <<<"$rows"
-            if (( first )) && [[ $watched == " " ]]; then
-                echo "no worker is working"; return 0
+        now=$(date +%s)
+        rows=$(sessions)
+        out="" cur=" "
+        for n in "${names[@]}"; do
+            awk -F'\t' -v n="$n" '$1 == n { f = 1 } END { exit !f }' <<<"$rows" \
+                || out+="$n"$'\t-\tgone\t-\t-\t-\t-\t-\t-\t-\t-\n'
+        done
+        while IFS=$'\t' read -r name src sid wid bid; do
+            [[ -n $name ]] || continue
+            if [[ ${#names[@]} -gt 0 && " ${names[*]} " != *" $name "* ]]; then continue; fi
+            IFS=$'\t' read -r st _ _ at < <(state_of "$sid" "$bid")
+            cur+="$name=$st "
+            [[ $srcs == *" $name:"* ]] || srcs+="$name:$src "
+            [[ $st != working && $st != starting ]] || continue
+            if [[ ( $at != - && $at -gt $since ) || $prev == *" $name=working "* || $prev == *" $name=starting "* ]]; then
+                out+="$(row_of "$name" "$src" "$sid" "$bid")"$'\n'
             fi
+        done <<<"$rows"
+        # Sessions this wait saw that have since disappeared (a user's claude quit).
+        for n in $prev; do
+            name=${n%%=*}
+            [[ ${n#*=} != exited && $cur != *" $name="* ]] || continue
+            src=${srcs#* "$name:"}; src=${src%% *}
+            out+="$name"$'\t'"$src"$'\tgone\t-\t-\t-\t-\t-\t-\t-\t-\n'
+        done
+        prev=$cur
+        if [[ -n $out ]]; then
+            printf '%s' "$out" | show_rows
+            echo "next: chief wait --since $now"
+            return 0
         fi
-        first=0
-        (( $(date +%s) < deadline )) || {
-            echo "timeout; still working: $(if [[ ${#names[@]} -gt 0 ]]; then echo "${names[*]}"; else echo $watched; fi)"
-            return 3; }
+        if (( $(date +%s) >= deadline )); then
+            echo "timeout: no session finished a turn"
+            echo "next: chief wait --since $now"
+            return 3
+        fi
         sleep 10
     done
 }
 
 cmd_key() {
     [[ $# -ge 2 ]] || usage
-    find_worker "$1"; shift
+    find_session "$1"; shift
     rex send-key -s "$SID" -b "$BID" "$@"
 }
 
 cmd_show() {
     [[ $# -eq 1 ]] || usage
-    find_worker "$1"
+    find_session "$1"
     rex focus -s "$SID" "$WID" >/dev/null
     rex do session.select session_id="$SID" window_id="$WID" >/dev/null 2>&1 \
         || die "Rex.app didn't switch (is Remote Control on?)"
@@ -264,7 +384,8 @@ cmd_show() {
 
 cmd_close() {
     [[ $# -eq 1 ]] || usage
-    find_worker "$1"
+    find_session "$1"
+    [[ $SRC == chief ]] || die "$1 is a session the user started; chief only closes its own workers"
     rex window close -s "$SID" "$WID" >/dev/null
     echo "closed $1"
 }
